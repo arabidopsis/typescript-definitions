@@ -1,11 +1,11 @@
 [package]
-name = "wasm-typescript-definition"
+name = "wasm-typescript-definition2"
 version = "0.1.0"
 description = "serde support for exporting Typescript definitions using wasm-bindgen"
 readme = "README.md"
-authors = ["Tim Ryan <id@timryan.org>", "Sam Rijs <srijs@airpost.net>"]
+authors = ["Tim Ryan <id@timryan.org>", "Sam Rijs <srijs@airpost.net>" , "Ian Castleden <ian.castleden@gmail.com>"]
 license = "MIT/Apache-2.0"
-repository = "https://github.com/tcr/wasm-typescript-definition"
+repository = "https://bitbucket.org/athaliana/wasm-typescript-definition"
 
 [lib]
 proc-macro = true

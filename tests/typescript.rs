@@ -4,7 +4,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
-extern crate wasm_typescript_definition;
+extern crate wasm_typescript_definition2;
 #[macro_use]
 extern crate quote;
 #[macro_use]
@@ -12,7 +12,7 @@ extern crate wasm_bindgen;
 
 use std::borrow::Cow;
 use serde::de::value::Error;
-use wasm_typescript_definition::TypescriptDefinition;
+use wasm_typescript_definition2::TypescriptDefinition;
 use wasm_bindgen::prelude::*;
 
 #[test]

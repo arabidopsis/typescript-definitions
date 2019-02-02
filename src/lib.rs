@@ -1,7 +1,9 @@
 extern crate proc_macro;
+
 #[macro_use]
 extern crate quote;
-extern crate serde;
+
+// extern crate serde;
 extern crate serde_derive_internals;
 extern crate syn;
 extern crate proc_macro2;
@@ -44,6 +46,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
     };
 
     let typescript_string = patch(&typescript.to_string());
+    let export_string = format!("export type {} = {};", container.ident, typescript_string);
     let typescript_ident = ident_from_str(&format!("{}___typescript_definition", container.ident));
 
     let export_ident = ident_from_str(
@@ -58,7 +61,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
     let mut expanded = quote! {
 
         #[wasm_bindgen(typescript_custom_section)]
-        const #export_ident : &'static str = #typescript_string;
+        const #export_ident : &'static str = #export_string;
 
     };
 
