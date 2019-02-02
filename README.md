@@ -37,6 +37,8 @@ export type Enum =
 
 ## Credit
 
+
+Forked from [`wasm-typescript-definition` by @tcr](https://github.com/tcr/wasm-typescript-definition?files=1)
 Forked from [`rust-serde-schema` by @srijs](https://github.com/srijs/rust-serde-schema?files=1).
 
 ## License
