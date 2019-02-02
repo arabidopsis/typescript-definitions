@@ -174,25 +174,33 @@ fn generic_to_ts(ts : TSType) -> QuoteT {
             "bool" => quote! { boolean },
             "Vec" => { let a = collapse_list_bar(&ts.args); quote! { #a[] }},
             "Cow" if ts.args.len() > 0 => { ts.args[0].clone() },
-            "HashMap" => {
-                    let k = ts.args[0].clone();
-                    let v = ts.args[1].clone();
+            "HashMap" if ts.args.len() >= 2 => {
+                    let k = &ts.args[0];
+                    let v = &ts.args[1];
                     quote!(Map<#k,#v>)
                 }
-            "HashSet" => {
-                    let k = ts.args[0].clone();
+            "HashSet" if ts.args.len() >= 1 => {
+                    let k = &ts.args[0];
                     quote!(Set<#k>)
                 },
-            "Option" => {
-                let k = ts.args[0].clone();
+            "Option" if ts.args.len() >= 1 =>  {
+                let k = &ts.args[0];
                 quote!(#k | null)
             },
-            "Result" => {
-                    let k = ts.args[0].clone();
-                    let v = ts.args[1].clone();
+            "Result" if ts.args.len() >= 2 => {
+                    let k = &ts.args[0];
+                    let v = &ts.args[1];
                     quote!(#k | #v)         
             }        
-            _ => { let ident = ts.ident; quote! { #ident } }
+            _ => { 
+                let ident = ts.ident;
+                if ts.args.len() > 0 {
+                    let args = collapse_list_comma(&ts.args);
+                    quote! { #ident<#args> } 
+                } else {
+                    quote! {#ident}
+                }
+            }
     }
 }
 
