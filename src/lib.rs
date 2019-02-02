@@ -25,14 +25,15 @@ type QuoteT = proc_macro2::TokenStream;
 
 // TODO: where does the newline come from? why the double spaces?
 fn patch(s: &str) -> String {
-    s.replace("\n", " ")
+    s 
         .replace("[  ]", "[ ]")
         .replace("{  }", "{ }")
 }
 
-#[proc_macro_derive(TypescriptDefinition)]
-pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    // eprintln!(".........[input] {}", input);
+
+
+fn parse(input: proc_macro::TokenStream) -> (syn::Ident,QuoteT)  {
+        // eprintln!(".........[input] {}", input);
     let input: DeriveInput = syn::parse(input).unwrap();
 
     let cx = Ctxt::new();
@@ -45,17 +46,25 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
         }
     };
 
-    let typescript_string = patch(&typescript.to_string());
-    let export_string = format!("export type {} = {};", container.ident, typescript_string);
-    let typescript_ident = ident_from_str(&format!("{}___typescript_definition", container.ident));
+    cx.check().unwrap();
+    (container.ident, typescript)
+}
 
+#[proc_macro_derive(TypescriptDefinition)]
+pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+
+    let (ident, typescript) = parse(input);
+
+    let typescript_string = patch(&typescript.to_string());
+    let export_string = format!("export type {} = {};", ident, typescript_string);
+ 
     let export_ident = ident_from_str(
-        &format!("TS_EXPORT_{}", container.ident.to_string().to_uppercase()));
+        &format!("TS_EXPORT_{}", ident.to_string().to_uppercase()));
         
 
     eprintln!(
         "....[typescript] export type {}={};",
-        container.ident, typescript_string
+        ident, typescript_string
     );
 
     let mut expanded = quote! {
@@ -63,17 +72,26 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
         #[wasm_bindgen(typescript_custom_section)]
         const #export_ident : &'static str = #export_string;
 
+        // can't do Borrow<'a>  etc.
+        // impl TypeScriptifyTrait for #ident {
+        //     fn type_script_ify() ->  &'static str {
+        //         #typescript_string
+        //     }
+        // }
+
     };
 
     if cfg!(any(debug_assertions, feature = "test-export")) {
+        let ts = typescript_string.replace("\n", " "); // why the newlines?
+        let typescript_ident = ident_from_str(&format!("{}___typescript_definition", ident));
+
         expanded.append_all(quote! {
             fn #typescript_ident ( ) -> &'static str {
-                #typescript_string
+                #ts
             }
-        });
+        })
     }
 
-    cx.check().unwrap();
 
     expanded.into()
 }
@@ -118,7 +136,13 @@ fn type_array(elem: &syn::Type) -> QuoteT {
     let tp = type_to_ts(elem);
     quote! { #tp[] }
 }
-fn last_path(path: &syn::Path) -> Option<(syn::Ident, Vec<QuoteT>)> {
+
+struct TSType {
+    ident: syn::Ident,
+    args: Vec<QuoteT>,
+
+}
+fn last_path(path: &syn::Path) -> Option<TSType> {
     match path.segments.last().map(|p| p.into_value()) {
         Some(t) => {
             let ident = t.ident.clone(); 
@@ -127,31 +151,48 @@ fn last_path(path: &syn::Path) -> Option<(syn::Ident, Vec<QuoteT>)> {
                     args
                 },
                 //syn::PathArguments::Parenthesized(syn::ParenthesizedGenericArguments { inputs, output, ..}) => { 
-                //    return Some((ident, vec![]))
+                //    return Some(TSType { ident:ident, args:vec![]})
                 //}
-                _ => return Some((ident, vec![]))
+                _ => return Some(TSType { ident:ident, args:vec![]})
             };
 
             let v = args.iter()
                 .filter_map(|p| match p {syn::GenericArgument::Type(t) => Some(t), _ =>None})
                 .map(|p| type_to_ts(p)).collect::<Vec<_>>();
 
-            Some((ident, v))
+            Some(TSType { ident:ident, args:v})
         },
         None => None,
     }
 }
-fn generic_to_ts(name : &syn::Ident, args: &[QuoteT]) -> QuoteT {
+fn generic_to_ts(ts : TSType) -> QuoteT {
 
-
-    match name.to_string().as_ref() {
+    match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32"
             | "i64" | "i128" | "isize" => quote! { number },
             "String" | "str"  => quote! { string },
             "bool" => quote! { boolean },
-            "Vec" => { let a = collapse_list_bar(args); quote! { #a[] }},
-            "Cow" if args.len() > 0 => { args[0].clone() }
-            _ => quote !{ any }
+            "Vec" => { let a = collapse_list_bar(&ts.args); quote! { #a[] }},
+            "Cow" if ts.args.len() > 0 => { ts.args[0].clone() },
+            "HashMap" => {
+                    let k = ts.args[0].clone();
+                    let v = ts.args[1].clone();
+                    quote!(Map<#k,#v>)
+                }
+            "HashSet" => {
+                    let k = ts.args[0].clone();
+                    quote!(Set<#k>)
+                },
+            "Option" => {
+                let k = ts.args[0].clone();
+                quote!(#k | null)
+            },
+            "Result" => {
+                    let k = ts.args[0].clone();
+                    let v = ts.args[1].clone();
+                    quote!(#k | #v)         
+            }        
+            _ => { let ident = ts.ident; quote! { #ident } }
     }
 }
 
@@ -174,7 +215,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
         }
         Path(TypePath { path, .. }) => {
             match last_path(&path) {
-                Some((ident, args)) => generic_to_ts(&ident, &args),
+                Some(ts) => generic_to_ts(ts),
                 _ => quote! { any }
             }
         }
@@ -183,9 +224,9 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
                 .iter()
                 .filter_map(|t| match t {
                     TypeParamBound::Trait(t) => last_path(&t.path),
-                    _ => None,
+                    _ => None, // skip lifetime etc.
                 })
-                .map(|t| {let v = t.0; quote!(#v)})
+                .map(|t| {let ident = t.ident; quote!(#ident)})
                 .collect::<Vec<_>>();
             collapse_list_bar(&qelems)
         }
@@ -200,7 +241,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
     }
 }
 
-fn derive_field<'a>(_variant_idx: usize, _field_idx: usize, field: &ast::Field<'a>) -> QuoteT {
+fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
     let field_name = field.attrs.name().serialize_name();
     let ty = type_to_ts(&field.ty);
     quote! {
@@ -208,9 +249,7 @@ fn derive_field<'a>(_variant_idx: usize, _field_idx: usize, field: &ast::Field<'
     }
 }
 
-fn derive_element<'a>(_variant_idx: usize, _element_idx: usize, field: &ast::Field<'a>) -> QuoteT {
-    let ty = type_to_ts(&field.ty);
-    quote! {
-        #ty
-    }
+fn derive_element<'a>( field: &ast::Field<'a>) -> QuoteT {
+    type_to_ts(&field.ty)
+
 }

@@ -12,9 +12,11 @@ extern crate wasm_bindgen;
 
 use std::borrow::Cow;
 use serde::de::value::Error;
-use wasm_typescript_definition2::TypescriptDefinition;
+use wasm_typescript_definition2::{TypescriptDefinition};
 use wasm_bindgen::prelude::*;
-
+trait TypeScriptifyTrait {
+    fn type_script_ify() -> &'static str;
+}
 #[test]
 fn unit_struct() {
     #[derive(Serialize, TypescriptDefinition)]

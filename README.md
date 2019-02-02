@@ -4,6 +4,7 @@ Exports serde-serializable structs and enums to Typescript definitions when used
 
 ```rust
 #[derive(Serialize, TypescriptDefinition)]
+#[serde(tag = "tag", content = "fields")]
 enum Enum {
     #[allow(unused)]
     V1 {
@@ -73,13 +74,14 @@ cargo +nightly install wasm-bindgen-cli
 or use wasm-pack
 
 ```bash
-cargo +nightly install wasm-pack
+curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 wasm-pack build
 ```
 
 
 ## Credit
 
+see http://timryan.org/2019/01/22/exporting-serde-types-to-typescript.html
 
 Forked from [`wasm-typescript-definition` by @tcr](https://github.com/tcr/wasm-typescript-definition?files=1)
 Forked from [`rust-serde-schema` by @srijs](https://github.com/srijs/rust-serde-schema?files=1).

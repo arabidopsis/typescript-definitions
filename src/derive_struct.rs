@@ -21,7 +21,7 @@ fn derive_struct_newtype<'a>(
     fields: &[ast::Field<'a>],
     _attr_container: &attr::Container,
 ) -> QuoteT {
-    derive_element(0, 0, &fields[0])
+    derive_element(&fields[0])
 }
 
 fn derive_struct_unit(_attr_container: &attr::Container) -> QuoteT {
@@ -37,8 +37,7 @@ fn derive_struct_named_fields<'a>(
     collapse_list_brace(
         &fields
             .into_iter()
-            .enumerate()
-            .map(|(field_idx, field)| derive_field(0, field_idx, &field))
+            .map(|field| derive_field(&field))
             .collect::<Vec<_>>()
     )
 }

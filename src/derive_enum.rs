@@ -10,18 +10,17 @@ pub fn derive_enum<'a>(
 ) -> QuoteT {
     variants
         .into_iter()
-        .enumerate()
-        .map(|(variant_idx, variant)| {
+        .map(|variant| {
             let variant_name = variant.attrs.name().serialize_name();
             match variant.style {
                 ast::Style::Struct => {
-                    derive_struct_variant(&variant_name, variant_idx, &variant.fields)
+                    derive_struct_variant(&variant_name, &variant.fields)
                 }
                 ast::Style::Newtype => {
-                    derive_newtype_variant(&variant_name, variant_idx, &variant.fields[0])
+                    derive_newtype_variant(&variant_name, &variant.fields[0])
                 }
                 ast::Style::Tuple => {
-                    derive_tuple_variant(&variant_name, variant_idx, &variant.fields)
+                    derive_tuple_variant(&variant_name, &variant.fields)
                 }
                 ast::Style::Unit => derive_unit_variant(&variant_name),
             }
@@ -40,7 +39,6 @@ fn derive_unit_variant(variant_name: &str) -> QuoteT {
 
 fn derive_newtype_variant<'a>(
     variant_name: &str,
-    _variant_idx: usize,
     field: &ast::Field<'a>,
 ) -> QuoteT {
     let ty = type_to_ts(&field.ty);
@@ -51,14 +49,12 @@ fn derive_newtype_variant<'a>(
 
 fn derive_struct_variant<'a>(
     variant_name: &str,
-    variant_idx: usize,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
     let contents = collapse_list_brace(
         &fields
             .into_iter()
-            .enumerate()
-            .map(|(field_idx, field)| derive_field(variant_idx, field_idx, field))
+            .map(|field| derive_field(field))
             .collect::<Vec<_>>()
     );
     quote! {
@@ -68,14 +64,12 @@ fn derive_struct_variant<'a>(
 
 fn derive_tuple_variant<'a>(
     variant_name: &str,
-    _variant_idx: usize,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
     let contents = collapse_list_bracket(
         &fields
             .into_iter()
-            .enumerate()
-            .map(|(element_idx, field)| derive_element(0, element_idx, &field))
+            .map(|field| derive_element(field))
             .collect::<Vec<_>>()
     );
     quote! {
