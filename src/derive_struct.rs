@@ -38,7 +38,7 @@ fn derive_struct_named_fields<'a>(
         &fields
             .into_iter()
             .map(|field| derive_field(&field))
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>(),
     )
 }
 
@@ -47,6 +47,6 @@ fn derive_struct_tuple<'a>(fields: &[ast::Field<'a>], _attr_container: &attr::Co
         &fields
             .into_iter()
             .map(|field| type_to_ts(field.ty))
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>(),
     )
 }

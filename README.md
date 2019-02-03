@@ -71,7 +71,7 @@ rustup target add wasm32-unknown-unknown --toolchain nightly
 cargo +nightly install wasm-bindgen-cli
 ```
 
-or use wasm-pack
+or use wasm-pack (the typscript library will be in `pkg/wasm.d.ts`)
 
 ```bash
 curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -80,16 +80,17 @@ wasm-pack build
 
 ## Using `type_script_ify`
 
-You can ignore wasm and derive `TypeScriptify` as long as you have the following Trait
-in scope
+You can ignore wasm and derive using `TypeScriptify` as long as you have the following Trait
+in scope:
 
 ```rust
 // interface.rs
+// wasm_bindgen not needed
 // use::wasm_bindgen::prelude::*;
 use::serde_derive::{Serialize};
 use::wasm_typescript_definition2::{TypeScriptify};
-// *you* have to provide this because, currently, rust proc-macro crates can't
-// export any public Traits etc...
+// *you* have to provide this Trait because, currently, rust proc-macro crates can't
+// export any public Traits etc... sorry.
 pub trait TypeScriptifyTrait {
     fn type_script_ify() -> &'static str;
 }
@@ -98,7 +99,7 @@ pub struct MyStruct {
     v : i32,
 }
 ```
-Then in `main.rs` say:
+Then in `main.rs` say you can generate your own typscript specification using `Struct::type_script_ify()`:
 
 ```rust
 mod interface;
@@ -107,7 +108,7 @@ use self::interface::{TypeScriptifyTrait};
 
 fn main() {
     println!("{}", interface::MyStruct::type_script_ify());
-    // export type MyStruct = { "v": number };
+    // prints "export type MyStruct = { "v": number };"
 }
 ```
 
@@ -129,7 +130,7 @@ The default for NewTypes and Tuple types is
 see http://timryan.org/2019/01/22/exporting-serde-types-to-typescript.html
 
 Forked from [`wasm-typescript-definition` by @tcr](https://github.com/tcr/wasm-typescript-definition?files=1)
-Forked from [`rust-serde-schema` by @srijs](https://github.com/srijs/rust-serde-schema?files=1).
+Which was forked from [`rust-serde-schema` by @srijs](https://github.com/srijs/rust-serde-schema?files=1).
 
 `type_script_ify` idea from [`typescriptify` by @n3phtys](https://github.com/n3phtys/typescriptify)
 
