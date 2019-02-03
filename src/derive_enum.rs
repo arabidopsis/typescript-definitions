@@ -1,7 +1,7 @@
 // use quote::TokenStreamExt;
 use serde_derive_internals::{ast, attr, attr::EnumTag};
 
-use super::{derive_element, derive_field, type_to_ts, QuoteT};
+use super::{derive_field, type_to_ts, QuoteT};
 
 struct TagInfo<'a> {
     tag: &'a str,
@@ -94,7 +94,7 @@ fn derive_tuple_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
-    let contents = fields.iter().map(|field| derive_element(field));
+    let contents = fields.iter().map(|field| type_to_ts(&field.ty));
     // .collect::<Vec<_>>();
 
     let tag = taginfo.tag;

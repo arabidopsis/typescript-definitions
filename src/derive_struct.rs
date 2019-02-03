@@ -1,6 +1,6 @@
 use serde_derive_internals::{ast, attr};
 
-use super::{derive_element, derive_field, type_to_ts, QuoteT};
+use super::{derive_field, type_to_ts, QuoteT};
 
 pub(crate) fn derive_struct<'a>(
     style: ast::Style,
@@ -19,7 +19,7 @@ fn derive_struct_newtype<'a>(
     fields: &[ast::Field<'a>],
     _attr_container: &attr::Container,
 ) -> QuoteT {
-    derive_element(&fields[0])
+    type_to_ts(&fields[0].ty)
 }
 
 fn derive_struct_unit(_attr_container: &attr::Container) -> QuoteT {

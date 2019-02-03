@@ -375,6 +375,6 @@ fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
     }
 }
 
-fn derive_element<'a>(field: &ast::Field<'a>) -> QuoteT {
+/* fn derive_element<'a>(field: &ast::Field<'a>) -> QuoteT {
     type_to_ts(&field.ty)
-}
+} */
