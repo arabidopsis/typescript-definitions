@@ -107,9 +107,22 @@ use self::interface::{TypeScriptifyTrait};
 
 fn main() {
     println!("{}", interface::MyStruct::type_script_ify());
-    // export type MyStruct = number;
+    // export type MyStruct = { "v": number };
 }
 ```
+
+## Serde Internally or Adjacently tagged Enums
+
+[Docs](https://serde.rs/enum-representations.html#internally-tagged).
+
+This crate understands `#[serde(tag="type")]` and `#[serde(tag="tag", content="fields")]`
+attributes but only for Struct variants. 
+
+It doesn't do Untagged or Externally tagged enums but defaults
+to `#[serde(tag="kind")]` (Internal). 
+
+The default for NewTypes and Tuple types is
+`#[serde(tag="kind", content="fields")]` (Adjacent).
 
 ## Credit
 
@@ -117,6 +130,8 @@ see http://timryan.org/2019/01/22/exporting-serde-types-to-typescript.html
 
 Forked from [`wasm-typescript-definition` by @tcr](https://github.com/tcr/wasm-typescript-definition?files=1)
 Forked from [`rust-serde-schema` by @srijs](https://github.com/srijs/rust-serde-schema?files=1).
+
+`type_script_ify` idea from [`typescriptify` by @n3phtys](https://github.com/n3phtys/typescriptify)
 
 ## License
 
