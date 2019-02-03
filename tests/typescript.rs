@@ -14,9 +14,11 @@ use std::borrow::Cow;
 use serde::de::value::Error;
 use wasm_typescript_definition2::{TypescriptDefinition};
 use wasm_bindgen::prelude::*;
+
 trait TypeScriptifyTrait {
     fn type_script_ify() -> &'static str;
 }
+
 #[test]
 fn unit_struct() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -58,6 +60,7 @@ fn struct_with_borrowed_fields() {
     assert_eq!(Borrow___typescript_definition(), quote!{
         {"raw": string, "cow": string }
     }.to_string());
+
 }
 
 #[test]
@@ -81,24 +84,28 @@ fn struct_with_array() {
 
         x: [i64; 5],
         y: i64,
+        z: Option<f64>,
     }
 
     assert_eq!(Point___typescript_definition(), quote!{
-        {"x": number[], "y": number}
+        {"x": number[], "y": number, "z": number | null }
     }.to_string());
 }
 #[test]
 fn struct_with_tuple() {
+    use std::collections::{HashMap,HashSet};
+
     #[derive(Serialize, TypescriptDefinition)]
     struct Point2 {
 
         x: (i64, String, [u128; 5]),
         y: i64,
         v: Vec<i32>,
+        z: HashMap<String,i32>
     }
 
     assert_eq!(Point2___typescript_definition(), quote!{
-        {"x": [number, string, number[]], "y": number, "v": number[]}
+        {"x": [number, string, number[]], "y": number, "v": number[], "z": Map<string,number>}
     }.to_string());
 }
 #[test]

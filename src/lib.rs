@@ -32,7 +32,7 @@ fn patch(s: &str) -> String {
 
 
 
-fn parse(input: proc_macro::TokenStream) -> (syn::Ident,QuoteT)  {
+fn parse(input: proc_macro::TokenStream) -> (syn::Ident,Vec<QuoteT>, QuoteT)  {
         // eprintln!(".........[input] {}", input);
     let input: DeriveInput = syn::parse(input).unwrap();
 
@@ -47,13 +47,16 @@ fn parse(input: proc_macro::TokenStream) -> (syn::Ident,QuoteT)  {
     };
 
     cx.check().unwrap();
-    (container.ident, typescript)
+
+    let lifetimes = generic_lifetimes(container.generics);
+
+    (container.ident, lifetimes, typescript)
 }
 
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
-    let (ident, typescript) = parse(input);
+    let (ident, _lifetimes, typescript) = parse(input);
 
     let typescript_string = patch(&typescript.to_string());
     let export_string = format!("export type {} = {};", ident, typescript_string);
@@ -62,24 +65,18 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
         &format!("TS_EXPORT_{}", ident.to_string().to_uppercase()));
         
 
-    eprintln!(
-        "....[typescript] export type {}={};",
-        ident, typescript_string
-    );
+    // eprintln!(
+    //     "....[typescript] export type {}={};",
+    //     ident, typescript_string
+    // );
 
     let mut expanded = quote! {
 
         #[wasm_bindgen(typescript_custom_section)]
         const #export_ident : &'static str = #export_string;
-
-        // can't do Borrow<'a>  etc.
-        // impl TypeScriptifyTrait for #ident {
-        //     fn type_script_ify() ->  &'static str {
-        //         #typescript_string
-        //     }
-        // }
-
     };
+
+ 
 
     if cfg!(any(debug_assertions, feature = "test-export")) {
         let ts = typescript_string.replace("\n", " "); // why the newlines?
@@ -92,8 +89,56 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
         })
     }
 
-
     expanded.into()
+}
+
+#[proc_macro_derive(TypeScriptify)]
+pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+
+    let (ident, lifetimes, typescript) = parse(input);
+
+    let typescript_string = patch(&typescript.to_string());
+    let export_string = format!("export type {} = {};", ident, typescript_string);
+ 
+ 
+
+    let ret = if lifetimes.len() == 0 {
+
+        quote!{
+ 
+            impl TypeScriptifyTrait for #ident {
+                fn type_script_ify() ->  &'static str {
+                    #export_string
+                }
+            }
+        }
+
+    } else {
+        // can't use 'a need '_
+        let lt = lifetimes.iter().map(|_q| quote!('_)).collect::<Vec<_>>();
+        let lt = collapse_list_comma(&lt);
+       
+        quote!{
+ 
+            impl TypeScriptifyTrait for #ident<#lt> {
+                fn type_script_ify() ->  &'static str {
+                    #export_string
+                }
+            }
+        }
+    };
+
+    ret.into()
+}
+
+fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
+    use syn::{LifetimeDef, GenericParam};
+    g.params.iter()
+        .filter_map(|p| match p {
+            GenericParam::Lifetime(LifetimeDef{lifetime, ..}) => Some(lifetime), 
+            _ => None
+            }
+        ).map(|lt| quote!(#lt)).collect::<Vec<_>>()
 }
 
 fn ident_from_str(s : &str) -> proc_macro2::Ident {
@@ -157,7 +202,7 @@ fn last_path(path: &syn::Path) -> Option<TSType> {
             };
 
             let v = args.iter()
-                .filter_map(|p| match p {syn::GenericArgument::Type(t) => Some(t), _ =>None})
+                .filter_map(|p| match p {syn::GenericArgument::Type(t) => Some(t), _ => None})
                 .map(|p| type_to_ts(p)).collect::<Vec<_>>();
 
             Some(TSType { ident:ident, args:v})
@@ -169,7 +214,7 @@ fn generic_to_ts(ts : TSType) -> QuoteT {
 
     match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32"
-            | "i64" | "i128" | "isize" => quote! { number },
+            | "i64" | "i128" | "isize" | "f64" | "f32"  => quote! { number },
             "String" | "str"  => quote! { string },
             "bool" => quote! { boolean },
             "Vec" => { let a = collapse_list_bar(&ts.args); quote! { #a[] }},

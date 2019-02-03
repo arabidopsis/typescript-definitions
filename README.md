@@ -78,6 +78,38 @@ curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 wasm-pack build
 ```
 
+## Using `type_script_ify`
+
+You can ignore wasm and derive `TypeScriptify` as long as you have the following Trait
+in scope
+
+```rust
+// interface.rs
+// use::wasm_bindgen::prelude::*;
+use::serde_derive::{Serialize};
+use::wasm_typescript_definition2::{TypeScriptify};
+// *you* have to provide this because, currently, rust proc-macro crates can't
+// export any public Traits etc...
+pub trait TypeScriptifyTrait {
+    fn type_script_ify() -> &'static str;
+}
+#[derive(Serialize, TypeScriptify)]
+pub struct MyStruct {
+    v : i32,
+}
+```
+Then in `main.rs` say:
+
+```rust
+mod interface;
+// need to pull in trait
+use self::interface::{TypeScriptifyTrait};
+
+fn main() {
+    println!("{}", interface::MyStruct::type_script_ify());
+    // export type MyStruct = number;
+}
+```
 
 ## Credit
 
