@@ -1,4 +1,4 @@
-use quote::TokenStreamExt;
+// use quote::TokenStreamExt;
 use serde_derive_internals::{ast, attr, attr::EnumTag};
 
 use super::{
@@ -10,7 +10,7 @@ struct TagInfo<'a> {
     content: Option<&'a str>,
 }
 pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Container) -> QuoteT {
-    let n = variants.len() - 1;
+    // let n = variants.len() - 1;
     let taginfo = match attrs.tag() {
         EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
         EnumTag::Adjacent { tag, content, .. } => TagInfo {
@@ -22,7 +22,7 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Conta
             content: None,
         },
     };
-    variants
+    let content = variants
         .into_iter()
         .map(|variant| {
             let variant_name = variant.attrs.name().serialize_name();
@@ -36,15 +36,17 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Conta
                 ast::Style::Tuple => derive_tuple_variant(&taginfo, &variant_name, &variant.fields),
                 ast::Style::Unit => derive_unit_variant(&taginfo, &variant_name),
             }
-        })
-        .enumerate()
-        .fold(quote! {}, |mut agg, (i, tokens)| {
-            agg.append_all(tokens);
-            if i < n {
-                agg.append_all(quote! {|})
-            }
-            agg
-        })
+        });
+
+        // .enumerate()
+        // .fold(quote! {}, |mut agg, (i, tokens)| {
+        //     agg.append_all(tokens);
+        //     if i < n {
+        //         agg.append_all(quote! {|})
+        //     }
+        //     agg
+        // })
+        quote!{ #(#content)|* }
 }
 
 fn derive_unit_variant(taginfo: &TagInfo, variant_name: &str) -> QuoteT {
