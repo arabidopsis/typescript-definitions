@@ -7,6 +7,9 @@ extern crate quote;
 extern crate proc_macro2;
 extern crate serde_derive_internals;
 extern crate syn;
+extern crate regex;
+#[macro_use]
+extern crate lazy_static;
 
 #[cfg(feature = "bytes")]
 extern crate serde_bytes;
@@ -15,22 +18,66 @@ use proc_macro2::Span;
 use quote::TokenStreamExt;
 use serde_derive_internals::{ast, Ctxt, Derive};
 use syn::DeriveInput;
+use regex::{Regex, Captures};
+
 
 mod derive_enum;
 mod derive_struct;
 
 type QuoteT = proc_macro2::TokenStream;
 
+lazy_static! {
+    static ref RE : Regex = Regex::new(r"(?P<nl>\n+)|(?P<brack>\s*\[\s+\])|(?P<brace>\{\s+\})").unwrap();
+}
 // TODO: where does the newline come from? why the double spaces?
+
+trait Has {
+    fn has(&self, s : &'static str) -> bool;
+}
+
+impl Has for Captures<'_> {
+    #[inline]
+    fn has(&self, s: &'static str) -> bool {
+        self.name(s).is_some()
+    }
+}
+
 fn debug_patch(s: &str) -> String {
+    RE.replace_all(s, |c: &Captures| {
+        if c.has("brace") {
+            "{ }"
+        } else if c.has("brack") {
+            " [ ]"
+        } else {
+            assert!(c.has("nl"));
+            " "
+        }
+    }).into()
+}
+
+fn patch(s: &str) -> String {
+     RE.replace_all(s,|c: &Captures| {
+        if c.has("brace") {
+            "{}"
+        } else if c.has("brack") {
+            "[]"
+        } else {
+            assert!(c.has("nl"));
+            "\n"
+        }
+    }).into()
+}
+
+/* // TODO: where does the newline come from? why the double spaces?
+fn debug_patch2(s: &str) -> String {
     s.replace("\n", " ")
         .replace("[  ]", "[ ]")
         .replace("{  }", "{ }")
 }
 
-fn patch(s: &str) -> String {
+fn patch2(s: &str) -> String {
     s.replace(" [  ]", "[]").replace(" {  }", "{}")
-}
+} */
 
 fn parse(input: proc_macro::TokenStream) -> (syn::Ident, Vec<QuoteT>, QuoteT) {
     // eprintln!(".........[input] {}", input);
@@ -40,7 +87,7 @@ fn parse(input: proc_macro::TokenStream) -> (syn::Ident, Vec<QuoteT>, QuoteT) {
     let container = ast::Container::from_ast(&cx, &input, Derive::Deserialize);
 
     let typescript = match container.data {
-        ast::Data::Enum(variants) => derive_enum::derive_enum(variants, &container.attrs),
+        ast::Data::Enum(variants) => derive_enum::derive_enum(&variants, &container.attrs),
         ast::Data::Struct(style, fields) => {
             derive_struct::derive_struct(style, &fields, &container.attrs)
         }
@@ -105,12 +152,11 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
         }
     } else {
         // can't use 'a need '_
-        let lt = lifetimes.iter().map(|_q| quote!('_)).collect::<Vec<_>>();
-        let lt = collapse_list_comma(&lt);
+        let lt = lifetimes.iter().map(|_q| quote!('_)); // .collect::<Vec<_>>();
 
         quote! {
 
-            impl TypeScriptifyTrait for #ident<#lt> {
+            impl TypeScriptifyTrait for #ident<#(#lt),*> {
                 fn type_script_ify() ->  &'static str {
                     #export_string
                 }
@@ -141,45 +187,46 @@ fn ident_from_str(s: &str) -> proc_macro2::Ident {
     syn::Ident::new(s, Span::call_site())
 }
 
-fn collapse_list_comma(body: &[QuoteT]) -> QuoteT {
-    let n = body.len() - 1;
+// fn collapse_list_comma(body: &[QuoteT]) -> QuoteT {
+//     let n = body.len() - 1;
 
-    body.into_iter()
-        .enumerate()
-        .fold(quote! {}, |mut agg, (i, tokens)| {
-            agg.append_all(if i < n {
-                quote!(#tokens,)
-            } else {
-                tokens.clone()
-            });
-            agg
-        })
-}
-fn collapse_list_bar(body: &[QuoteT]) -> QuoteT {
-    let n = body.len() - 1;
+//     body.into_iter()
+//         .enumerate()
+//         .fold(quote! {}, |mut agg, (i, tokens)| {
+//             agg.append_all(if i < n {
+//                 quote!(#tokens,)
+//             } else {
+//                 tokens.clone()
+//             });
+//             agg
+//         })
+// }
+// fn collapse_list_bar(body: &[QuoteT]) -> QuoteT {
+//     // let n = body.len() - 1;
 
-    body.into_iter()
-        .enumerate()
-        .fold(quote! {}, |mut agg, (i, tokens)| {
-            agg.append_all(if i < n {
-                quote!(#tokens | )
-            } else {
-                tokens.clone()
-            });
-            agg
-        })
-}
+//     // body.into_iter()
+//     //     .enumerate()
+//     //     .fold(quote! {}, |mut agg, (i, tokens)| {
+//     //         agg.append_all(if i < n {
+//     //             quote!(#tokens | )
+//     //         } else {
+//     //             tokens.clone()
+//     //         });
+//     //         agg
+//     //     })
+//     quote! { #(#body)|* }
+// }
 
-fn collapse_list_bracket(body: &[QuoteT]) -> QuoteT {
-    let tokens = collapse_list_comma(body);
+// fn collapse_list_bracket(body: &[QuoteT]) -> QuoteT {
+//     // let tokens = collapse_list_comma(body);
 
-    quote! { [ #tokens ] }
-}
+//     quote! { [ #(#body),* ] }
+// }
 
-fn collapse_list_brace(body: &[QuoteT]) -> QuoteT {
-    let tokens = collapse_list_comma(body);
-    quote! { { #tokens } }
-}
+// fn collapse_list_brace(body: &[QuoteT]) -> QuoteT {
+//     // let tokens = collapse_list_comma(body);
+//     quote! { { #(#body),* } }
+// }
 
 fn type_array(elem: &syn::Type) -> QuoteT {
     let tp = type_to_ts(elem);
@@ -234,8 +281,9 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         "String" | "str" => quote! { string },
         "bool" => quote! { boolean },
         "Vec" => {
-            let a = collapse_list_bar(&ts.args);
-            quote! { #a[] }
+            let args = &ts.args;
+            // let a = collapse_list_bar(&ts.args);
+            quote! { #(#args)|*[] }
         }
         "Cow" if ts.args.len() > 0 => ts.args[0].clone(),
         "HashMap" if ts.args.len() >= 2 => {
@@ -259,8 +307,9 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         _ => {
             let ident = ts.ident;
             if ts.args.len() > 0 {
-                let args = collapse_list_comma(&ts.args);
-                quote! { #ident<#args> }
+                let args = ts.args;
+                //let args = collapse_list_comma(&ts.args);
+                quote! { #ident<#(#args),*> }
             } else {
                 quote! {#ident}
             }
@@ -282,8 +331,9 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
         BareFn(..) => quote! { any },
         Never(..) => quote! { never },
         Tuple(TypeTuple { elems, .. }) => {
-            let qelems = elems.iter().map(|t| type_to_ts(t)).collect::<Vec<_>>();
-            collapse_list_bracket(&qelems)
+            let qelems = elems.iter().map(|t| type_to_ts(t)); // .collect::<Vec<_>>();
+            quote!([ #(#qelems),* ])
+            // collapse_list_bracket(&qelems)
         }
         Path(TypePath { path, .. }) => match last_path(&path) {
             Some(ts) => generic_to_ts(ts),
@@ -299,9 +349,10 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
                 .map(|t| {
                     let ident = t.ident;
                     quote!(#ident)
-                })
-                .collect::<Vec<_>>();
-            collapse_list_bar(&qelems)
+                });
+                // .collect::<Vec<_>>();
+            //collapse_list_bar(&qelems)
+            quote!(#(#qelems)|*)
         }
         Paren(TypeParen { elem, .. }) => {
             let tp = type_to_ts(elem);

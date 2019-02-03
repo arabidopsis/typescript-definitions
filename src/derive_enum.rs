@@ -2,14 +2,14 @@ use quote::TokenStreamExt;
 use serde_derive_internals::{ast, attr, attr::EnumTag};
 
 use super::{
-    collapse_list_brace, collapse_list_bracket, derive_element, derive_field, type_to_ts, QuoteT,
+    derive_element, derive_field, type_to_ts, QuoteT,
 };
 
 struct TagInfo<'a> {
     tag: &'a str,
     content: Option<&'a str>,
 }
-pub fn derive_enum<'a>(variants: Vec<ast::Variant<'a>>, attrs: &attr::Container) -> QuoteT {
+pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Container) -> QuoteT {
     let n = variants.len() - 1;
     let taginfo = match attrs.tag() {
         EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
@@ -78,15 +78,15 @@ fn derive_struct_variant<'a>(
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
     let contents = fields
-        .into_iter()
-        .map(|field| derive_field(field))
-        .collect::<Vec<_>>();
+        .iter()
+        .map(|field| derive_field(field));
+        // .collect::<Vec<_>>();
 
     let tag = taginfo.tag;
     if let Some(content) = taginfo.content {
-        let contents = collapse_list_brace(&contents);
+        // let contents = collapse_list_brace(&contents);
         quote! {
-            { #tag: #variant_name, #content: #contents }
+            { #tag: #variant_name, #content: { #(#contents),* } }
         }
     } else {
         quote! {
@@ -100,20 +100,20 @@ fn derive_tuple_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
-    let contents = collapse_list_bracket(
-        &fields
-            .into_iter()
-            .map(|field| derive_element(field))
-            .collect::<Vec<_>>(),
-    );
+    let contents =
+        fields
+            .iter()
+            .map(|field| derive_element(field));
+            // .collect::<Vec<_>>();
+    
     let tag = taginfo.tag;
     if let Some(content) = taginfo.content {
         quote! {
-         { #tag: #variant_name, #content: #contents }
+         { #tag: #variant_name, #content: [ #(#contents),* ] }
         }
     } else {
         quote! {
-         { #tag: #variant_name, "fields": #contents }
+         { #tag: #variant_name, "fields": [ #(#contents),* ] }
         }
     }
 }

@@ -16,6 +16,8 @@ serde_derive_internals = "0.24"
 syn = "0.15"
 serde = "1"
 proc-macro2 = "0.4"
+regex = "1"
+lazy_static = "1"
 
 
 [dev-dependencies]

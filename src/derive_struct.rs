@@ -1,10 +1,10 @@
 use serde_derive_internals::{ast, attr};
 
 use super::{
-    collapse_list_brace, collapse_list_bracket, derive_element, derive_field, type_to_ts, QuoteT,
+    derive_element, derive_field, type_to_ts, QuoteT,
 };
 
-pub fn derive_struct<'a>(
+pub(crate) fn derive_struct<'a>(
     style: ast::Style,
     fields: &[ast::Field<'a>],
     attr_container: &attr::Container,
@@ -34,19 +34,20 @@ fn derive_struct_named_fields<'a>(
     fields: &[ast::Field<'a>],
     _attr_container: &attr::Container,
 ) -> QuoteT {
-    collapse_list_brace(
-        &fields
+    let content =
+        fields
             .into_iter()
-            .map(|field| derive_field(&field))
-            .collect::<Vec<_>>(),
-    )
+            .map(|field| derive_field(&field));
+            //.collect::<Vec<_>>();
+    quote!({#(#content),*})
 }
 
 fn derive_struct_tuple<'a>(fields: &[ast::Field<'a>], _attr_container: &attr::Container) -> QuoteT {
-    collapse_list_bracket(
-        &fields
+    let content =
+        fields
             .into_iter()
-            .map(|field| type_to_ts(field.ty))
-            .collect::<Vec<_>>(),
-    )
+            .map(|field| type_to_ts(field.ty));
+            // .collect::<Vec<_>>();
+    
+    quote!([#(#content),*])
 }
