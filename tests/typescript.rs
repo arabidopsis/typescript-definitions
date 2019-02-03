@@ -124,9 +124,9 @@ fn enum_with_renamed_newtype_variants() {
     }
     
     assert_eq!(Enum___typescript_definition(), quote!{
-        | {"tag": "Var1", "fields": boolean}
-        | {"tag": "Var2", "fields": number}
-        | {"tag": "Var3", "fields": string}
+         {"kind": "Var1", "fields": boolean}
+        | {"kind": "Var2", "fields": number}
+        | {"kind": "Var3", "fields": string}
     }.to_string());
 }
 
@@ -143,9 +143,9 @@ fn enum_with_unit_variants() {
     }
 
     assert_eq!(Enum___typescript_definition(), quote!{
-        | {"tag": "V1"}
-        | {"tag": "V2"}
-        | {"tag": "V3"}
+         {"kind": "V1"}
+        | {"kind": "V2"}
+        | {"kind": "V3"}
     }.to_string());
 }
 
@@ -162,9 +162,9 @@ fn enum_with_tuple_variants() {
     }
 
     assert_eq!(Enum___typescript_definition(), quote!{
-        | {"tag": "V1", "fields": [number, string]}
-        | {"tag": "V2", "fields": [number, boolean]}
-        | {"tag": "V3", "fields": [number, number]}
+         {"kind": "V1", "fields": [number, string]}
+        | {"kind": "V2", "fields": [number, boolean]}
+        | {"kind": "V3", "fields": [number, number]}
     }.to_string());
 }
 
@@ -192,8 +192,32 @@ fn enum_with_struct_variants_and_renamed_fields() {
     }
     
     assert_eq!(Enum___typescript_definition(), quote!{
-        | {"tag": "V1", "fields": { "Foo": boolean } }
-        | {"tag": "V2", "fields": { "Bar": number, "Baz": number } }
-        | {"tag": "V3", "fields": { "Quux": string } }
+         {"kind": "V1",  "Foo": boolean  }
+        | {"kind": "V2",  "Bar": number, "Baz": number  }
+        | {"kind": "V3",  "Quux": string  }
+    }.to_string());
+}
+
+#[test]
+fn enum_with_struct_and_tags() {
+    #[derive(Serialize, TypescriptDefinition)]
+    #[serde(tag="id", content="content")]
+    enum Enum {
+        V1 {
+            foo: bool,
+        },
+        V2 {
+            bar: i64,
+            baz: u64,
+        },
+        V3 {
+            quux: String,
+        },
+    }
+    
+    assert_eq!(Enum___typescript_definition(), quote!{
+         {"id": "V1",  "content": { "foo": boolean  }}
+        | {"id": "V2", "content": { "bar": number, "baz": number  }}
+        | {"id": "V3",  "content": { "quux": string  }}
     }.to_string());
 }

@@ -39,6 +39,8 @@ fn parse(input: proc_macro::TokenStream) -> (syn::Ident,Vec<QuoteT>, QuoteT)  {
     let cx = Ctxt::new();
     let container = ast::Container::from_ast(&cx, &input, Derive::Deserialize);
 
+    
+
     let typescript = match container.data {
         ast::Data::Enum(variants) => derive_enum::derive_enum(variants, &container.attrs),
         ast::Data::Struct(style, fields) => {
@@ -46,10 +48,10 @@ fn parse(input: proc_macro::TokenStream) -> (syn::Ident,Vec<QuoteT>, QuoteT)  {
         }
     };
 
-    cx.check().unwrap();
-
     let lifetimes = generic_lifetimes(container.generics);
 
+    // consumes context
+    cx.check().unwrap();
     (container.ident, lifetimes, typescript)
 }
 
@@ -132,6 +134,10 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
+    // get all the generic lifetimes
+    // we ignore type parameters because we can't
+    // reasonably serialize generic structs! But
+    // std::borrow::Cow; requires a lifetime parameter ... see tests/typescript.rs
     use syn::{LifetimeDef, GenericParam};
     g.params.iter()
         .filter_map(|p| match p {
