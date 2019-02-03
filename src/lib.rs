@@ -5,9 +5,9 @@ extern crate quote;
 
 // extern crate serde;
 extern crate proc_macro2;
+extern crate regex;
 extern crate serde_derive_internals;
 extern crate syn;
-extern crate regex;
 #[macro_use]
 extern crate lazy_static;
 
@@ -16,10 +16,9 @@ extern crate serde_bytes;
 
 use proc_macro2::Span;
 use quote::TokenStreamExt;
+use regex::{Captures, Regex};
 use serde_derive_internals::{ast, Ctxt, Derive};
 use syn::DeriveInput;
-use regex::{Regex, Captures};
-
 
 mod derive_enum;
 mod derive_struct;
@@ -27,12 +26,13 @@ mod derive_struct;
 type QuoteT = proc_macro2::TokenStream;
 
 lazy_static! {
-    static ref RE : Regex = Regex::new(r"(?P<nl>\n+)|(?P<brack>\s*\[\s+\])|(?P<brace>\{\s+\})").unwrap();
+    static ref RE: Regex =
+        Regex::new(r"(?P<nl>\n+)|(?P<brack>\s*\[\s+\])|(?P<brace>\{\s+\})").unwrap();
 }
 // TODO: where does the newline come from? why the double spaces?
 
 trait Has {
-    fn has(&self, s : &'static str) -> bool;
+    fn has(&self, s: &'static str) -> bool;
 }
 
 impl Has for Captures<'_> {
@@ -52,11 +52,12 @@ fn debug_patch(s: &str) -> String {
             assert!(c.has("nl"));
             " "
         }
-    }).into()
+    })
+    .into()
 }
 
 fn patch(s: &str) -> String {
-     RE.replace_all(s,|c: &Captures| {
+    RE.replace_all(s, |c: &Captures| {
         if c.has("brace") {
             "{}"
         } else if c.has("brack") {
@@ -65,7 +66,8 @@ fn patch(s: &str) -> String {
             assert!(c.has("nl"));
             "\n"
         }
-    }).into()
+    })
+    .into()
 }
 
 /* // TODO: where does the newline come from? why the double spaces?
@@ -350,7 +352,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
                     let ident = t.ident;
                     quote!(#ident)
                 });
-                // .collect::<Vec<_>>();
+            // .collect::<Vec<_>>();
             //collapse_list_bar(&qelems)
             quote!(#(#qelems)|*)
         }

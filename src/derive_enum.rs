@@ -1,9 +1,7 @@
 // use quote::TokenStreamExt;
 use serde_derive_internals::{ast, attr, attr::EnumTag};
 
-use super::{
-    derive_element, derive_field, type_to_ts, QuoteT,
-};
+use super::{derive_element, derive_field, type_to_ts, QuoteT};
 
 struct TagInfo<'a> {
     tag: &'a str,
@@ -22,31 +20,27 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Conta
             content: None,
         },
     };
-    let content = variants
-        .into_iter()
-        .map(|variant| {
-            let variant_name = variant.attrs.name().serialize_name();
-            match variant.style {
-                ast::Style::Struct => {
-                    derive_struct_variant(&taginfo, &variant_name, &variant.fields)
-                }
-                ast::Style::Newtype => {
-                    derive_newtype_variant(&taginfo, &variant_name, &variant.fields[0])
-                }
-                ast::Style::Tuple => derive_tuple_variant(&taginfo, &variant_name, &variant.fields),
-                ast::Style::Unit => derive_unit_variant(&taginfo, &variant_name),
+    let content = variants.into_iter().map(|variant| {
+        let variant_name = variant.attrs.name().serialize_name();
+        match variant.style {
+            ast::Style::Struct => derive_struct_variant(&taginfo, &variant_name, &variant.fields),
+            ast::Style::Newtype => {
+                derive_newtype_variant(&taginfo, &variant_name, &variant.fields[0])
             }
-        });
+            ast::Style::Tuple => derive_tuple_variant(&taginfo, &variant_name, &variant.fields),
+            ast::Style::Unit => derive_unit_variant(&taginfo, &variant_name),
+        }
+    });
 
-        // .enumerate()
-        // .fold(quote! {}, |mut agg, (i, tokens)| {
-        //     agg.append_all(tokens);
-        //     if i < n {
-        //         agg.append_all(quote! {|})
-        //     }
-        //     agg
-        // })
-        quote!{ #(#content)|* }
+    // .enumerate()
+    // .fold(quote! {}, |mut agg, (i, tokens)| {
+    //     agg.append_all(tokens);
+    //     if i < n {
+    //         agg.append_all(quote! {|})
+    //     }
+    //     agg
+    // })
+    quote! { #(#content)|* }
 }
 
 fn derive_unit_variant(taginfo: &TagInfo, variant_name: &str) -> QuoteT {
@@ -79,10 +73,8 @@ fn derive_struct_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
-    let contents = fields
-        .iter()
-        .map(|field| derive_field(field));
-        // .collect::<Vec<_>>();
+    let contents = fields.iter().map(|field| derive_field(field));
+    // .collect::<Vec<_>>();
 
     let tag = taginfo.tag;
     if let Some(content) = taginfo.content {
@@ -102,12 +94,9 @@ fn derive_tuple_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
-    let contents =
-        fields
-            .iter()
-            .map(|field| derive_element(field));
-            // .collect::<Vec<_>>();
-    
+    let contents = fields.iter().map(|field| derive_element(field));
+    // .collect::<Vec<_>>();
+
     let tag = taginfo.tag;
     if let Some(content) = taginfo.content {
         quote! {
