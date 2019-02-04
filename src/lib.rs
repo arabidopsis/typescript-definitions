@@ -31,8 +31,9 @@ use syn::{DeriveInput};
 // use syn::NestedMeta::{Literal, Meta};
 use std::borrow::Cow;
 
-mod derive_enum;
-mod derive_struct;
+// mod derive_enum;
+// mod derive_struct;
+mod builder;
 
 type QuoteT = proc_macro2::TokenStream;
 
@@ -95,6 +96,11 @@ fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
 }
 */
 
+#[derive(Clone, Debug)]
+struct TagInfo {
+    tag: String,
+    content: Option<String>,
+}
 
 struct Parsed {
     ident : syn::Ident,
@@ -123,9 +129,9 @@ fn parse(input: proc_macro::TokenStream) -> Parsed {
     let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
     let typescript : QuoteT = match container.data {
-        ast::Data::Enum(variants) => derive_enum::derive_enum(&variants, &container.attrs),
+        ast::Data::Enum(variants) => builder::derive_enum(&variants, &container.attrs).ts(),
         ast::Data::Struct(style, fields) => {
-            derive_struct::derive_struct(style, &fields, &container.attrs)
+            builder::derive_struct(style, &fields, &container.attrs).ts()
         }
     };
     
@@ -381,16 +387,19 @@ fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
     }
 }
 
-fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
+/*
+fn derive_field_pair<'a>(field: &ast::Field<'a>) -> (String, QuoteT) {
     let field_name = field.attrs.name().serialize_name();
+    let ty = type_to_ts(&field.ty, 0);
+    (field_name, ty)
+}
+
+fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
+    let (field_name, ty) = derive_field_pair(field);
     let field_name = ident_from_str(&field_name);
 
-    if field.attrs.flatten() {
-
-    }
-    
-    let ty = type_to_ts(&field.ty, 0);
     quote! {
         #field_name: #ty
     }
 }
+*/

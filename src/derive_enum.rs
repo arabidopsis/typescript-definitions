@@ -8,22 +8,18 @@
 
 use serde_derive_internals::{ast, attr, attr::EnumTag};
 
-use super::{derive_field, type_to_ts, QuoteT, ident_from_str};
+use super::{derive_field, type_to_ts, QuoteT, ident_from_str, TagInfo};
 
-struct TagInfo<'a> {
-    tag: &'a str,
-    content: Option<&'a str>,
-}
 pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Container) -> QuoteT {
     // let n = variants.len() - 1;
     let taginfo = match attrs.tag() {
-        EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
+        EnumTag::Internal { tag, .. } => TagInfo { tag: tag.clone(), content: None },
         EnumTag::Adjacent { tag, content, .. } => TagInfo {
-            tag,
-            content: Some(&content),
+            tag : tag.clone(),
+            content: Some(content.clone()),
         },
         _ => TagInfo {
-            tag: "kind",
+            tag: "kind".into(),
             content: None,
         },
     };
@@ -43,7 +39,7 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Conta
 }
 
 fn derive_unit_variant(taginfo: &TagInfo, variant_name: &str) -> QuoteT {
-    let tag = ident_from_str(taginfo.tag);
+    let tag = ident_from_str(&taginfo.tag);
     quote! {
         { #tag: #variant_name }
     }
@@ -55,9 +51,9 @@ fn derive_newtype_variant<'a>(
     field: &ast::Field<'a>,
 ) -> QuoteT {
     let ty = type_to_ts(&field.ty, 0);
-    let tag = ident_from_str(taginfo.tag);
-    let content = if let Some(content) = taginfo.content {
-        ident_from_str(&content)
+    let tag = ident_from_str(&taginfo.tag);
+    let content = if let Some(ref content) = taginfo.content {
+        ident_from_str(content)
     } else {
         ident_from_str("fields")
        
@@ -75,9 +71,9 @@ fn derive_struct_variant<'a>(
 ) -> QuoteT {
     let contents = fields.iter().map(|field| derive_field(field));
 
-    let tag = ident_from_str(taginfo.tag);
-    if let Some(content) = taginfo.content {
-        let content = ident_from_str(&content);
+    let tag = ident_from_str(&taginfo.tag);
+    if let Some(ref content) = taginfo.content {
+        let content = ident_from_str(content);
         quote! {
             { #tag: #variant_name, #content: { #(#contents),* } }
         }
@@ -96,9 +92,9 @@ fn derive_tuple_variant<'a>(
     let contents = fields.iter().map(|field| type_to_ts(&field.ty, 0));
     // .collect::<Vec<_>>();
 
-    let tag = ident_from_str(taginfo.tag);
-    let content = if let Some(content) = taginfo.content {
-        ident_from_str(&content)
+    let tag = ident_from_str(&taginfo.tag);
+    let content = if let Some(ref content) = taginfo.content {
+        ident_from_str(content)
     } else {
         ident_from_str("fields")
        
