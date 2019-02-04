@@ -1,3 +1,10 @@
+// Copyright 2019 Ian Castleden
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
 use serde_derive_internals::{ast, attr};
 
 use super::{derive_field, type_to_ts, QuoteT};
@@ -19,7 +26,7 @@ fn derive_struct_newtype<'a>(
     fields: &[ast::Field<'a>],
     _attr_container: &attr::Container,
 ) -> QuoteT {
-    type_to_ts(&fields[0].ty)
+    type_to_ts(&fields[0].ty, 0)
 }
 
 fn derive_struct_unit(_attr_container: &attr::Container) -> QuoteT {
@@ -32,14 +39,15 @@ fn derive_struct_named_fields<'a>(
     fields: &[ast::Field<'a>],
     _attr_container: &attr::Container,
 ) -> QuoteT {
+    let has_flatten = _attr_container.has_flatten();
+
     let content = fields.into_iter().map(|field| derive_field(&field));
     //.collect::<Vec<_>>();
     quote!({#(#content),*})
 }
 
 fn derive_struct_tuple<'a>(fields: &[ast::Field<'a>], _attr_container: &attr::Container) -> QuoteT {
-    let content = fields.into_iter().map(|field| type_to_ts(field.ty));
-    // .collect::<Vec<_>>();
+    let content = fields.into_iter().map(|field| type_to_ts(field.ty, 0));
 
     quote!([#(#content),*])
 }

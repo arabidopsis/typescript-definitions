@@ -1,3 +1,11 @@
+// Copyright 2019 Ian Castleden
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 extern crate proc_macro;
 
 #[macro_use]
@@ -18,7 +26,9 @@ use proc_macro2::Span;
 use quote::TokenStreamExt;
 use regex::{Captures, Regex};
 use serde_derive_internals::{ast, Ctxt, Derive};
-use syn::DeriveInput;
+use syn::{DeriveInput};
+use syn::Meta::{List, NameValue, Word};
+use syn::NestedMeta::{Literal, Meta};
 use std::borrow::Cow;
 
 mod derive_enum;
@@ -69,25 +79,60 @@ fn patch<'t>(s: &'t str) -> Cow<'t, str> {
     })
 }
 
-fn parse(input: proc_macro::TokenStream) -> (syn::Ident, Vec<QuoteT>, QuoteT) {
+fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
+    if attr.path.segments.len() == 1 && attr.path.segments[0].ident == "ts" {
+        match attr.interpret_meta() {
+            Some(List(ref meta)) => Some(meta.nested.iter().cloned().collect()),
+            _ => {
+                // TODO: produce an error
+                None
+            }
+        }
+    } else {
+        None
+    }
+}
+
+
+struct Parsed {
+    ident : syn::Ident,
+    lifetimes : Vec<QuoteT>,
+    body : QuoteT
+}
+
+fn parse(input: proc_macro::TokenStream) -> Parsed {
     // eprintln!(".........[input] {}", input);
     let input: DeriveInput = syn::parse(input).unwrap();
+    let mut astagged = false;
+    for meta in input.attrs.iter().filter_map(get_ts_meta_items) {
+        for meta_item in meta {
+            match meta_item {
+                Meta(Word(ref word)) if word == "astagged" => {
+                            astagged = true;
+                        }
+                _ => {}
+            }
+        }
+
+    }
 
     let cx = Ctxt::new();
-    let container = ast::Container::from_ast(&cx, &input, Derive::Deserialize);
+    let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
-    let typescript = match container.data {
+    let typescript : QuoteT = match container.data {
         ast::Data::Enum(variants) => derive_enum::derive_enum(&variants, &container.attrs),
         ast::Data::Struct(style, fields) => {
             derive_struct::derive_struct(style, &fields, &container.attrs)
         }
     };
+    
+    
 
     let lifetimes = generic_lifetimes(container.generics);
 
     // consumes context
     cx.check().unwrap();
-    (container.ident, lifetimes, typescript)
+    Parsed {ident: container.ident, lifetimes: lifetimes, body: typescript}
 }
 
 
@@ -97,12 +142,12 @@ fn ident_from_str(s: &str) -> proc_macro2::Ident {
 
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let (ident, _lifetimes, typescript) = parse(input);
+    let parsed = parse(input);
 
-    let typescript_string = typescript.to_string();
-    let export_string = format!("export type {} = {};", ident, patch(&typescript_string));
+    let typescript_string = parsed.body.to_string();
+    let export_string = format!("export type {} = {};", parsed.ident, patch(&typescript_string));
 
-    let export_ident = ident_from_str(&format!("TS_EXPORT_{}", ident.to_string().to_uppercase()));
+    let export_ident = ident_from_str(&format!("TS_EXPORT_{}", parsed.ident.to_string().to_uppercase()));
 
     // eprintln!(
     //     "....[typescript] export type {}={};",
@@ -117,7 +162,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 
     if cfg!(any(debug_assertions, feature = "test-export")) {
         let ts = debug_patch(&typescript_string); // why the newlines?
-        let typescript_ident = ident_from_str(&format!("{}___typescript_definition", ident));
+        let typescript_ident = ident_from_str(&format!("{}___typescript_definition", parsed.ident));
 
         expanded.append_all(quote! {
             fn #typescript_ident ( ) -> &'static str {
@@ -132,11 +177,12 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 #[proc_macro_derive(TypeScriptify)]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
-    let (ident, lifetimes, typescript) = parse(input);
-    let ts = typescript.to_string();
-    let export_string = format!("export type {} = {};", ident,  patch(&ts));
+    let parsed = parse(input);
+    let ts = parsed.body.to_string();
+    let export_string = format!("export type {} = {} ;", parsed.ident,  patch(&ts));
+    let ident = parsed.ident;
 
-    let ret = if lifetimes.len() == 0 {
+    let ret = if parsed.lifetimes.len() == 0 {
         quote! {
 
             impl TypeScriptifyTrait for #ident {
@@ -147,8 +193,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
         }
     } else {
         // can't use 'a need '_
-        let lt = lifetimes.iter().map(|_q| quote!('_)); // .collect::<Vec<_>>();
-
+        let lt = parsed.lifetimes.iter().map(|_q| quote!('_));
         quote! {
 
             impl TypeScriptifyTrait for #ident<#(#lt),*> {
@@ -165,7 +210,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
     // get all the generic lifetimes
     // we ignore type parameters because we can't
-    // reasonably serialize generic structs! But
+    // reasonably serialize generic structs! But e.g.
     // std::borrow::Cow; requires a lifetime parameter ... see tests/typescript.rs
     use syn::{GenericParam, LifetimeDef};
     g.params
@@ -178,15 +223,11 @@ fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
         .collect::<Vec<_>>()
 }
 
-fn type_array(elem: &syn::Type) -> QuoteT {
-    let tp = type_to_ts(elem);
-    quote! { #tp[] }
-}
 
-fn return_type(rt: &syn::ReturnType) -> Option<QuoteT> {
+fn return_type(rt: &syn::ReturnType, depth: i32) -> Option<QuoteT> {
   match rt {
       syn::ReturnType::Default => None,
-      syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp))
+      syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp, depth + 1))
   } 
 }
 
@@ -194,7 +235,7 @@ struct TSType {
     ident: syn::Ident,
     args: Vec<QuoteT>,
 }
-fn last_path_element(path: &syn::Path) -> Option<TSType> {
+fn last_path_element(path: &syn::Path, depth: i32) -> Option<TSType> {
     match path.segments.last().map(|p| p.into_value()) {
         Some(t) => {
             let ident = t.ident.clone();
@@ -205,7 +246,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                 }) => args,
                 // turn func(A,B) ->C into  func<C>?
                 syn::PathArguments::Parenthesized(syn::ParenthesizedGenericArguments { output, ..}) => {
-                    let args = if let Some(rt) = return_type(output) {
+                    let args = if let Some(rt) = return_type(output, depth) {
                         vec![rt]
                     } else {
                         vec![]
@@ -227,7 +268,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     syn::GenericArgument::Type(t) => Some(t),
                     _ => None,
                 })
-                .map(|p| type_to_ts(p))
+                .map(|p| type_to_ts(p, depth + 1))
                 .collect::<Vec<_>>();
 
             Some(TSType {
@@ -239,6 +280,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
     }
 }
 fn generic_to_ts(ts: TSType) -> QuoteT {
+
     match ts.ident.to_string().as_ref() {
         "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64" | "i128"
         | "isize" | "f64" | "f32" => quote! { number },
@@ -247,26 +289,28 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         "Vec" if ts.args.len()== 1 => {
             let t = &ts.args[0];
             quote! { #t[] }
-        }
+        },
         "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => ts.args[0].clone(),
         "HashMap" if ts.args.len() == 2 => {
             let k = &ts.args[0];
             let v = &ts.args[1];
             quote!(Map<#k,#v>)
-        }
+        },
         "HashSet" if ts.args.len() == 1 => {
             let k = &ts.args[0];
             quote!(Set<#k>)
-        }
+        },
         "Option" if ts.args.len() == 1 => {
             let k = &ts.args[0];
-            quote!(#k | null)
-        }
+            quote!(  #k | null  )
+        },
         "Result" if ts.args.len() == 2 => {
             let k = &ts.args[0];
             let v = &ts.args[1];
-            quote!(#k | #v)
-        }
+            // TODO what if k or v is A | B | C ?
+            // maybe A | B | C | #v is actually better than (A|B|C) | #v
+            quote!(  #k | #v  )
+        },
         _ => {
             let ident = ts.ident;
             if ts.args.len() > 0 {
@@ -275,29 +319,36 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
             } else {
                 quote! {#ident}
             }
-        }
+        },
     }
 }
 
-fn type_to_ts(ty: &syn::Type) -> QuoteT {
+fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
+
+    let type_to_array = |elem: &syn::Type| -> QuoteT {
+        let tp = type_to_ts(elem, depth + 1);
+        quote! { #tp[] }
+    };
+
     use syn::Type::*;
     use syn::{
         TypeArray, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen, TypePath, TypePtr,
         TypeReference, TypeSlice, TypeTraitObject, TypeTuple, TypeBareFn
     };
     match ty {
-        Slice(TypeSlice { elem, .. }) => type_array(elem),
-        Array(TypeArray { elem, .. }) => type_array(elem),
-        Ptr(TypePtr { elem, .. }) => type_array(elem),
-        Reference(TypeReference { elem, .. }) => type_to_ts(elem),
+        Slice(TypeSlice { elem, .. }) => type_to_array(elem),
+        Array(TypeArray { elem, .. }) => type_to_array(elem),
+        Ptr(TypePtr { elem, .. }) => type_to_array(elem),
+        Reference(TypeReference { elem, .. }) => type_to_ts(elem, depth + 1),
         // fn(A,B,C) -> D to D?
-        BareFn(TypeBareFn{output,..}) => if let Some(rt) = return_type(&output) { rt } else { quote!(undefined) },
+        BareFn(TypeBareFn{output,..}) => if let Some(rt) = return_type(&output, depth) { rt } else { quote!(undefined) },
         Never(..) => quote! { never },
         Tuple(TypeTuple { elems, .. }) => {
-            let qelems = elems.iter().map(|t| type_to_ts(t));
+            let qelems = elems.iter().map(|t| type_to_ts(t, depth + 1));
             quote!([ #(#qelems),* ])
-        }
-        Path(TypePath { path, .. }) => match last_path_element(&path) {
+        },
+
+        Path(TypePath { path, .. }) => match last_path_element(&path, depth) {
             Some(ts) => generic_to_ts(ts),
             _ => quote! { any },
         },
@@ -305,7 +356,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
             let qelems = bounds
                 .iter()
                 .filter_map(|t| match t {
-                    TypeParamBound::Trait(t) => last_path_element(&t.path),
+                    TypeParamBound::Trait(t) => last_path_element(&t.path, depth),
                     _ => None, // skip lifetime etc.
                 })
                 .map(|t| {
@@ -317,10 +368,10 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
             quote!(#(#qelems)|*)
         }
         Paren(TypeParen { elem, .. }) => {
-            let tp = type_to_ts(elem);
+            let tp = type_to_ts(elem, depth + 1);
             quote! { ( #tp ) }
         }
-        Group(TypeGroup { elem, .. }) => type_to_ts(elem),
+        Group(TypeGroup { elem, .. }) => type_to_ts(elem, depth + 1),
         Infer(..) => quote! { any },
         Macro(..) => quote! { any },
         Verbatim(..) => quote! { any },
@@ -329,7 +380,13 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
 
 fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
     let field_name = field.attrs.name().serialize_name();
-    let ty = type_to_ts(&field.ty);
+    let field_name = ident_from_str(&field_name);
+
+    if field.attrs.flatten() {
+
+    }
+    
+    let ty = type_to_ts(&field.ty, 0);
     quote! {
         #field_name: #ty
     }

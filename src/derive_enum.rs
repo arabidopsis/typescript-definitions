@@ -1,7 +1,14 @@
-// use quote::TokenStreamExt;
+// Copyright 2019 Ian Castleden
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 use serde_derive_internals::{ast, attr, attr::EnumTag};
 
-use super::{derive_field, type_to_ts, QuoteT};
+use super::{derive_field, type_to_ts, QuoteT, ident_from_str};
 
 struct TagInfo<'a> {
     tag: &'a str,
@@ -31,20 +38,12 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Conta
             ast::Style::Unit => derive_unit_variant(&taginfo, &variant_name),
         }
     });
-
-    // .enumerate()
-    // .fold(quote! {}, |mut agg, (i, tokens)| {
-    //     agg.append_all(tokens);
-    //     if i < n {
-    //         agg.append_all(quote! {|})
-    //     }
-    //     agg
-    // })
+    // OK generate A | B | C etc
     quote! { #(#content)|* }
 }
 
 fn derive_unit_variant(taginfo: &TagInfo, variant_name: &str) -> QuoteT {
-    let tag = taginfo.tag;
+    let tag = ident_from_str(taginfo.tag);
     quote! {
         { #tag: #variant_name }
     }
@@ -55,16 +54,17 @@ fn derive_newtype_variant<'a>(
     variant_name: &str,
     field: &ast::Field<'a>,
 ) -> QuoteT {
-    let ty = type_to_ts(&field.ty);
-    let tag = taginfo.tag;
-    if let Some(content) = taginfo.content {
-        quote! {
-         { #tag: #variant_name, #content: #ty }
-        }
+    let ty = type_to_ts(&field.ty, 0);
+    let tag = ident_from_str(taginfo.tag);
+    let content = if let Some(content) = taginfo.content {
+        ident_from_str(&content)
     } else {
-        quote! {
-         { #tag: #variant_name, "fields": #ty }
-        }
+        ident_from_str("fields")
+       
+    };
+
+    quote! {
+        { #tag: #variant_name, #content: #ty }
     }
 }
 
@@ -74,11 +74,10 @@ fn derive_struct_variant<'a>(
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
     let contents = fields.iter().map(|field| derive_field(field));
-    // .collect::<Vec<_>>();
 
-    let tag = taginfo.tag;
+    let tag = ident_from_str(taginfo.tag);
     if let Some(content) = taginfo.content {
-        // let contents = collapse_list_brace(&contents);
+        let content = ident_from_str(&content);
         quote! {
             { #tag: #variant_name, #content: { #(#contents),* } }
         }
@@ -94,17 +93,18 @@ fn derive_tuple_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
-    let contents = fields.iter().map(|field| type_to_ts(&field.ty));
+    let contents = fields.iter().map(|field| type_to_ts(&field.ty, 0));
     // .collect::<Vec<_>>();
 
-    let tag = taginfo.tag;
-    if let Some(content) = taginfo.content {
-        quote! {
-         { #tag: #variant_name, #content: [ #(#contents),* ] }
-        }
+    let tag = ident_from_str(taginfo.tag);
+    let content = if let Some(content) = taginfo.content {
+        ident_from_str(&content)
     } else {
-        quote! {
-         { #tag: #variant_name, "fields": [ #(#contents),* ] }
+        ident_from_str("fields")
+       
+    };
+    
+    quote! {
+         { #tag: #variant_name, #content : [ #(#contents),* ] }
         }
-    }
 }

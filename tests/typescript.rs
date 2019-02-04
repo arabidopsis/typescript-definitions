@@ -12,7 +12,7 @@ extern crate wasm_bindgen;
 
 use std::borrow::Cow;
 use serde::de::value::Error;
-use wasm_typescript_definition2::{TypescriptDefinition};
+use wasm_typescript_definition2::{TypescriptDefinition, TypeScriptify};
 use wasm_bindgen::prelude::*;
 
 trait TypeScriptifyTrait {
@@ -58,7 +58,7 @@ fn struct_with_borrowed_fields() {
     }
 
     assert_eq!(Borrow___typescript_definition(), quote!{
-        {"raw": string, "cow": string }
+        {raw: string, cow: string }
     }.to_string());
 
 }
@@ -74,7 +74,7 @@ fn struct_point_with_field_rename() {
     }
 
     assert_eq!(Point___typescript_definition(), quote!{
-        {"X": number, "Y": number}
+        {X: number, Y: number}
     }.to_string());
 }
 #[test]
@@ -88,7 +88,7 @@ fn struct_with_array() {
     }
 
     assert_eq!(Point___typescript_definition(), quote!{
-        {"x": number[], "y": number, "z": number | null }
+        {x: number[], y: number, z:  number | null  }
     }.to_string());
 }
 #[test]
@@ -105,7 +105,7 @@ fn struct_with_tuple() {
     }
 
     assert_eq!(Point2___typescript_definition(), quote!{
-        {"x": [number, string, number[]], "y": number, "v": number[], "z": Map<string,number>}
+        {x: [number, string, number[]], y: number, v: number[], z: Map<string,number>}
     }.to_string());
 }
 #[test]
@@ -124,9 +124,9 @@ fn enum_with_renamed_newtype_variants() {
     }
     
     assert_eq!(Enum___typescript_definition(), quote!{
-         {"kind": "Var1", "fields": boolean}
-        | {"kind": "Var2", "fields": number}
-        | {"kind": "Var3", "fields": string}
+         {kind: "Var1", fields: boolean}
+        | {kind: "Var2", fields: number}
+        | {kind: "Var3", fields: string}
     }.to_string());
 }
 
@@ -143,9 +143,9 @@ fn enum_with_unit_variants() {
     }
 
     assert_eq!(Enum___typescript_definition(), quote!{
-         {"kind": "V1"}
-        | {"kind": "V2"}
-        | {"kind": "V3"}
+         {kind: "V1"}
+        | {kind: "V2"}
+        | {kind: "V3"}
     }.to_string());
 }
 
@@ -162,9 +162,9 @@ fn enum_with_tuple_variants() {
     }
 
     assert_eq!(Enum___typescript_definition(), quote!{
-         {"kind": "V1", "fields": [number, string]}
-        | {"kind": "V2", "fields": [number, boolean]}
-        | {"kind": "V3", "fields": [number, number]}
+         {kind: "V1", fields: [number, string]}
+        | {kind: "V2", fields: [number, boolean]}
+        | {kind: "V3", fields: [number, number]}
     }.to_string());
 }
 
@@ -192,9 +192,9 @@ fn enum_with_struct_variants_and_renamed_fields() {
     }
     
     assert_eq!(Enum___typescript_definition(), quote!{
-         {"kind": "V1",  "Foo": boolean  }
-        | {"kind": "V2",  "Bar": number, "Baz": number  }
-        | {"kind": "V3",  "Quux": string  }
+         {kind: "V1",  Foo: boolean  }
+        | {kind: "V2",  Bar: number, Baz: number  }
+        | {kind: "V3",  Quux: string  }
     }.to_string());
 }
 
@@ -216,8 +216,55 @@ fn enum_with_struct_and_tags() {
     }
     
     assert_eq!(Enum___typescript_definition(), quote!{
-         {"id": "V1",  "content": { "foo": boolean  }}
-        | {"id": "V2", "content": { "bar": number, "baz": number  }}
-        | {"id": "V3",  "content": { "quux": string  }}
+         {id: "V1",  content: { foo: boolean  }}
+        | {id: "V2", content: { bar: number, baz: number  }}
+        | {id: "V3",  content: { quux: string  }}
     }.to_string());
+}
+
+#[test]
+fn struct_with_attr_refering_to_other_type() {
+    #[derive(Serialize)]
+    struct B<T> {q: T}
+
+    #[derive(Serialize, TypescriptDefinition)]
+    struct A {
+        x : f64, /* simple */
+        b: B<f64>,
+        #[serde(rename="xxx")]
+        c: Result<i32,&'static str>,
+        d: Result<Option<i32>,String>,
+    }
+    assert_eq!(A___typescript_definition(), quote!{
+        { x: number ,b: B<number>, xxx: number | string, d: number | null | string }
+    }.to_string());
+}
+
+#[test]
+fn struct_typescriptify() {
+
+    #[derive(TypeScriptify)]
+    struct A {
+        x : f64, /* simple */
+        c: Result<i32,&'static str>,
+        d: Result<Option<i32>,String>,
+    }
+    assert_eq!(A::type_script_ify(), quote!{
+        export type A = { x: number ,c: number | string, d: number | null | string } ;
+    }.to_string());
+}
+
+#[test]
+fn cow_as_pig() {
+    use std::borrow::Cow as Pig;
+
+    #[derive(TypeScriptify)]
+    struct S<'a> {
+        pig: Pig<'a, str>,
+        cow : ::std::borrow::Cow<'a, str>,
+    }
+    assert_eq!(S::type_script_ify(), quote!{
+        export type S = { pig : Pig<string>, cow : string } ;
+    }.to_string());
+
 }
