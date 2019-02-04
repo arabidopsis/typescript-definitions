@@ -36,6 +36,7 @@ use std::borrow::Cow;
 mod builder;
 
 type QuoteT = proc_macro2::TokenStream;
+type Builder = Box<builder::BuilderTrait>;
 
 lazy_static! {
     static ref RE: Regex =
@@ -105,7 +106,7 @@ struct TagInfo {
 struct Parsed {
     ident : syn::Ident,
     lifetimes : Vec<QuoteT>,
-    body : QuoteT
+    body : Box<dyn builder::BuilderTrait>
 }
 
 fn parse(input: proc_macro::TokenStream) -> Parsed {
@@ -128,10 +129,10 @@ fn parse(input: proc_macro::TokenStream) -> Parsed {
     let cx = Ctxt::new();
     let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
-    let typescript : QuoteT = match container.data {
-        ast::Data::Enum(variants) => builder::derive_enum(&variants, &container.attrs).ts(),
+    let typescript = match container.data {
+        ast::Data::Enum(variants) => builder::derive_enum(&variants, &container.attrs),
         ast::Data::Struct(style, fields) => {
-            builder::derive_struct(style, &fields, &container.attrs).ts()
+            builder::derive_struct(style, &fields, &container.attrs)
         }
     };
     
@@ -153,7 +154,7 @@ fn ident_from_str(s: &str) -> proc_macro2::Ident {
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let parsed = parse(input);
 
-    let typescript_string = parsed.body.to_string();
+    let typescript_string = parsed.body.ts().to_string();
     let export_string = format!("export type {} = {};", parsed.ident, patch(&typescript_string));
 
     let export_ident = ident_from_str(&format!("TS_EXPORT_{}", parsed.ident.to_string().to_uppercase()));
@@ -187,7 +188,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let parsed = parse(input);
-    let ts = parsed.body.to_string();
+    let ts = parsed.body.ts().to_string();
     let export_string = format!("export type {} = {} ;", parsed.ident,  patch(&ts));
     let ident = parsed.ident;
 
@@ -233,7 +234,7 @@ fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
 }
 
 
-fn return_type(rt: &syn::ReturnType, depth: i32) -> Option<QuoteT> {
+fn return_type(rt: &syn::ReturnType, depth: i32) -> Option<Builder> {
   match rt {
       syn::ReturnType::Default => None,
       syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp, depth + 1))
@@ -242,7 +243,7 @@ fn return_type(rt: &syn::ReturnType, depth: i32) -> Option<QuoteT> {
 
 struct TSType {
     ident: syn::Ident,
-    args: Vec<QuoteT>,
+    args: Vec<Builder>,
 }
 fn last_path_element(path: &syn::Path, depth: i32) -> Option<TSType> {
     match path.segments.last().map(|p| p.into_value()) {
@@ -288,55 +289,62 @@ fn last_path_element(path: &syn::Path, depth: i32) -> Option<TSType> {
         None => None,
     }
 }
-fn generic_to_ts(ts: TSType) -> QuoteT {
 
-    match ts.ident.to_string().as_ref() {
-        "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64" | "i128"
-        | "isize" | "f64" | "f32" => quote! { number },
-        "String" | "str" => quote! { string },
-        "bool" => quote! { boolean },
-        "Vec" if ts.args.len()== 1 => {
-            let t = &ts.args[0];
-            quote! { #t[] }
-        },
-        "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => ts.args[0].clone(),
-        "HashMap" if ts.args.len() == 2 => {
-            let k = &ts.args[0];
-            let v = &ts.args[1];
-            quote!(Map<#k,#v>)
-        },
-        "HashSet" if ts.args.len() == 1 => {
-            let k = &ts.args[0];
-            quote!(Set<#k>)
-        },
-        "Option" if ts.args.len() == 1 => {
-            let k = &ts.args[0];
-            quote!(  #k | null  )
-        },
-        "Result" if ts.args.len() == 2 => {
-            let k = &ts.args[0];
-            let v = &ts.args[1];
-            // TODO what if k or v is A | B | C ?
-            // maybe A | B | C | #v is actually better than (A|B|C) | #v
-            quote!(  #k | #v  )
-        },
-        _ => {
-            let ident = ts.ident;
-            if ts.args.len() > 0 {
-                let args = ts.args;
-                quote! { #ident<#(#args),*> }
-            } else {
-                quote! {#ident}
-            }
-        },
-    }
+fn generic_to_ts(ts: TSType) -> Builder {
+
+    let q =  match ts.ident.to_string().as_ref() {
+            "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64" | "i128"
+            | "isize" | "f64" | "f32" => quote! { number },
+            "String" | "str" => quote! { string },
+            "bool" => quote! { boolean },
+            "Vec" if ts.args.len()== 1 => {
+                let t = &ts.args[0];
+                quote! { #t[] }
+            },
+            
+            "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => ts.args[0].ts(),
+            "HashMap" if ts.args.len() == 2 => {
+                let k = &ts.args[0];
+                let v = &ts.args[1];
+                quote!(Map<#k,#v>)
+            },
+
+            "HashSet" if ts.args.len() == 1 => {
+                let k = &ts.args[0];
+                quote!(Set<#k>)
+            },
+            "Option" if ts.args.len() == 1 => {
+                let k = &ts.args[0];
+                quote!(  #k | null  )
+            },
+            "Result" if ts.args.len() == 2 => {
+                let k = &ts.args[0];
+                let v = &ts.args[1];
+                // TODO what if k or v is A | B | C ?
+                // maybe A | B | C | #v is actually better than (A|B|C) | #v
+                quote!(  #k | #v  )
+            },
+
+            _ => {
+                let ident = ts.ident;
+                if ts.args.len() > 0 {
+                    let args = ts.args;
+                    quote! { #ident<#(#args),*> }
+                } else {
+                    quote! {#ident}
+                }
+            },
+
+        };
+
+    builder::q2b(q)
 }
 
-fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
+fn type_to_ts(ty: &syn::Type, depth: i32) -> Builder {
 
-    let type_to_array = |elem: &syn::Type| -> QuoteT {
+    let type_to_array = |elem: &syn::Type| -> Builder {
         let tp = type_to_ts(elem, depth + 1);
-        quote! { #tp[] }
+        builder::q2b(quote! { #tp[] })
     };
 
     use syn::Type::*;
@@ -350,16 +358,16 @@ fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
         Ptr(TypePtr { elem, .. }) => type_to_array(elem),
         Reference(TypeReference { elem, .. }) => type_to_ts(elem, depth + 1),
         // fn(A,B,C) -> D to D?
-        BareFn(TypeBareFn{output,..}) => if let Some(rt) = return_type(&output, depth) { rt } else { quote!(undefined) },
-        Never(..) => quote! { never },
+        BareFn(TypeBareFn{output,..}) => if let Some(rt) = return_type(&output, depth) { rt } else {  builder::q2b(quote!(undefined)) },
+        Never(..) =>  builder::q2b(quote! { never }),
         Tuple(TypeTuple { elems, .. }) => {
             let qelems = elems.iter().map(|t| type_to_ts(t, depth + 1));
-            quote!([ #(#qelems),* ])
+             builder::q2b(quote!([ #(#qelems),* ]))
         },
 
         Path(TypePath { path, .. }) => match last_path_element(&path, depth) {
             Some(ts) => generic_to_ts(ts),
-            _ => quote! { any },
+            _ =>  builder::q2b(quote! { any }),
         },
         TraitObject(TypeTraitObject { bounds, .. }) | ImplTrait(TypeImplTrait { bounds, .. }) => {
             let qelems = bounds
@@ -374,16 +382,16 @@ fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
                 });
 
             // TODO check for zero length?
-            quote!(#(#qelems)|*)
+             builder::q2b(quote!(#(#qelems)|*))
         }
         Paren(TypeParen { elem, .. }) => {
             let tp = type_to_ts(elem, depth + 1);
-            quote! { ( #tp ) }
+             builder::q2b( quote! { ( #tp ) } )
         }
         Group(TypeGroup { elem, .. }) => type_to_ts(elem, depth + 1),
-        Infer(..) => quote! { any },
-        Macro(..) => quote! { any },
-        Verbatim(..) => quote! { any },
+        Infer(..) |
+        Macro(..) |
+        Verbatim(..) =>  builder::q2b(quote! { any }),
     }
 }
 

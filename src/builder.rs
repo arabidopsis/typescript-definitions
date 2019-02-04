@@ -1,6 +1,7 @@
 #![allow(unused)]
 extern crate serde_derive_internals;
-
+use quote::ToTokens;
+use proc_macro2::TokenStream;
 use serde_derive_internals::{ast, attr, attr::EnumTag};
 use super::{QuoteT, ident_from_str, type_to_ts, TagInfo};
 
@@ -13,7 +14,7 @@ impl Pair {
     fn new<'a>(field: &ast::Field<'a>) -> Pair {
         let field_name = field.attrs.name().serialize_name();
         let ty = type_to_ts(&field.ty, 0);
-        Pair {key: field_name, value: Box::new(ty)}
+        Pair {key: field_name, value: ty}
     }
 }
 
@@ -53,8 +54,8 @@ impl TupleStructBuilder {
     
     fn new<'a>(fields: &[ast::Field<'a>], ct: &attr::Container,) -> TupleStructBuilder {
         let content = fields.into_iter()
-            .map(|field| type_to_ts(field.ty, 0))
-            .map(|q| Box::new(q) as Box<BuilderTrait>);
+            .map(|field| type_to_ts(field.ty, 0));
+            //.map(|q| Box::new(q) as Box<BuilderTrait>);
         // let name = ct.name().serialize_name();
         TupleStructBuilder { attrs : content.collect::<Vec<_>>()}
     }
@@ -80,8 +81,8 @@ impl TupleVariantBuilder {
     fields: &[ast::Field<'a>],
         ) -> TupleVariantBuilder {
         let content = fields.into_iter()
-            .map(|field| type_to_ts(field.ty, 0))
-            .map(|q| Box::new(q) as Box<BuilderTrait>);
+            .map(|field| type_to_ts(field.ty, 0));
+            //.map(|q| Box::new(q) as Box<BuilderTrait>);
 
         TupleVariantBuilder {variant_name : variant_name.into(), 
             taginfo: taginfo.clone(), attrs: content.collect::<Vec<_>>()}
@@ -120,12 +121,12 @@ impl EnumBuilder {
     }
 }
 
-pub trait BuilderTrait {
+pub trait BuilderTrait : ToTokens  {
     fn ts(&self) -> QuoteT;
 }
 
 impl BuilderTrait for QuoteT {
-    fn ts(&self) -> Self {
+    fn ts(&self) -> QuoteT {
         self.clone()
     }
 }
@@ -156,11 +157,24 @@ impl BuilderTrait for StructBuilder {
 
 }
 
+impl ToTokens for StructBuilder {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ts().to_tokens(tokens)
+    }
+}
+
 impl BuilderTrait for TupleStructBuilder {
     fn ts(&self)  -> QuoteT {
         vec2quote(&self.attrs)
     }
 }
+
+
+impl ToTokens for TupleStructBuilder {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ts().to_tokens(tokens)
+    }
+} 
 
 impl BuilderTrait for StructVariantBuilder {
 
@@ -184,6 +198,11 @@ impl BuilderTrait for StructVariantBuilder {
         }
     }
 }
+impl ToTokens for StructVariantBuilder {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ts().to_tokens(tokens)
+    }
+} 
 
 impl BuilderTrait for TupleVariantBuilder {
     fn ts(&self)  -> QuoteT {
@@ -208,14 +227,22 @@ impl BuilderTrait for TupleVariantBuilder {
         }
     }
 }
-
+impl ToTokens for TupleVariantBuilder {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ts().to_tokens(tokens)
+    }
+} 
 impl BuilderTrait for EnumBuilder {
     fn ts(&self) -> QuoteT {
         let v = self.attrs.iter().map(|p| p.ts());
         quote! { #(#v)|* }
     }
 }
-
+impl ToTokens for EnumBuilder {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ts().to_tokens(tokens)
+    }
+} 
 pub(crate) fn derive_struct<'a>(
     style: ast::Style,
     fields: &[ast::Field<'a>],
@@ -233,3 +260,6 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Conta
     Box::new(EnumBuilder::new(variants, attrs))
 }
 
+pub(crate) fn q2b(q: QuoteT) -> Box<dyn BuilderTrait> {
+    Box::new(q)
+}
