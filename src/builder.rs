@@ -44,7 +44,7 @@ impl StructBuilder {
     
     fn new<'a>(fields: &[ast::Field<'a>], ct: &attr::Container,) -> StructBuilder {
         let content = fields.into_iter()
-            .map(|field| derive_field_pair(&field));
+            .map(|field| Pair::new(&field));
         // let name = ct.name().serialize_name();
         StructBuilder {attrs : content.collect::<Vec<_>>()}
     }
@@ -67,7 +67,7 @@ impl StructVariantBuilder {
     fields: &[ast::Field<'a>],
         ) -> StructVariantBuilder {
         let content = fields.into_iter()
-            .map(|field| derive_field_pair(&field));
+            .map(|field| Pair::new(&field));
 
         StructVariantBuilder {variant_name : variant_name.into(), 
             taginfo: taginfo.clone(), attrs: content.collect::<Vec<_>>()}
