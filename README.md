@@ -205,6 +205,9 @@ struct S<'a> {
 
 gives `export type S = { pig : Pig<string> }` instead of `export type S = { pig : string }`
 
+We can't reasonably obey serde attributes like "flatten" since we would need
+to find the *actual* Struct object (from somewhere) and query its fields.
+
 
 
 ## Credits
