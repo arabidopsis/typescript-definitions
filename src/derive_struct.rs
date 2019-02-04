@@ -39,10 +39,8 @@ fn derive_struct_named_fields<'a>(
     fields: &[ast::Field<'a>],
     _attr_container: &attr::Container,
 ) -> QuoteT {
-    let has_flatten = _attr_container.has_flatten();
-
     let content = fields.into_iter().map(|field| derive_field(&field));
-    //.collect::<Vec<_>>();
+
     quote!({#(#content),*})
 }
 

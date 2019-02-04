@@ -27,8 +27,8 @@ use quote::TokenStreamExt;
 use regex::{Captures, Regex};
 use serde_derive_internals::{ast, Ctxt, Derive};
 use syn::{DeriveInput};
-use syn::Meta::{List, NameValue, Word};
-use syn::NestedMeta::{Literal, Meta};
+// use syn::Meta::{List, NameValue, Word};
+// use syn::NestedMeta::{Literal, Meta};
 use std::borrow::Cow;
 
 mod derive_enum;
@@ -79,6 +79,7 @@ fn patch<'t>(s: &'t str) -> Cow<'t, str> {
     })
 }
 
+/*
 fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
     if attr.path.segments.len() == 1 && attr.path.segments[0].ident == "ts" {
         match attr.interpret_meta() {
@@ -92,6 +93,7 @@ fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
         None
     }
 }
+*/
 
 
 struct Parsed {
@@ -103,6 +105,7 @@ struct Parsed {
 fn parse(input: proc_macro::TokenStream) -> Parsed {
     // eprintln!(".........[input] {}", input);
     let input: DeriveInput = syn::parse(input).unwrap();
+    /*
     let mut astagged = false;
     for meta in input.attrs.iter().filter_map(get_ts_meta_items) {
         for meta_item in meta {
@@ -114,7 +117,7 @@ fn parse(input: proc_macro::TokenStream) -> Parsed {
             }
         }
 
-    }
+    }*/
 
     let cx = Ctxt::new();
     let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
