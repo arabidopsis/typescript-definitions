@@ -15,6 +15,8 @@ Fundamental to this is to keep the datatypes on either side of the connection (h
 Typescript is an incremental typing system for javascript that is as tricked as rust (almost!) so
 why not create a typescript definition library based on your rust code?
 
+Please see [Credits](#credits).
+
 example:
 
 ```rust
@@ -114,7 +116,7 @@ extern crate typescript_definitions;
 // wasm_bindgen not needed
 // use::wasm_bindgen::prelude::*;
 use::serde_derive::Serialize;
-use::wasm_typescript_definition2::TypeScriptify;
+use::typescript_definitions::TypeScriptify;
 // *you* have to provide this Trait because, currently, rust proc-macro crates can't
 // export any public Traits etc... sorry about that.
 pub trait TypeScriptifyTrait {
@@ -210,7 +212,7 @@ to find the *actual* Struct object (from somewhere) and query its fields.
 
 
 
-## Credits
+## <a name="credits"></a> Credits
 
 see http://timryan.org/2019/01/22/exporting-serde-types-to-typescript.html
 
