@@ -24,61 +24,64 @@ extern crate serde_bytes;
 
 use proc_macro2::Span;
 use quote::TokenStreamExt;
-use regex::{Captures, Regex};
+
 use serde_derive_internals::{ast, Ctxt, Derive};
-use syn::{DeriveInput};
+use syn::DeriveInput;
 // use syn::Meta::{List, NameValue, Word};
 // use syn::NestedMeta::{Literal, Meta};
-use std::borrow::Cow;
+
 
 mod derive_enum;
 mod derive_struct;
 
 type QuoteT = proc_macro2::TokenStream;
 
-lazy_static! {
-    static ref RE: Regex =
-        Regex::new(r"(?P<nl>\n+)|(?P<brack>\s*\[\s+\])|(?P<brace>\{\s+\})").unwrap();
-}
-// TODO: where does the newline come from? why the double spaces?
+mod patch {
+    use regex::{Captures, Regex};
+    use std::borrow::Cow;
+    lazy_static! {
+        static ref RE: Regex =
+            Regex::new(r"(?P<nl>\n+)|(?P<brack>\s*\[\s+\])|(?P<brace>\{\s+\})").unwrap();
+    }
+    // TODO: where does the newline come from? why the double spaces?
 
-trait Has {
-    fn has(&self, s: &'static str) -> bool;
-}
+    trait Has {
+        fn has(&self, s: &'static str) -> bool;
+    }
 
-impl Has for Captures<'_> {
-    #[inline]
-    fn has(&self, s: &'static str) -> bool {
-        self.name(s).is_some()
+    impl Has for Captures<'_> {
+        #[inline]
+        fn has(&self, s: &'static str) -> bool {
+            self.name(s).is_some()
+        }
+    }
+
+    pub fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
+        RE.replace_all(s, |c: &Captures| {
+            if c.has("brace") {
+                "{ }"
+            } else if c.has("brack") {
+                " [ ]"
+            } else {
+                assert!(c.has("nl"));
+                " "
+            }
+        })
+    }
+
+    pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
+        RE.replace_all(s, |c: &Captures| {
+            if c.has("brace") {
+                "{}"
+            } else if c.has("brack") {
+                "[]"
+            } else {
+                assert!(c.has("nl"));
+                "\n"
+            }
+        })
     }
 }
-
-fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
-    RE.replace_all(s, |c: &Captures| {
-        if c.has("brace") {
-            "{ }"
-        } else if c.has("brack") {
-            " [ ]"
-        } else {
-            assert!(c.has("nl"));
-            " "
-        }
-    })
-}
-
-fn patch<'t>(s: &'t str) -> Cow<'t, str> {
-    RE.replace_all(s, |c: &Captures| {
-        if c.has("brace") {
-            "{}"
-        } else if c.has("brack") {
-            "[]"
-        } else {
-            assert!(c.has("nl"));
-            "\n"
-        }
-    })
-}
-
 /*
 fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
     if attr.path.segments.len() == 1 && attr.path.segments[0].ident == "ts" {
@@ -95,11 +98,10 @@ fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
 }
 */
 
-
 struct Parsed {
-    ident : syn::Ident,
-    lifetimes : Vec<QuoteT>,
-    body : QuoteT
+    ident: syn::Ident,
+    lifetimes: Vec<QuoteT>,
+    body: QuoteT,
 }
 
 fn parse(input: proc_macro::TokenStream) -> Parsed {
@@ -122,22 +124,23 @@ fn parse(input: proc_macro::TokenStream) -> Parsed {
     let cx = Ctxt::new();
     let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
-    let typescript : QuoteT = match container.data {
+    let typescript: QuoteT = match container.data {
         ast::Data::Enum(variants) => derive_enum::derive_enum(&variants, &container.attrs),
         ast::Data::Struct(style, fields) => {
             derive_struct::derive_struct(style, &fields, &container.attrs)
         }
     };
-    
-    
 
     let lifetimes = generic_lifetimes(container.generics);
 
     // consumes context
     cx.check().unwrap();
-    Parsed {ident: container.ident, lifetimes: lifetimes, body: typescript}
+    Parsed {
+        ident: container.ident,
+        lifetimes: lifetimes,
+        body: typescript,
+    }
 }
-
 
 fn ident_from_str(s: &str) -> proc_macro2::Ident {
     syn::Ident::new(s, Span::call_site())
@@ -148,9 +151,16 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
     let parsed = parse(input);
 
     let typescript_string = parsed.body.to_string();
-    let export_string = format!("export type {} = {};", parsed.ident, patch(&typescript_string));
+    let export_string = format!(
+        "export type {} = {};",
+        parsed.ident,
+        patch::patch(&typescript_string)
+    );
 
-    let export_ident = ident_from_str(&format!("TS_EXPORT_{}", parsed.ident.to_string().to_uppercase()));
+    let export_ident = ident_from_str(&format!(
+        "TS_EXPORT_{}",
+        parsed.ident.to_string().to_uppercase()
+    ));
 
     // eprintln!(
     //     "....[typescript] export type {}={};",
@@ -164,7 +174,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
     };
 
     if cfg!(any(debug_assertions, feature = "test-export")) {
-        let ts = debug_patch(&typescript_string); // why the newlines?
+        let ts = patch::debug_patch(&typescript_string); // why the newlines?
         let typescript_ident = ident_from_str(&format!("{}___typescript_definition", parsed.ident));
 
         expanded.append_all(quote! {
@@ -179,10 +189,9 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 
 #[proc_macro_derive(TypeScriptify)]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-
     let parsed = parse(input);
     let ts = parsed.body.to_string();
-    let export_string = format!("export type {} = {} ;", parsed.ident,  patch(&ts));
+    let export_string = format!("export type {} = {} ;", parsed.ident, patch::patch(&ts));
     let ident = parsed.ident;
 
     let ret = if parsed.lifetimes.len() == 0 {
@@ -226,12 +235,11 @@ fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
         .collect::<Vec<_>>()
 }
 
-
 fn return_type(rt: &syn::ReturnType) -> Option<QuoteT> {
-  match rt {
-      syn::ReturnType::Default => None,
-      syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp))
-  } 
+    match rt {
+        syn::ReturnType::Default => None,
+        syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp)),
+    }
 }
 
 struct TSType {
@@ -248,14 +256,19 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     ..
                 }) => args,
                 // turn func(A,B) ->C into  func<C>?
-                syn::PathArguments::Parenthesized(syn::ParenthesizedGenericArguments { output, ..}) => {
+                syn::PathArguments::Parenthesized(syn::ParenthesizedGenericArguments {
+                    output,
+                    ..
+                }) => {
                     let args = if let Some(rt) = return_type(output) {
                         vec![rt]
                     } else {
                         vec![]
                     };
-                    return Some(TSType { ident:ident, args:args})
-
+                    return Some(TSType {
+                        ident: ident,
+                        args: args,
+                    });
                 }
                 _ => {
                     return Some(TSType {
@@ -283,37 +296,38 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
     }
 }
 fn generic_to_ts(ts: TSType) -> QuoteT {
-
     match ts.ident.to_string().as_ref() {
         "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64" | "i128"
         | "isize" | "f64" | "f32" => quote! { number },
         "String" | "str" => quote! { string },
         "bool" => quote! { boolean },
-        "Vec" if ts.args.len()== 1 => {
+        "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => ts.args[0].clone(),
+
+        // std::collections
+        "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
             let t = &ts.args[0];
             quote! { #t[] }
-        },
-        "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => ts.args[0].clone(),
-        "HashMap" if ts.args.len() == 2 => {
+        }
+        "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
             let k = &ts.args[0];
             let v = &ts.args[1];
             quote!(Map<#k,#v>)
-        },
-        "HashSet" if ts.args.len() == 1 => {
+        }
+        "HashSet" | "BTreeSet" if ts.args.len() == 1 => {
             let k = &ts.args[0];
             quote!(Set<#k>)
-        },
+        }
         "Option" if ts.args.len() == 1 => {
             let k = &ts.args[0];
             quote!(  #k | null  )
-        },
+        }
         "Result" if ts.args.len() == 2 => {
             let k = &ts.args[0];
             let v = &ts.args[1];
             // TODO what if k or v is A | B | C ?
             // maybe A | B | C | #v is actually better than (A|B|C) | #v
             quote!(  #k | #v  )
-        },
+        }
         _ => {
             let ident = ts.ident;
             if ts.args.len() > 0 {
@@ -322,12 +336,11 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
             } else {
                 quote! {#ident}
             }
-        },
+        }
     }
 }
 
 fn type_to_ts(ty: &syn::Type) -> QuoteT {
-
     fn type_to_array(elem: &syn::Type) -> QuoteT {
         let tp = type_to_ts(elem);
         quote! { #tp[] }
@@ -335,8 +348,8 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
 
     use syn::Type::*;
     use syn::{
-        TypeArray, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen, TypePath, TypePtr,
-        TypeReference, TypeSlice, TypeTraitObject, TypeTuple, TypeBareFn
+        TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen, TypePath,
+        TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
     };
     match ty {
         Slice(TypeSlice { elem, .. }) => type_to_array(elem),
@@ -344,19 +357,25 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
         Ptr(TypePtr { elem, .. }) => type_to_array(elem),
         Reference(TypeReference { elem, .. }) => type_to_ts(elem),
         // fn(A,B,C) -> D to D?
-        BareFn(TypeBareFn{output,..}) => if let Some(rt) = return_type(&output) { rt } else { quote!(undefined) },
+        BareFn(TypeBareFn { output, .. }) => {
+            if let Some(rt) = return_type(&output) {
+                rt
+            } else {
+                quote!(undefined)
+            }
+        }
         Never(..) => quote! { never },
         Tuple(TypeTuple { elems, .. }) => {
-            let qelems = elems.iter().map(|t| type_to_ts(t));
-            quote!([ #(#qelems),* ])
-        },
+            let elems = elems.iter().map(|t| type_to_ts(t));
+            quote!([ #(#elems),* ])
+        }
 
         Path(TypePath { path, .. }) => match last_path_element(&path) {
             Some(ts) => generic_to_ts(ts),
             _ => quote! { any },
         },
         TraitObject(TypeTraitObject { bounds, .. }) | ImplTrait(TypeImplTrait { bounds, .. }) => {
-            let qelems = bounds
+            let elems = bounds
                 .iter()
                 .filter_map(|t| match t {
                     TypeParamBound::Trait(t) => last_path_element(&t.path),
@@ -368,16 +387,14 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
                 });
 
             // TODO check for zero length?
-            quote!(#(#qelems)|*)
+            quote!(#(#elems)|*)
         }
         Paren(TypeParen { elem, .. }) => {
             let tp = type_to_ts(elem);
             quote! { ( #tp ) }
         }
         Group(TypeGroup { elem, .. }) => type_to_ts(elem),
-        Infer(..) => quote! { any },
-        Macro(..) => quote! { any },
-        Verbatim(..) => quote! { any },
+        Infer(..) | Macro(..) | Verbatim(..) => quote! { any },
     }
 }
 
@@ -385,10 +402,6 @@ fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
     let field_name = field.attrs.name().serialize_name();
     let field_name = ident_from_str(&field_name);
 
-    if field.attrs.flatten() {
-
-    }
-    
     let ty = type_to_ts(&field.ty);
     quote! {
         #field_name: #ty

@@ -8,7 +8,7 @@
 
 use serde_derive_internals::{ast, attr, attr::EnumTag};
 
-use super::{derive_field, type_to_ts, QuoteT, ident_from_str};
+use super::{derive_field, ident_from_str, type_to_ts, QuoteT};
 
 struct TagInfo<'a> {
     tag: &'a str,
@@ -27,7 +27,7 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Conta
             content: None,
         },
     };
-    let content = variants.into_iter().map(|variant| {
+    let content = variants.iter().map(|variant| {
         let variant_name = variant.attrs.name().serialize_name();
         match variant.style {
             ast::Style::Struct => derive_struct_variant(&taginfo, &variant_name, &variant.fields),
@@ -60,7 +60,6 @@ fn derive_newtype_variant<'a>(
         ident_from_str(&content)
     } else {
         ident_from_str("fields")
-       
     };
 
     quote! {
@@ -101,10 +100,9 @@ fn derive_tuple_variant<'a>(
         ident_from_str(&content)
     } else {
         ident_from_str("fields")
-       
     };
-    
+
     quote! {
-         { #tag: #variant_name, #content : [ #(#contents),* ] }
-        }
+     { #tag: #variant_name, #content : [ #(#contents),* ] }
+    }
 }
