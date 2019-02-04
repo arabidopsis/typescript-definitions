@@ -328,7 +328,7 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
 
 fn type_to_ts(ty: &syn::Type) -> QuoteT {
 
-    let type_to_array = |elem: &syn::Type| -> QuoteT {
+    fn type_to_array(elem: &syn::Type) -> QuoteT {
         let tp = type_to_ts(elem);
         quote! { #tp[] }
     };
