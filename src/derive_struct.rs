@@ -26,7 +26,7 @@ fn derive_struct_newtype<'a>(
     fields: &[ast::Field<'a>],
     _attr_container: &attr::Container,
 ) -> QuoteT {
-    type_to_ts(&fields[0].ty, 0)
+    type_to_ts(&fields[0].ty)
 }
 
 fn derive_struct_unit(_attr_container: &attr::Container) -> QuoteT {
@@ -45,7 +45,7 @@ fn derive_struct_named_fields<'a>(
 }
 
 fn derive_struct_tuple<'a>(fields: &[ast::Field<'a>], _attr_container: &attr::Container) -> QuoteT {
-    let content = fields.into_iter().map(|field| type_to_ts(field.ty, 0));
+    let content = fields.into_iter().map(|field| type_to_ts(field.ty));
 
     quote!([#(#content),*])
 }

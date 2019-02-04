@@ -54,7 +54,7 @@ fn derive_newtype_variant<'a>(
     variant_name: &str,
     field: &ast::Field<'a>,
 ) -> QuoteT {
-    let ty = type_to_ts(&field.ty, 0);
+    let ty = type_to_ts(&field.ty);
     let tag = ident_from_str(taginfo.tag);
     let content = if let Some(content) = taginfo.content {
         ident_from_str(&content)
@@ -93,7 +93,7 @@ fn derive_tuple_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
-    let contents = fields.iter().map(|field| type_to_ts(&field.ty, 0));
+    let contents = fields.iter().map(|field| type_to_ts(&field.ty));
     // .collect::<Vec<_>>();
 
     let tag = ident_from_str(taginfo.tag);

@@ -227,10 +227,10 @@ fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
 }
 
 
-fn return_type(rt: &syn::ReturnType, depth: i32) -> Option<QuoteT> {
+fn return_type(rt: &syn::ReturnType) -> Option<QuoteT> {
   match rt {
       syn::ReturnType::Default => None,
-      syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp, depth + 1))
+      syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp))
   } 
 }
 
@@ -238,7 +238,7 @@ struct TSType {
     ident: syn::Ident,
     args: Vec<QuoteT>,
 }
-fn last_path_element(path: &syn::Path, depth: i32) -> Option<TSType> {
+fn last_path_element(path: &syn::Path) -> Option<TSType> {
     match path.segments.last().map(|p| p.into_value()) {
         Some(t) => {
             let ident = t.ident.clone();
@@ -249,7 +249,7 @@ fn last_path_element(path: &syn::Path, depth: i32) -> Option<TSType> {
                 }) => args,
                 // turn func(A,B) ->C into  func<C>?
                 syn::PathArguments::Parenthesized(syn::ParenthesizedGenericArguments { output, ..}) => {
-                    let args = if let Some(rt) = return_type(output, depth) {
+                    let args = if let Some(rt) = return_type(output) {
                         vec![rt]
                     } else {
                         vec![]
@@ -271,7 +271,7 @@ fn last_path_element(path: &syn::Path, depth: i32) -> Option<TSType> {
                     syn::GenericArgument::Type(t) => Some(t),
                     _ => None,
                 })
-                .map(|p| type_to_ts(p, depth + 1))
+                .map(|p| type_to_ts(p))
                 .collect::<Vec<_>>();
 
             Some(TSType {
@@ -326,10 +326,10 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
     }
 }
 
-fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
+fn type_to_ts(ty: &syn::Type) -> QuoteT {
 
     let type_to_array = |elem: &syn::Type| -> QuoteT {
-        let tp = type_to_ts(elem, depth + 1);
+        let tp = type_to_ts(elem);
         quote! { #tp[] }
     };
 
@@ -342,16 +342,16 @@ fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
         Slice(TypeSlice { elem, .. }) => type_to_array(elem),
         Array(TypeArray { elem, .. }) => type_to_array(elem),
         Ptr(TypePtr { elem, .. }) => type_to_array(elem),
-        Reference(TypeReference { elem, .. }) => type_to_ts(elem, depth + 1),
+        Reference(TypeReference { elem, .. }) => type_to_ts(elem),
         // fn(A,B,C) -> D to D?
-        BareFn(TypeBareFn{output,..}) => if let Some(rt) = return_type(&output, depth) { rt } else { quote!(undefined) },
+        BareFn(TypeBareFn{output,..}) => if let Some(rt) = return_type(&output) { rt } else { quote!(undefined) },
         Never(..) => quote! { never },
         Tuple(TypeTuple { elems, .. }) => {
-            let qelems = elems.iter().map(|t| type_to_ts(t, depth + 1));
+            let qelems = elems.iter().map(|t| type_to_ts(t));
             quote!([ #(#qelems),* ])
         },
 
-        Path(TypePath { path, .. }) => match last_path_element(&path, depth) {
+        Path(TypePath { path, .. }) => match last_path_element(&path) {
             Some(ts) => generic_to_ts(ts),
             _ => quote! { any },
         },
@@ -359,7 +359,7 @@ fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
             let qelems = bounds
                 .iter()
                 .filter_map(|t| match t {
-                    TypeParamBound::Trait(t) => last_path_element(&t.path, depth),
+                    TypeParamBound::Trait(t) => last_path_element(&t.path),
                     _ => None, // skip lifetime etc.
                 })
                 .map(|t| {
@@ -371,10 +371,10 @@ fn type_to_ts(ty: &syn::Type, depth: i32) -> QuoteT {
             quote!(#(#qelems)|*)
         }
         Paren(TypeParen { elem, .. }) => {
-            let tp = type_to_ts(elem, depth + 1);
+            let tp = type_to_ts(elem);
             quote! { ( #tp ) }
         }
-        Group(TypeGroup { elem, .. }) => type_to_ts(elem, depth + 1),
+        Group(TypeGroup { elem, .. }) => type_to_ts(elem),
         Infer(..) => quote! { any },
         Macro(..) => quote! { any },
         Verbatim(..) => quote! { any },
@@ -389,7 +389,7 @@ fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
 
     }
     
-    let ty = type_to_ts(&field.ty, 0);
+    let ty = type_to_ts(&field.ty);
     quote! {
         #field_name: #ty
     }
