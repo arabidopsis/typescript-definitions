@@ -212,7 +212,7 @@ to find the *actual* Struct object (from somewhere) and query its fields.
 
 
 
-## <a name="credits"></a> Credits
+## Credits
 
 see http://timryan.org/2019/01/22/exporting-serde-types-to-typescript.html
 
