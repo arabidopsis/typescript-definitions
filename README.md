@@ -1,4 +1,4 @@
-# wasm-typescript-definition2
+# typescript-definitions
 
 Exports serde-serializable structs and enums to Typescript definitions.
 
@@ -19,12 +19,12 @@ example:
 
 ```rust
 extern crate serde_derive;
-extern crate wasm_typescript_definition2;
+extern crate typescript_definitions;
 extern crate wasm_bindgen;
 
 use::wasm_bindgen::prelude::*;
 use::serde_derive::Serialize;
-use::wasm_typescript_definition2::TypescriptDefinition;
+use::typescript_definitions::TypescriptDefinition;
 
 #[derive(Serialize, TypescriptDefinition)]
 #[serde(tag = "tag", content = "fields")]
@@ -59,7 +59,7 @@ export type Enum =
     ;
 ```
 
-## Using `wasm-typescript-definition2`
+## Using `typescript-definitions`
 
 In your crate create a lib target in `Cargo.toml` pointing
 to your "interfaces"
@@ -72,7 +72,7 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-wasm-typescript-definition2 = { version="0.1.0",  path = "../wasm-typescript-definition" }
+typescript-definitions =version="0.1.0"
 wasm-bindgen = "0.2"
 serde = "1"
 serde_derive = "1"
@@ -110,7 +110,7 @@ in scope:
 ```rust
 // interface.rs
 extern crate serde_derive;
-extern crate wasm_typescript_definition2;
+extern crate typescript_definitions;
 // wasm_bindgen not needed
 // use::wasm_bindgen::prelude::*;
 use::serde_derive::Serialize;
