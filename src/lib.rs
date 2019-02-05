@@ -6,6 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+//! Exports serde-serializable structs and enums to Typescript definitions.
+//! 
+//! please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+
 extern crate proc_macro;
 
 #[macro_use]
@@ -145,7 +149,10 @@ fn parse(input: proc_macro::TokenStream) -> Parsed {
 fn ident_from_str(s: &str) -> proc_macro2::Ident {
     syn::Ident::new(s, Span::call_site())
 }
-
+/// derive proc_macro to expose typescript definitions to `wasm-bindgen`.
+///
+/// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+/// 
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let parsed = parse(input);
@@ -187,6 +194,10 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
     expanded.into()
 }
 
+/// derive proc_macro to expose typescript definitions to as a static function.
+///
+/// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+/// 
 #[proc_macro_derive(TypeScriptify)]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let parsed = parse(input);
