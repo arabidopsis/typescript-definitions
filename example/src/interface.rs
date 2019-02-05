@@ -59,9 +59,11 @@ pub enum FrontendMessage {
 }
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
 pub struct Borrow<'a> {
     raw: &'a str,
-    cow: Cow<'a, str>
+    cow: Cow<'a, str>,
+    map : HashMap<String, i32>
 }

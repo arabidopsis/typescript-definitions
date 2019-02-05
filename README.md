@@ -63,6 +63,12 @@ export type Enum =
 
 ## Using `typescript-definitions`
 
+**NB**: Please note these macros work *only for the debug build* since they pollute the
+code with strings and methods all of which are proabably not useful in any release (Since
+you are only using them to extract information about your current types). In
+release builds they become no-ops.
+
+
 In your crate create a lib target in `Cargo.toml` pointing
 to your "interfaces"
 
@@ -139,6 +145,18 @@ fn main() {
     // prints "export type MyStruct = { v: number };"
 }
 ```
+Use the cfg macro
+
+```
+if cfg!(debug_assertions) {
+    let s = A::type_script_ify();
+}
+```
+To protect  any use of `type_script_ify()`. 
+
+There is an `export_typescript` feature
+to opt-in for release.... but it currently doesn't work. And I don't know why.
+
 
 ## Serde Internally or Adjacently tagged Enums
 

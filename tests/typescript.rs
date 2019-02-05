@@ -249,9 +249,9 @@ fn struct_typescriptify() {
         c: Result<i32,&'static str>,
         d: Result<Option<i32>,String>,
     }
-    assert_eq!(A::type_script_ify(), quote!{
+    assert_eq!(A::type_script_ify(), &quote!{
         export type A = { x: number ,c: number | string, d: number | null | string } ;
-    }.to_string());
+    }.to_string().replace(" : ", ": "));
 }
 
 #[test]
@@ -265,6 +265,6 @@ fn cow_as_pig() {
     }
     assert_eq!(S::type_script_ify(), quote!{
         export type S = { pig : Pig<string>, cow : string } ;
-    }.to_string());
+    }.to_string().replace(" : ", ": "));
 
 }

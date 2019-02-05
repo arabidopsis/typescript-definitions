@@ -1,3 +1,4 @@
+
 extern crate serde_json;
 extern crate serde;
 use serde::{Deserialize, Serialize};
@@ -23,3 +24,4 @@ fn main() -> Result<(),Error> {
     println!("{}", serde_json::to_string(&f2)?);
     Ok(())
 }
+

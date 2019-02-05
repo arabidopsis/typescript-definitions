@@ -10,6 +10,7 @@
 //! 
 //! please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
 
+
 extern crate proc_macro;
 
 #[macro_use]
@@ -27,7 +28,7 @@ extern crate lazy_static;
 extern crate serde_bytes;
 
 use proc_macro2::Span;
-use quote::TokenStreamExt;
+// use quote::TokenStreamExt;
 
 use serde_derive_internals::{ast, Ctxt, Derive};
 use syn::DeriveInput;
@@ -45,7 +46,7 @@ mod patch {
     use std::borrow::Cow;
     lazy_static! {
         static ref RE: Regex =
-            Regex::new(r"(?P<nl>\n+)|(?P<brack>\s*\[\s+\])|(?P<brace>\{\s+\})").unwrap();
+            Regex::new(r"(?P<nl>\n+)|(?P<brack>\s*\[\s+\])|(?P<brace>\{\s+\})|(?P<colon>\s[:]\s)").unwrap();
     }
     // TODO: where does the newline come from? why the double spaces?
 
@@ -59,13 +60,17 @@ mod patch {
             self.name(s).is_some()
         }
     }
+   
 
     pub fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
         RE.replace_all(s, |c: &Captures| {
+            // c.get(0).map(|s| s.)
             if c.has("brace") {
                 "{ }"
             } else if c.has("brack") {
                 " [ ]"
+            } else if c.has("colon") {
+                " : "
             } else {
                 assert!(c.has("nl"));
                 " "
@@ -79,6 +84,8 @@ mod patch {
                 "{}"
             } else if c.has("brack") {
                 "[]"
+            } else if c.has("colon") {
+                ": "
             } else {
                 assert!(c.has("nl"));
                 "\n"
@@ -152,46 +159,48 @@ fn ident_from_str(s: &str) -> proc_macro2::Ident {
 /// derive proc_macro to expose typescript definitions to `wasm-bindgen`.
 ///
 /// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
-/// 
+///
+
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let parsed = parse(input);
 
-    let typescript_string = parsed.body.to_string();
-    let export_string = format!(
-        "export type {} = {};",
-        parsed.ident,
-        patch::patch(&typescript_string)
-    );
+    if cfg!(any(debug_assertions, feature = "export_typescript")) {
+        let parsed = parse(input);
 
-    let export_ident = ident_from_str(&format!(
-        "TS_EXPORT_{}",
-        parsed.ident.to_string().to_uppercase()
-    ));
+        let typescript_string = parsed.body.to_string();
+        let export_string = format!(
+            "export type {} = {};",
+            parsed.ident,
+            patch::patch(&typescript_string)
+        );
 
-    // eprintln!(
-    //     "....[typescript] export type {}={};",
-    //     ident, typescript_string
-    // );
+        let export_ident = ident_from_str(&format!(
+            "TS_EXPORT_{}",
+            parsed.ident.to_string().to_uppercase()
+        ));
 
-    let mut expanded = quote! {
-
-        #[wasm_bindgen(typescript_custom_section)]
-        const #export_ident : &'static str = #export_string;
-    };
-
-    if cfg!(any(debug_assertions, feature = "test-export")) {
+        // eprintln!(
+        //     "....[typescript] export type {}={};",
+        //     parsed.ident, typescript_string
+        // );
         let ts = patch::debug_patch(&typescript_string); // why the newlines?
         let typescript_ident = ident_from_str(&format!("{}___typescript_definition", parsed.ident));
+        let q = quote! {
 
-        expanded.append_all(quote! {
+            #[wasm_bindgen(typescript_custom_section)]
+            pub const #export_ident : &'static str = #export_string;
+            
             fn #typescript_ident ( ) -> &'static str {
                 #ts
             }
-        })
+        
+        };
+    
+    q.into()
+    } else {
+        quote!().into()
     }
 
-    expanded.into()
 }
 
 /// derive proc_macro to expose typescript definitions to as a static function.
@@ -200,35 +209,41 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 /// 
 #[proc_macro_derive(TypeScriptify)]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let parsed = parse(input);
-    let ts = parsed.body.to_string();
-    let export_string = format!("export type {} = {} ;", parsed.ident, patch::patch(&ts));
-    let ident = parsed.ident;
 
-    let ret = if parsed.lifetimes.len() == 0 {
-        quote! {
+    if cfg!(any(debug_assertions, feature = "export_typescript")) {
+        let parsed = parse(input);
+        let ts = parsed.body.to_string();
+        let export_string = format!("export type {} = {} ;", parsed.ident, patch::patch(&ts));
+        let ident = parsed.ident;
 
-            impl TypeScriptifyTrait for #ident {
-                fn type_script_ify() ->  &'static str {
-                    #export_string
+        let ret = if parsed.lifetimes.len() == 0 {
+            quote! {
+
+                impl TypeScriptifyTrait for #ident {
+                    fn type_script_ify() ->  &'static str {
+                        #export_string
+                    }
                 }
             }
-        }
+        } else {
+            // can't use 'a need '_
+            let lt = parsed.lifetimes.iter().map(|_q| quote!('_));
+            quote! {
+
+                impl TypeScriptifyTrait for #ident<#(#lt),*> {
+                    fn type_script_ify() ->  &'static str {
+                        #export_string
+                    }
+                }
+            }
+        };
+
+        ret.into()
     } else {
-        // can't use 'a need '_
-        let lt = parsed.lifetimes.iter().map(|_q| quote!('_));
-        quote! {
-
-            impl TypeScriptifyTrait for #ident<#(#lt),*> {
-                fn type_script_ify() ->  &'static str {
-                    #export_string
-                }
-            }
-        }
-    };
-
-    ret.into()
+        quote!().into()
+    }
 }
+
 
 fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
     // get all the generic lifetimes
