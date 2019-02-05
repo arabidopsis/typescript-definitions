@@ -155,7 +155,7 @@ The default for NewTypes and Tuple types is
 
 ## Problems
 
-Currently `wasm-typescript-description2` will not fail (AFAIK) even for
+Currently `typescript-descriptions` will not fail (AFAIK) even for
 structs and enums with function types `Fn(A,B) -> C` (generates `C`). These make no sense in the current 
 context (data types, json serialization) so this might be considered a bug.
 Watchout!
