@@ -50,7 +50,7 @@ enum Enum {
 }
 
 
-#[derive(TypescriptDefinition, Serialize)]
+#[derive(TypescriptDefinition, Serialize, TypeScriptify)]
 #[serde(tag = "tag", content = "fields")]
 pub enum FrontendMessage {
   Init { id: String, },

@@ -243,7 +243,7 @@ fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
             _ => None,
         })
         .map(|lt| quote!(#lt))
-        .collect::<Vec<_>>()
+        .collect()
 }
 
 fn return_type(rt: &syn::ReturnType) -> Option<QuoteT> {
