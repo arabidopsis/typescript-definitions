@@ -51,7 +51,7 @@ fn tuple_struct() {
 
 #[test]
 fn struct_with_borrowed_fields() {
-    #[derive(Serialize, TypescriptDefinition)]
+    #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
     struct Borrow<'a> {
         raw: &'a str,
         cow: Cow<'a, str>

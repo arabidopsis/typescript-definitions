@@ -1,4 +1,6 @@
-
+/example/target
+/example/pkg
 /target
+/pkg
 **/*.bk
 Cargo.lock

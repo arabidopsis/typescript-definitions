@@ -1,0 +1,18 @@
+[package]
+name = "typescript-test"
+version = "0.1.0"
+authors = ["Ian Castleden <ian.castleden@gmail.com>"]
+edition = "2018"
+
+[lib]
+name="wasm"
+path = "src/interface.rs"
+crate-type = ["cdylib"]
+
+
+[dependencies]
+
+wasm-bindgen = "0.2"
+serde = "1"
+serde_derive = "1"
+typescript-definitions = { version="0.1.0",  path = ".." }
