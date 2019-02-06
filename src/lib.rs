@@ -32,6 +32,7 @@ use proc_macro2::Span;
 
 use serde_derive_internals::{ast, Ctxt, Derive};
 use syn::DeriveInput;
+// use proc_macro::TokenStream;
 // use syn::Meta::{List, NameValue, Word};
 // use syn::NestedMeta::{Literal, Meta};
 
@@ -164,7 +165,7 @@ fn ident_from_str(s: &str) -> proc_macro2::Ident {
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
-    if cfg!(any(debug_assertions, feature = "export_typescript")) {
+    if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let parsed = parse(input);
 
         let typescript_string = parsed.body.to_string();
@@ -185,7 +186,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
         // );
         let ts = patch::debug_patch(&typescript_string); // why the newlines?
         let typescript_ident = ident_from_str(&format!("{}___typescript_definition", parsed.ident));
-        let q = quote! {
+        quote! (
 
             #[wasm_bindgen(typescript_custom_section)]
             pub const #export_ident : &'static str = #export_string;
@@ -194,11 +195,11 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
                 #ts
             }
         
-        };
+        ).into()
     
-    q.into()
     } else {
-        quote!().into()
+        //proc_macro2::TokenStream::new().into()
+        proc_macro::TokenStream::new()
     }
 
 }
@@ -210,7 +211,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 #[proc_macro_derive(TypeScriptify)]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
-    if cfg!(any(debug_assertions, feature = "export_typescript")) {
+    if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let parsed = parse(input);
         let ts = parsed.body.to_string();
         let export_string = format!("export type {} = {} ;", parsed.ident, patch::patch(&ts));
@@ -240,7 +241,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 
         ret.into()
     } else {
-        quote!().into()
+        proc_macro::TokenStream::new()
     }
 }
 

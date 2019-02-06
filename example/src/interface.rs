@@ -1,5 +1,5 @@
 
-// extern crate serde;
+#![allow(unused)]
 extern crate serde_derive;
 extern crate typescript_definitions;
 extern crate wasm_bindgen;

@@ -63,10 +63,10 @@ export type Enum =
 
 ## Using `typescript-definitions`
 
-**NB**: Please note these macros work *only for the debug build* since they pollute the
+**NB**: Please note these macros by default work *only for the debug build* since they pollute the
 code with strings and methods all of which are proabably not useful in any release (Since
 you are only using them to extract information about your current types). In
-release builds they become no-ops.
+release builds they become no-ops. See [features](#features) below.
 
 
 In your crate create a lib target in `Cargo.toml` pointing
@@ -148,14 +148,26 @@ fn main() {
 Use the cfg macro
 
 ```
-if cfg!(debug_assertions) {
+if cfg!(any(debug_assertions, feature="export-typescript") {
     let s = A::type_script_ify();
 }
 ```
 To protect  any use of `type_script_ify()`. 
 
-There is an `export_typescript` feature
-to opt-in for release.... but it currently doesn't work. And I don't know why.
+### Features
+
+There is an `export-typescript` feature
+to opt-in for release.
+
+```toml
+[dependencies.typescript-definitions]
+version = "0.1.2"
+features = ["export-typescript"]
+
+## OR
+
+typescript-definitions = { version="0.1.2",  features=["export-typescript"]  }
+```
 
 
 ## Serde Internally or Adjacently tagged Enums

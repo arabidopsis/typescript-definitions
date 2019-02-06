@@ -9,8 +9,10 @@ repository = "https://bitbucket.org/athaliana/typescript-definitions"
 keywords =["typescript", "serde"]
 categories = ["data-structures", "development-tools", "wasm" , "web-programming"]
 
+
 [lib]
 proc-macro = true
+
 
 [dependencies]
 quote = "0.6"
@@ -27,4 +29,4 @@ serde_derive = "1"
 wasm-bindgen = "0.2"
 
 [features]
-export_typescript = []
+export-typescript = []
