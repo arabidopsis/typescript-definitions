@@ -1,21 +1,26 @@
-
-
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 
 type N = [(&'static str, &'static str); 10];
-const NAMES : N = [("nl", r"\n+"), ("brack", r"\s*\[\s+\]"),
-                   ("brace", r"\{\s+\}"), ("colon", r"\s[:]\s"),
-                  ("bar", r"\s\|\s+\{"), 
-                  ("enl", r"\n+\}"), ("fnl", r"\{\n+"),
-                  ("result", "__ZZ__patch_me__ZZ__"), // for Result...
-                  ("lt", r"\s<\s"), ("gt", r"\s>(\s|$)"),
-                 ];
+const NAMES: N = [
+    ("nl", r"\n+"),
+    ("brack", r"\s*\[\s+\]"),
+    ("brace", r"\{\s+\}"),
+    ("colon", r"\s[:]\s"),
+    ("bar", r"\s\|\s+\{"),
+    ("enl", r"\n+\}"),
+    ("fnl", r"\{\n+"),
+    ("result", "__ZZ__patch_me__ZZ__"), // for Result...
+    ("lt", r"\s<\s"),
+    ("gt", r"\s>(\s|$)"),
+];
 lazy_static! {
-    
     static ref RE: Regex = {
-        let v  = NAMES.iter().map(|(n, re)| format!("(?P<{}>{})", n, re))
-            .collect::<Vec<_>>().join("|");
+        let v = NAMES
+            .iter()
+            .map(|(n, re)| format!("(?P<{}>{})", n, re))
+            .collect::<Vec<_>>()
+            .join("|");
         Regex::new(&v).unwrap()
     };
 }
@@ -31,13 +36,13 @@ impl Has for Captures<'_> {
     fn has(&self, s: &'static str) -> bool {
         self.name(s).is_some()
     }
-    
+
     fn key(&self) -> &'static str {
         for n in &NAMES {
             if self.has(n.0) {
                 return n.0;
             }
-        };
+        }
         "?"
     }
     /*
@@ -54,7 +59,6 @@ impl Has for Captures<'_> {
     }
     */
 }
-
 
 // pub fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
 //     RE.replace_all(s, |c: &Captures| {
@@ -79,16 +83,14 @@ pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
             "brace" => "{}",
             "brack" => "[]",
             "colon" => ": ",
-            "fnl" =>  "{ ",
+            "fnl" => "{ ",
             "bar" => "\n   | {",
             "enl" => " }",
             "nl" => " ",
             "result" => "|",
             "lt" => "<",
             "gt" => ">",
-            _ => c.get(0).unwrap().as_str()
-
-        }      
-
+            _ => c.get(0).unwrap().as_str(),
+        }
     })
 }

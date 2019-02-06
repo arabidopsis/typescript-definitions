@@ -1,14 +1,12 @@
-
 #![allow(unused)]
 extern crate serde_derive;
 extern crate typescript_definitions;
 extern crate wasm_bindgen;
 
-
-use::wasm_bindgen::prelude::*;
-use::serde_derive::{Serialize};
-use::typescript_definitions::TypescriptDefinition;
-use::typescript_definitions::TypeScriptify;
+use serde_derive::Serialize;
+use typescript_definitions::TypeScriptify;
+use typescript_definitions::TypescriptDefinition;
+use wasm_bindgen::prelude::*;
 
 pub trait TypeScriptifyTrait {
     fn type_script_ify() -> &'static str;
@@ -16,7 +14,6 @@ pub trait TypeScriptifyTrait {
 
 #[derive(Serialize, TypescriptDefinition)]
 pub struct Newtype(i64);
-
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify, Debug)]
 pub struct Point {
@@ -26,7 +23,6 @@ pub struct Point {
     pub y: i64,
     pub z: i64,
 }
-
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
 pub enum Enum {
@@ -47,22 +43,32 @@ pub enum Enum {
         #[serde(rename = "Quux")]
         quux: String,
     },
-
 }
 // #[derive(Serialize)]
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
 pub struct Value<T> {
-    value: T
+    value: T,
 }
 
 #[derive(TypescriptDefinition, Serialize, TypeScriptify)]
 #[serde(tag = "tag", content = "fields")]
 pub enum FrontendMessage {
-  Init { id: String, },
-  ButtonState { selected: Vec<String>, time: u32, other: Option<String> },
-  Render { html: String, time: u32, 
-  other: Result<&'static str,i32> },
-  Stuff {borrow: Value<i32> }
+    Init {
+        id: String,
+    },
+    ButtonState {
+        selected: Vec<String>,
+        time: u32,
+        other: Option<String>,
+    },
+    Render {
+        html: String,
+        time: u32,
+        other: Result<&'static str, i32>,
+    },
+    Stuff {
+        borrow: Value<i32>,
+    },
 }
 
 use std::borrow::Cow;
@@ -72,5 +78,5 @@ use std::collections::HashMap;
 pub struct Borrow<'a> {
     raw: &'a str,
     cow: Cow<'a, str>,
-    map : HashMap<String, i32>
+    map: HashMap<String, i32>,
 }
