@@ -10,6 +10,7 @@ extern crate quote;
 #[macro_use]
 extern crate wasm_bindgen;
 extern crate proc_macro2;
+
 use std::borrow::Cow;
 use serde::de::value::Error;
 use typescript_definitions::{TypescriptDefinition, TypeScriptify};
@@ -27,7 +28,8 @@ trait TypeScriptifyTrait {
     fn type_script_ify() -> &'static str;
 }
 
-// can't get access to patch!
+// can't get access to typescript_definitions::patch!
+// so we do our own.
 fn patch(ts: proc_macro2::TokenStream) -> String {
     let s = ts.to_string(); // why do I have to do this?
     s.replace("[ ]","[  ]")

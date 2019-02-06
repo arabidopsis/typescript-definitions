@@ -1,3 +1,11 @@
+// Copyright 2019 Ian Castleden
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 
@@ -24,7 +32,7 @@ lazy_static! {
         Regex::new(&v).unwrap()
     };
 }
-// TODO: where does the newline come from? why the double spaces?
+
 
 trait Has {
     fn has(&self, s: &'static str) -> bool;
@@ -76,6 +84,7 @@ impl Has for Captures<'_> {
 //     })
 // }
 
+// TODO: where does the newline come from? why the double spaces?
 pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
     RE.replace_all(s, |c: &Captures| {
         let key = c.key();
