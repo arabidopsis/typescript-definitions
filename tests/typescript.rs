@@ -13,10 +13,15 @@ extern crate wasm_bindgen;
 use std::borrow::Cow;
 use serde::de::value::Error;
 use typescript_definitions::{TypescriptDefinition, TypeScriptify};
+
 use wasm_bindgen::prelude::*;
 
 trait TypeScriptifyTrait {
     fn type_script_ify() -> &'static str;
+}
+
+fn patch(s: & str) -> String {
+    s.replace(" : ", ": ").replace(" ;", ";")
 }
 
 #[test]
@@ -249,9 +254,9 @@ fn struct_typescriptify() {
         c: Result<i32,&'static str>,
         d: Result<Option<i32>,String>,
     }
-    assert_eq!(A::type_script_ify(), &quote!{
-        export type A = { x: number ,c: number | string, d: number | null | string } ;
-    }.to_string().replace(" : ", ": "));
+    assert_eq!(A::type_script_ify(), patch(&quote!{
+        export type A = { x: number ,c: number | string, d: number | null | string };
+    }.to_string()));
 }
 
 #[test]
@@ -263,8 +268,8 @@ fn cow_as_pig() {
         pig: Pig<'a, str>,
         cow : ::std::borrow::Cow<'a, str>,
     }
-    assert_eq!(S::type_script_ify(), quote!{
+    assert_eq!(S::type_script_ify(), patch(&quote!{
         export type S = { pig : Pig<string>, cow : string } ;
-    }.to_string().replace(" : ", ": "));
+    }.to_string()));
 
 }

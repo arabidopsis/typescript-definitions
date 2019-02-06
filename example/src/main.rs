@@ -18,7 +18,8 @@ fn main() -> Result<(),Error> {
     println!("Point {:?}", p);
     println!("{}", j);
     println!("{}",Point::type_script_ify());
-    println!("{}", Borrow::type_script_ify());
+    
+    println!("{}", Enum::type_script_ify());
     println!("{}", FrontendMessage::type_script_ify());
     println!("{}", serde_json::to_string(&f)?);
     println!("{}", serde_json::to_string(&f2)?);

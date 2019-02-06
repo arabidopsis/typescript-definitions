@@ -65,8 +65,8 @@ export type Enum =
 
 **NB**: Please note these macros by default work *only for the debug build* since they pollute the
 code with strings and methods all of which are proabably not useful in any release (Since
-you are only using them to extract information about your current types). In
-release builds they become no-ops. See [features](#features) below.
+you are only using them to extract information about your current types from your *code*). In
+release builds they become no-ops. See [features](#features) below if you want them in your release build.
 
 
 In your crate create a lib target in `Cargo.toml` pointing
@@ -80,7 +80,7 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-typescript-definitions =version="0.1.0"
+typescript-definitions = "0.1.2"
 wasm-bindgen = "0.2"
 serde = "1"
 serde_derive = "1"
@@ -112,7 +112,7 @@ cat pkg/mywasm.d.ts
 
 ## Using `type_script_ify`
 
-You can ignore WASM totally and derive using `TypeScriptify` as long as you have the following Trait
+You can ignore WASM totally and derive using `TypeScriptify` as long as you have the following `TypeScriptifyTrait` Trait
 in scope:
 
 ```rust
@@ -145,14 +145,14 @@ fn main() {
     // prints "export type MyStruct = { v: number };"
 }
 ```
-Use the cfg macro
+Use the cfg macro To protect  any use of `type_script_ify()`
 
 ```
 if cfg!(any(debug_assertions, feature="export-typescript") {
     let s = A::type_script_ify();
 }
 ```
-To protect  any use of `type_script_ify()`. 
+
 
 ### Features
 

@@ -16,13 +16,14 @@ extern crate proc_macro;
 #[macro_use]
 extern crate quote;
 
+#[macro_use]#[allow(unused_imports)]
+extern crate lazy_static;
 // extern crate serde;
 extern crate proc_macro2;
 extern crate regex;
 extern crate serde_derive_internals;
 extern crate syn;
-#[macro_use]
-extern crate lazy_static;
+
 
 #[cfg(feature = "bytes")]
 extern crate serde_bytes;
@@ -39,61 +40,10 @@ use syn::DeriveInput;
 
 mod derive_enum;
 mod derive_struct;
+mod patch;
 
 type QuoteT = proc_macro2::TokenStream;
 
-mod patch {
-    use regex::{Captures, Regex};
-    use std::borrow::Cow;
-    lazy_static! {
-        static ref RE: Regex =
-            Regex::new(r"(?P<nl>\n+)|(?P<brack>\s*\[\s+\])|(?P<brace>\{\s+\})|(?P<colon>\s[:]\s)").unwrap();
-    }
-    // TODO: where does the newline come from? why the double spaces?
-
-    trait Has {
-        fn has(&self, s: &'static str) -> bool;
-    }
-
-    impl Has for Captures<'_> {
-        #[inline]
-        fn has(&self, s: &'static str) -> bool {
-            self.name(s).is_some()
-        }
-    }
-   
-
-    pub fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
-        RE.replace_all(s, |c: &Captures| {
-            // c.get(0).map(|s| s.)
-            if c.has("brace") {
-                "{ }"
-            } else if c.has("brack") {
-                " [ ]"
-            } else if c.has("colon") {
-                " : "
-            } else {
-                assert!(c.has("nl"));
-                " "
-            }
-        })
-    }
-
-    pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
-        RE.replace_all(s, |c: &Captures| {
-            if c.has("brace") {
-                "{}"
-            } else if c.has("brack") {
-                "[]"
-            } else if c.has("colon") {
-                ": "
-            } else {
-                assert!(c.has("nl"));
-                "\n"
-            }
-        })
-    }
-}
 /*
 fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
     if attr.path.segments.len() == 1 && attr.path.segments[0].ident == "ts" {
@@ -223,7 +173,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let parsed = parse(input);
         let ts = parsed.body.to_string();
-        let export_string = format!("export type {} = {} ;", parsed.ident, patch::patch(&ts));
+        let export_string = format!("export type {} = {};", parsed.ident, patch::patch(&ts));
         let ident = parsed.ident;
 
         let ret = if parsed.lifetimes.len() == 0 {

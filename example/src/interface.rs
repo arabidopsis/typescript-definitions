@@ -28,8 +28,8 @@ pub struct Point {
 }
 
 
-#[derive(Serialize, TypescriptDefinition)]
-enum Enum {
+#[derive(Serialize, TypescriptDefinition, TypeScriptify)]
+pub enum Enum {
     #[allow(unused)]
     V1 {
         #[serde(rename = "Foo")]
