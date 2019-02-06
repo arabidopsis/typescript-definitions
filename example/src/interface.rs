@@ -47,15 +47,22 @@ pub enum Enum {
         #[serde(rename = "Quux")]
         quux: String,
     },
-}
 
+}
+// #[derive(Serialize)]
+#[derive(Serialize, TypescriptDefinition, TypeScriptify)]
+pub struct Value<T> {
+    value: T
+}
 
 #[derive(TypescriptDefinition, Serialize, TypeScriptify)]
 #[serde(tag = "tag", content = "fields")]
 pub enum FrontendMessage {
   Init { id: String, },
-  ButtonState { selected: Vec<String>, time: u32, },
-  Render { html: String, time: u32, },
+  ButtonState { selected: Vec<String>, time: u32, other: Option<String> },
+  Render { html: String, time: u32, 
+  other: Result<&'static str,i32> },
+  Stuff {borrow: Value<i32> }
 }
 
 use std::borrow::Cow;

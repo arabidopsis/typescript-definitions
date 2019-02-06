@@ -28,11 +28,13 @@ extern crate syn;
 #[cfg(feature = "bytes")]
 extern crate serde_bytes;
 
-use proc_macro2::Span;
+use proc_macro2::{Span, Ident};
 // use quote::TokenStreamExt;
 
 use serde_derive_internals::{ast, Ctxt, Derive};
 use syn::DeriveInput;
+use std::str::FromStr;
+
 // use proc_macro::TokenStream;
 // use syn::Meta::{List, NameValue, Word};
 // use syn::NestedMeta::{Literal, Meta};
@@ -42,7 +44,9 @@ mod derive_enum;
 mod derive_struct;
 mod patch;
 
+// too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
+
 
 /*
 fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
@@ -63,8 +67,37 @@ fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
 
 struct Parsed {
     ident: syn::Ident,
-    generics: Vec<Option<proc_macro2::Ident>>,
+    generics: Vec<Option<Ident>>,
     body: QuoteT,
+}
+impl Parsed {
+    fn to_export_string(&self) -> String {
+
+        let ts = self.body.to_string();
+        let ts_ident = self.ts_ident().to_string();
+        format!("export type {} = {};", patch::patch(&ts_ident) , patch::patch(&ts))
+    }
+
+    fn ts_ident(&self) -> QuoteT {
+        let ident = self.ident.clone();
+
+        let args_wo_lt : Vec<_> = self.generics.iter().filter_map(|g| g.clone()).map(|g| quote!(#g) ).collect();
+        if args_wo_lt.len() == 0 {
+            
+            quote!(#ident)
+        } else {
+            
+            quote!(#ident<#(#args_wo_lt),*>)
+        }
+    }
+
+    fn generic_args_wo_lifetimes(&self) -> impl Iterator<Item=QuoteT> + '_ {
+         self.generics.iter().filter_map(|g| g.clone() ).map(|g| quote!(#g))
+    }
+
+    fn generic_args_with_lifetimes(&self) -> impl Iterator<Item=QuoteT> + '_ {
+        self.generics.iter().map(|g| match g { Some(i) => quote!(#i) , None => quote!('_)})
+    }
 }
 
 fn parse(input: proc_macro::TokenStream) -> Parsed {
@@ -105,27 +138,22 @@ fn parse(input: proc_macro::TokenStream) -> Parsed {
     }
 }
 
-fn ident_from_str(s: &str) -> proc_macro2::Ident {
+fn ident_from_str(s: &str) -> Ident {
     syn::Ident::new(s, Span::call_site())
 }
 /// derive proc_macro to expose typescript definitions to `wasm-bindgen`.
 ///
 /// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
 ///
-
+/// 
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let parsed = parse(input);
+        let export_string = parsed.to_export_string();
 
-        let typescript_string = parsed.body.to_string();
-        let export_string = format!(
-            "export type {} = {};",
-            parsed.ident,
-            patch::patch(&typescript_string)
-        );
-
+        
         let export_ident = ident_from_str(&format!(
             "TS_EXPORT_{}",
             parsed.ident.to_string().to_uppercase()
@@ -142,14 +170,13 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
         };
         
         if cfg!(any(test,feature="test")) {
-            let ts = patch::debug_patch(&typescript_string); // why the newlines?
-            let typescript_ident = ident_from_str(&format!("{}___typescript_definition", parsed.ident));
+            let typescript_ident = ident_from_str(&format!("{}___typescript_definition", &parsed.ident));
+            let ts = proc_macro2::TokenStream::from_str(&export_string).unwrap().to_string().replace("\n", " ");
    
             q.extend(
                 quote!(
-
                 fn #typescript_ident ( ) -> &'static str {
-                    #ts
+                   #ts
                 }
             
             ));
@@ -158,11 +185,11 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
         q.into()
     
     } else {
-        //proc_macro2::TokenStream::new().into()
         proc_macro::TokenStream::new()
     }
 
 }
+
 
 /// derive proc_macro to expose typescript definitions to as a static function.
 ///
@@ -172,11 +199,11 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
+        
         let parsed = parse(input);
-        let ts = parsed.body.to_string();
-        let export_string = format!("export type {} = {};", parsed.ident, patch::patch(&ts));
-        let ident = parsed.ident;
+        let export_string = parsed.to_export_string(); 
 
+        let ident = parsed.ident.clone();        
         let ret = if parsed.generics.len() == 0 {
             quote! {
 
@@ -187,9 +214,10 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
                 }
             }
         } else {
+            
            
-            let generics = parsed.generics.iter().map(|g| match g { Some(i) => quote!(#i) , None => quote!('_)});
-            let implg = parsed.generics.iter().filter_map(|g| g.clone());
+            let generics = parsed.generic_args_with_lifetimes();
+            let implg = parsed.generic_args_wo_lifetimes();
             quote! {
 
                 impl<#(#implg),*> TypeScriptifyTrait for #ident<#(#generics),*> {
@@ -208,7 +236,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 
-fn generics(g: &syn::Generics) -> Vec<Option<proc_macro2::Ident>> {
+fn generics(g: &syn::Generics) -> Vec<Option<Ident>> {
     // get all the generics
     // we ignore type parameters because we can't
     // reasonably serialize generic structs! But e.g.
@@ -314,6 +342,7 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         "Result" if ts.args.len() == 2 => {
             let k = &ts.args[0];
             let v = &ts.args[1];
+            // see patch.rs... 
             quote!(  { Ok : #k } __ZZ__patch_me__ZZ__ { Err : #v }  )
         }
         _ => {

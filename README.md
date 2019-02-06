@@ -80,7 +80,7 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-typescript-definitions = "0.1.2"
+typescript-definitions = "0.1.3"
 wasm-bindgen = "0.2"
 serde = "1"
 serde_derive = "1"
@@ -153,6 +153,20 @@ if cfg!(any(debug_assertions, feature="export-typescript") {
 }
 ```
 
+If you have a generic struct such as:
+
+```rust
+#[derive(Serialize, TypeScriptify)]
+pub struct Value<T> {
+    value: T
+}
+```
+
+Then you need to choose a concrete type: `Value<i32>::type_script_ify()`. The concrete type
+doesn't matter as long as it obeys rust; the output will still be generic `export type Value<T> { value: T }`.
+
+Currently type bounds are discarded.
+
 
 ### Features
 
@@ -161,12 +175,12 @@ to opt-in for release.
 
 ```toml
 [dependencies.typescript-definitions]
-version = "0.1.2"
+version = "0.1.3"
 features = ["export-typescript"]
 
 ## OR
 
-typescript-definitions = { version="0.1.2",  features=["export-typescript"]  }
+typescript-definitions = { version="0.1.3",  features=["export-typescript"]  }
 ```
 
 

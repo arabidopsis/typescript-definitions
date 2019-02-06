@@ -9,7 +9,7 @@ const NAMES : N = [("nl", r"\n+"), ("brack", r"\s*\[\s+\]"),
                   ("bar", r"\s\|\s+\{"), 
                   ("enl", r"\n+\}"), ("fnl", r"\{\n+"),
                   ("result", "__ZZ__patch_me__ZZ__"),
-                  ("lt", r"\s<\s"), ("gt", r"\s>\s"),
+                  ("lt", r"\s<\s"), ("gt", r"\s>(\s|$)"),
                  ];
 lazy_static! {
     
@@ -56,21 +56,21 @@ impl Has for Captures<'_> {
 }
 
 
-pub fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
-    RE.replace_all(s, |c: &Captures| {
-        let key = c.key();
-        match key {
-            "brace" => "{ }",
-            "brack" => " [ ]",
-            "colon" => " : ",
-            "fnl" =>  "{ ",
-            "nl" => " ",
-            "result" => "|",
-            _ => c.get(0).unwrap().as_str()
+// pub fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
+//     RE.replace_all(s, |c: &Captures| {
+//         let key = c.key();
+//         match key {
+//             "brace" => "{ }",
+//             "brack" => " [ ]",
+//             "colon" => " : ",
+//             "fnl" =>  "{ ",
+//             "nl" => " ",
+//             "result" => "|",
+//             _ => c.get(0).unwrap().as_str()
 
-        }
-    })
-}
+//         }
+//     })
+// }
 
 pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
     RE.replace_all(s, |c: &Captures| {

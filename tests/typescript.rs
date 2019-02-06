@@ -9,51 +9,75 @@ extern crate typescript_definitions;
 extern crate quote;
 #[macro_use]
 extern crate wasm_bindgen;
-
+extern crate proc_macro2;
 use std::borrow::Cow;
 use serde::de::value::Error;
 use typescript_definitions::{TypescriptDefinition, TypeScriptify};
+use proc_macro2::TokenStream;
 
 use wasm_bindgen::prelude::*;
+
+// NOTE:
+// #[cfg(feature="test")] so that test functions 
+// withing derive_typescript_definition are compiled...
+// don't know why I can't just test for test!
+// run these with `cargo test --features=test`
 
 trait TypeScriptifyTrait {
     fn type_script_ify() -> &'static str;
 }
 
-fn patch(s: & str) -> String {
-    s.replace(" : ", ": ").replace(" ;", ";")
+// can't get access to patch!
+fn patch(ts: proc_macro2::TokenStream) -> String {
+    let s = ts.to_string(); // why do I have to do this?
+    s.replace("[ ]","[  ]")
+    .replace("{ }", "{  }")
+}
+// for type_script_ify
+fn patcht(ts: proc_macro2::TokenStream) -> String {
+   let s = ts.to_string();
+    s.replace(" : ", ": ")
+    .replace(" ;", ";")
+    .replace(" < ", "<")
+    .replace(" > ", ">")
+    .replace("{ }", "{}")
+    .replace("[ ]", "[]")
+    .replace(" ;", ";")
+    
 }
 
+
+#[cfg(feature="test")]
 #[test]
 fn unit_struct() {
     #[derive(Serialize, TypescriptDefinition)]
     struct Unit;
 
-    assert_eq!(Unit___typescript_definition(), quote!{
-        {}
-    }.to_string());
+    assert_eq!(Unit___typescript_definition(), patch(quote!{
+        export type Unit = {};
+    }));
 }
-
+#[cfg(feature="test")]
 #[test]
 fn newtype_struct() {
     #[derive(Serialize, TypescriptDefinition)]
     struct Newtype(i64);
 
-    assert_eq!(Newtype___typescript_definition(), quote!{
-        number
-    }.to_string());
+    assert_eq!(Newtype___typescript_definition(), patch(quote!{
+        export type Newtype = number;
+    }));
 }
-
+#[cfg(feature="test")]
 #[test]
 fn tuple_struct() {
     #[derive(Serialize, TypescriptDefinition)]
     struct Tuple(i64, String);
 
-    assert_eq!(Tuple___typescript_definition(), quote!{
-        [number, string]
-    }.to_string());
+    assert_eq!(Tuple___typescript_definition(), patch(quote!{
+        export type Tuple = [number, string];
+    }));
 }
-
+#[cfg(feature="test")]
 #[test]
 fn struct_with_borrowed_fields() {
     #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
@@ -62,12 +86,12 @@ fn struct_with_borrowed_fields() {
         cow: Cow<'a, str>
     }
 
-    assert_eq!(Borrow___typescript_definition(), quote!{
-        {raw: string, cow: string }
-    }.to_string());
+    assert_eq!(Borrow___typescript_definition(), patch(quote!{
+       export type Borrow = {raw: string, cow: string };
+    }));
 
 }
-
+#[cfg(feature="test")]
 #[test]
 fn struct_point_with_field_rename() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -78,10 +102,11 @@ fn struct_point_with_field_rename() {
         y: i64,
     }
 
-    assert_eq!(Point___typescript_definition(), quote!{
-        {X: number, Y: number}
-    }.to_string());
+    assert_eq!(Point___typescript_definition(), patch(quote!{
+        export type Point = {X: number, Y: number};
+    }));
 }
+#[cfg(feature="test")]
 #[test]
 fn struct_with_array() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -92,10 +117,11 @@ fn struct_with_array() {
         z: Option<f64>,
     }
 
-    assert_eq!(Point___typescript_definition(), quote!{
-        {x: number[], y: number, z:  number | null  }
-    }.to_string());
+    assert_eq!(Point___typescript_definition(), patch(quote!{
+        export type Point = {x: number[], y: number, z:  number | null  };
+    }));
 }
+#[cfg(feature="test")]
 #[test]
 fn struct_with_tuple() {
     use std::collections::{HashMap,HashSet};
@@ -109,10 +135,11 @@ fn struct_with_tuple() {
         z: HashMap<String,i32>
     }
 
-    assert_eq!(Point2___typescript_definition(), quote!{
-        {x: [number, string, number[]], y: number, v: number[], z: Map<string,number>}
-    }.to_string());
+    assert_eq!(Point2___typescript_definition(), patch(quote!{
+        export type Point2 = {x: [number, string, number[]], y: number, v: number[], z: Map<string,number>};
+    }));
 }
+#[cfg(feature="test")]
 #[test]
 fn enum_with_renamed_newtype_variants() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -128,13 +155,13 @@ fn enum_with_renamed_newtype_variants() {
         V3(String),
     }
     
-    assert_eq!(Enum___typescript_definition(), quote!{
-         {kind: "Var1", fields: boolean}
+    assert_eq!(Enum___typescript_definition(), patch(quote!{
+        export type Enum = {kind: "Var1", fields: boolean}
         | {kind: "Var2", fields: number}
-        | {kind: "Var3", fields: string}
-    }.to_string());
+        | {kind: "Var3", fields: string};
+    }));
 }
-
+#[cfg(feature="test")]
 #[test]
 fn enum_with_unit_variants() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -147,13 +174,13 @@ fn enum_with_unit_variants() {
         V3,
     }
 
-    assert_eq!(Enum___typescript_definition(), quote!{
-         {kind: "V1"}
+    assert_eq!(Enum___typescript_definition(), patch(quote!{
+        export type  Enum = {kind: "V1"}
         | {kind: "V2"}
-        | {kind: "V3"}
-    }.to_string());
+        | {kind: "V3"};
+    }));
 }
-
+#[cfg(feature="test")]
 #[test]
 fn enum_with_tuple_variants() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -166,13 +193,13 @@ fn enum_with_tuple_variants() {
         V3(i64, u64),
     }
 
-    assert_eq!(Enum___typescript_definition(), quote!{
-         {kind: "V1", fields: [number, string]}
+    assert_eq!(Enum___typescript_definition(), patch(quote!{
+        export type Enum = {kind: "V1", fields: [number, string]}
         | {kind: "V2", fields: [number, boolean]}
-        | {kind: "V3", fields: [number, number]}
-    }.to_string());
+        | {kind: "V3", fields: [number, number]};
+    }));
 }
-
+#[cfg(feature="test")]
 #[test]
 fn enum_with_struct_variants_and_renamed_fields() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -196,13 +223,13 @@ fn enum_with_struct_variants_and_renamed_fields() {
         },
     }
     
-    assert_eq!(Enum___typescript_definition(), quote!{
-         {kind: "V1",  Foo: boolean  }
+    assert_eq!(Enum___typescript_definition(), patch(quote!{
+        export type Enum = {kind: "V1",  Foo: boolean  }
         | {kind: "V2",  Bar: number, Baz: number  }
-        | {kind: "V3",  Quux: string  }
-    }.to_string());
+        | {kind: "V3",  Quux: string  };
+    }));
 }
-
+#[cfg(feature="test")]
 #[test]
 fn enum_with_struct_and_tags() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -220,13 +247,13 @@ fn enum_with_struct_and_tags() {
         },
     }
     
-    assert_eq!(Enum___typescript_definition(), quote!{
-         {id: "V1",  content: { foo: boolean  }}
+    assert_eq!(Enum___typescript_definition(), patch(quote!{
+         export type Enum = {id: "V1",  content: { foo: boolean  }}
         | {id: "V2", content: { bar: number, baz: number  }}
-        | {id: "V3",  content: { quux: string  }}
-    }.to_string());
+        | {id: "V3",  content: { quux: string  }};
+    }));
 }
-
+#[cfg(feature="test")]
 #[test]
 fn struct_with_attr_refering_to_other_type() {
     #[derive(Serialize)]
@@ -240,9 +267,9 @@ fn struct_with_attr_refering_to_other_type() {
         c: Result<i32,&'static str>,
         d: Result<Option<i32>,String>,
     }
-    assert_eq!(A___typescript_definition(), quote!{
-        { x: number ,b: B<number>, xxx: number | string, d: number | null | string }
-    }.to_string());
+    assert_eq!(A___typescript_definition(), patch(quote!{
+       export type A = { x: number ,b: B<number>, xxx: {Ok: number } | {Err: string}, d: {Ok: number | null} | { Err: string} };
+    }));
 }
 
 #[test]
@@ -254,9 +281,9 @@ fn struct_typescriptify() {
         c: Result<i32,&'static str>,
         d: Result<Option<i32>,String>,
     }
-    assert_eq!(A::type_script_ify(), patch(&quote!{
-        export type A = { x: number ,c: number | string, d: number | null | string };
-    }.to_string()));
+    assert_eq!(A::type_script_ify(), patcht(quote!{
+        export type A = { x: number ,c: {Ok: number } | {Err: string}, d: {Ok: number | null} | { Err: string} };
+    }));
 }
 
 #[test]
@@ -268,8 +295,8 @@ fn cow_as_pig() {
         pig: Pig<'a, str>,
         cow : ::std::borrow::Cow<'a, str>,
     }
-    assert_eq!(S::type_script_ify(), patch(&quote!{
-        export type S = { pig : Pig<string>, cow : string } ;
-    }.to_string()));
+    assert_eq!(S::type_script_ify(), patcht(quote!{
+        export type S = { pig : Pig<string>, cow : string };
+    }));
 
 }
