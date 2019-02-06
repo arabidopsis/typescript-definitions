@@ -184,18 +184,27 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
         //     "....[typescript] export type {}={};",
         //     parsed.ident, typescript_string
         // );
-        let ts = patch::debug_patch(&typescript_string); // why the newlines?
-        let typescript_ident = ident_from_str(&format!("{}___typescript_definition", parsed.ident));
-        quote! (
+        let mut q  = quote! {
 
             #[wasm_bindgen(typescript_custom_section)]
             pub const #export_ident : &'static str = #export_string;
-            
-            fn #typescript_ident ( ) -> &'static str {
-                #ts
-            }
+        };
         
-        ).into()
+        if cfg!(any(test,feature="test")) {
+            let ts = patch::debug_patch(&typescript_string); // why the newlines?
+            let typescript_ident = ident_from_str(&format!("{}___typescript_definition", parsed.ident));
+   
+            q.extend(
+                quote!(
+
+                fn #typescript_ident ( ) -> &'static str {
+                    #ts
+                }
+            
+            ));
+        }
+        
+        q.into()
     
     } else {
         //proc_macro2::TokenStream::new().into()
