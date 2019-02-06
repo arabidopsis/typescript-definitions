@@ -18,7 +18,6 @@ extern crate quote;
 
 #[macro_use]#[allow(unused_imports)]
 extern crate lazy_static;
-// extern crate serde;
 extern crate proc_macro2;
 extern crate regex;
 extern crate serde_derive_internals;
@@ -29,16 +28,10 @@ extern crate syn;
 extern crate serde_bytes;
 
 use proc_macro2::{Span, Ident};
-// use quote::TokenStreamExt;
 
 use serde_derive_internals::{ast, Ctxt, Derive};
 use syn::DeriveInput;
 use std::str::FromStr;
-
-// use proc_macro::TokenStream;
-// use syn::Meta::{List, NameValue, Word};
-// use syn::NestedMeta::{Literal, Meta};
-
 
 mod derive_enum;
 mod derive_struct;
@@ -46,24 +39,6 @@ mod patch;
 
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
-
-
-/*
-fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
-    if attr.path.segments.len() == 1 && attr.path.segments[0].ident == "ts" {
-        match attr.interpret_meta() {
-            Some(List(ref meta)) => Some(meta.nested.iter().cloned().collect()),
-            _ => {
-                // TODO: produce an error
-                None
-            }
-        }
-    } else {
-        None
-    }
-}
-*/
-
 
 struct Parsed {
     ident: syn::Ident,
@@ -98,43 +73,31 @@ impl Parsed {
     fn generic_args_with_lifetimes(&self) -> impl Iterator<Item=QuoteT> + '_ {
         self.generics.iter().map(|g| match g { Some(i) => quote!(#i) , None => quote!('_)})
     }
-}
 
-fn parse(input: proc_macro::TokenStream) -> Parsed {
-    // eprintln!(".........[input] {}", input);
-    let input: DeriveInput = syn::parse(input).unwrap();
-    /*
-    let mut astagged = false;
-    for meta in input.attrs.iter().filter_map(get_ts_meta_items) {
-        for meta_item in meta {
-            match meta_item {
-                Meta(Word(ref word)) if word == "astagged" => {
-                            astagged = true;
-                        }
-                _ => {}
+
+    fn parse(input: proc_macro::TokenStream) -> Parsed {
+
+        let input: DeriveInput = syn::parse(input).unwrap();
+
+        let cx = Ctxt::new();
+        let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
+
+        let typescript: QuoteT = match container.data {
+            ast::Data::Enum(variants) => derive_enum::derive_enum(&variants, &container.attrs),
+            ast::Data::Struct(style, fields) => {
+                derive_struct::derive_struct(style, &fields, &container.attrs)
             }
+        };
+
+        let generics = syn_generics(container.generics);
+
+        // consumes context
+        cx.check().unwrap();
+        Parsed {
+            ident: container.ident,
+            generics: generics,
+            body: typescript,
         }
-
-    }*/
-
-    let cx = Ctxt::new();
-    let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
-
-    let typescript: QuoteT = match container.data {
-        ast::Data::Enum(variants) => derive_enum::derive_enum(&variants, &container.attrs),
-        ast::Data::Struct(style, fields) => {
-            derive_struct::derive_struct(style, &fields, &container.attrs)
-        }
-    };
-
-    let generics = generics(container.generics);
-
-    // consumes context
-    cx.check().unwrap();
-    Parsed {
-        ident: container.ident,
-        generics: generics,
-        body: typescript,
     }
 }
 
@@ -145,12 +108,11 @@ fn ident_from_str(s: &str) -> Ident {
 ///
 /// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
 ///
-/// 
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
-        let parsed = parse(input);
+        let parsed = Parsed::parse(input);
         let export_string = parsed.to_export_string();
 
         
@@ -200,7 +162,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         
-        let parsed = parse(input);
+        let parsed = Parsed::parse(input);
         let export_string = parsed.to_export_string(); 
 
         let ident = parsed.ident.clone();        
@@ -236,7 +198,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 
-fn generics(g: &syn::Generics) -> Vec<Option<Ident>> {
+fn syn_generics(g: &syn::Generics) -> Vec<Option<Ident>> {
     // get all the generics
     // we ignore type parameters because we can't
     // reasonably serialize generic structs! But e.g.

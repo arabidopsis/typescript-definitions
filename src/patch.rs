@@ -8,7 +8,7 @@ const NAMES : N = [("nl", r"\n+"), ("brack", r"\s*\[\s+\]"),
                    ("brace", r"\{\s+\}"), ("colon", r"\s[:]\s"),
                   ("bar", r"\s\|\s+\{"), 
                   ("enl", r"\n+\}"), ("fnl", r"\{\n+"),
-                  ("result", "__ZZ__patch_me__ZZ__"),
+                  ("result", "__ZZ__patch_me__ZZ__"), // for Result...
                   ("lt", r"\s<\s"), ("gt", r"\s>(\s|$)"),
                  ];
 lazy_static! {

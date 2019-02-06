@@ -252,7 +252,25 @@ gives `export type S = { pig : Pig<string> }` instead of `export type S = { pig 
 We can't reasonably obey serde attributes like "flatten" since we would need
 to find the *actual* Struct object (from somewhere) and query its fields.
 
+## TODO
 
+Generate a typescript verifier for each type (maybe).
+
+```typescript
+export verify_A<T>(obj: any) -> boolean
+```
+or something...
+
+Then one could:
+
+```typescript
+let o : any = JSON.parse(some_string_from_the_inet);
+if verify_A<number>(o) {
+    return obj as A<number>
+} else {
+    // err....
+}
+```
 
 ## Credits
 
