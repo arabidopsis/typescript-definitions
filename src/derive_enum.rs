@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use serde_derive_internals::{ast, attr, attr::EnumTag};
+use serde_derive_internals::{ast, attr::EnumTag};
 
 use super::{derive_field, ident_from_str, type_to_ts, QuoteT};
 
@@ -14,9 +14,9 @@ struct TagInfo<'a> {
     tag: &'a str,
     content: Option<&'a str>,
 }
-pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Container) -> QuoteT {
+pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], container: &ast::Container) -> QuoteT {
     // let n = variants.len() - 1;
-    let taginfo = match attrs.tag() {
+    let taginfo = match container.attrs.tag() {
         EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
         EnumTag::Adjacent { tag, content, .. } => TagInfo {
             tag,
@@ -30,7 +30,7 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], attrs: &attr::Conta
     let content = variants.iter().map(|variant| {
         let variant_name = variant.attrs.name().serialize_name();
         match variant.style {
-            ast::Style::Struct => derive_struct_variant(&taginfo, &variant_name, &variant.fields),
+            ast::Style::Struct => derive_struct_variant(&taginfo, &variant_name, &variant.fields, container),
             ast::Style::Newtype => {
                 derive_newtype_variant(&taginfo, &variant_name, &variant.fields[0])
             }
@@ -71,8 +71,11 @@ fn derive_struct_variant<'a>(
     taginfo: &TagInfo,
     variant_name: &str,
     fields: &[ast::Field<'a>],
+    container: &ast::Container,
 ) -> QuoteT {
+    use std::collections::HashSet;
     let contents = fields.iter().map(|field| derive_field(field));
+
 
     let tag = ident_from_str(taginfo.tag);
     if let Some(content) = taginfo.content {
@@ -81,6 +84,10 @@ fn derive_struct_variant<'a>(
             { #tag: #variant_name, #content: { #(#contents),* } }
         }
     } else {
+        let fnames = fields.iter().map(|field| field.attrs.name().serialize_name()).collect::<HashSet<_>>();
+        if fnames.contains(taginfo.tag) {
+            panic!("tag \"{}\" clashes with field in Enum variant \"{};:{}\"", taginfo.tag, container.ident, variant_name );
+        }
         quote! {
             { #tag: #variant_name, #(#contents),* }
         }

@@ -39,7 +39,7 @@ fn derive_struct_named_fields<'a>(
     fields: &[ast::Field<'a>],
     _attr_container: &attr::Container,
 ) -> QuoteT {
-    let content = fields.iter().map(|field| derive_field(field));
+    let content = fields.iter().map(|field| derive_field(field));    
 
     quote!({#(#content),*})
 }

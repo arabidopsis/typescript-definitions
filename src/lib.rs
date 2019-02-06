@@ -92,7 +92,7 @@ impl Parsed {
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
         let typescript: QuoteT = match container.data {
-            ast::Data::Enum(variants) => derive_enum::derive_enum(&variants, &container.attrs),
+            ast::Data::Enum(ref variants) => derive_enum::derive_enum(&variants, &container),
             ast::Data::Struct(style, fields) => {
                 derive_struct::derive_struct(style, &fields, &container.attrs)
             }
