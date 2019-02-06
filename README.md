@@ -192,15 +192,14 @@ Watchout!
 
 This might change if use cases show that an error would be better.
 
-Two of the more common Enums are translated differently from Tagged types
+The Option type is rendered as:
 
 * `Option<T>` => `T | null`
-* `Result<T,E>` => `T | E` instead of {tag:'T', ...} | {tag:'E', ...}
 
-Deeply nested types might not translate correctly since currenly no attention it taken
-with precedence of the '|' separator. For example it is possible
-that `Result<Option<T>,E>` will become `T|null|E` instead of `(T|null)|E`. But this
-flattening seems better for typescript.
+Serde always seems to render Result (in json) as `{"Ok": T } | {"Err": E}` i.e as "External"
+so we do too.
+
+
 
 If you reference another type in a struct e.g.
 
@@ -221,9 +220,8 @@ Currently there is no help for this.
 
 Formatting is rubbish and won't pass tslint. This is due to the quote! crate taking control of the output
 token stream. I don't know what it does with whitespace for example... (is whitespace a token in rust?).
+Anyhow this crate apply a few bandaid regex patches to pretty things up.
 
-Possibly add token guards `___put_newline_here___` at points where I want a newline and then stripping them out
-with a regex after the stream is turned into a string.
 
 We are not as clever as serde in determining the actual type. For example this won't "work":
 

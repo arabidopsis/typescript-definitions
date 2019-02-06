@@ -3,11 +3,13 @@
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 
-type N = [(&'static str, &'static str); 7];
+type N = [(&'static str, &'static str); 10];
 const NAMES : N = [("nl", r"\n+"), ("brack", r"\s*\[\s+\]"),
                    ("brace", r"\{\s+\}"), ("colon", r"\s[:]\s"),
                   ("bar", r"\s\|\s+\{"), 
                   ("enl", r"\n+\}"), ("fnl", r"\{\n+"),
+                  ("result", "__ZZ__patch_me__ZZ__"),
+                  ("lt", r"\s<\s"), ("gt", r"\s>\s"),
                  ];
 lazy_static! {
     
@@ -63,6 +65,7 @@ pub fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
             "colon" => " : ",
             "fnl" =>  "{ ",
             "nl" => " ",
+            "result" => "|",
             _ => c.get(0).unwrap().as_str()
 
         }
@@ -80,6 +83,9 @@ pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
             "bar" => "\n   | {",
             "enl" => " }",
             "nl" => " ",
+            "result" => "|",
+            "lt" => "<",
+            "gt" => ">",
             _ => c.get(0).unwrap().as_str()
 
         }      

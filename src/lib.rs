@@ -60,9 +60,10 @@ fn get_ts_meta_items(attr: &syn::Attribute) -> Option<Vec<syn::NestedMeta>> {
 }
 */
 
+
 struct Parsed {
     ident: syn::Ident,
-    lifetimes: Vec<QuoteT>,
+    generics: Vec<Option<proc_macro2::Ident>>,
     body: QuoteT,
 }
 
@@ -93,13 +94,13 @@ fn parse(input: proc_macro::TokenStream) -> Parsed {
         }
     };
 
-    let lifetimes = generic_lifetimes(container.generics);
+    let generics = generics(container.generics);
 
     // consumes context
     cx.check().unwrap();
     Parsed {
         ident: container.ident,
-        lifetimes: lifetimes,
+        generics: generics,
         body: typescript,
     }
 }
@@ -176,7 +177,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
         let export_string = format!("export type {} = {};", parsed.ident, patch::patch(&ts));
         let ident = parsed.ident;
 
-        let ret = if parsed.lifetimes.len() == 0 {
+        let ret = if parsed.generics.len() == 0 {
             quote! {
 
                 impl TypeScriptifyTrait for #ident {
@@ -186,17 +187,19 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
                 }
             }
         } else {
-            // can't use 'a need '_
-            let lt = parsed.lifetimes.iter().map(|_q| quote!('_));
+           
+            let generics = parsed.generics.iter().map(|g| match g { Some(i) => quote!(#i) , None => quote!('_)});
+            let implg = parsed.generics.iter().filter_map(|g| g.clone());
             quote! {
 
-                impl TypeScriptifyTrait for #ident<#(#lt),*> {
+                impl<#(#implg),*> TypeScriptifyTrait for #ident<#(#generics),*> {
                     fn type_script_ify() ->  &'static str {
                         #export_string
                     }
                 }
             }
         };
+        // eprintln!("{}", ret.to_string());
 
         ret.into()
     } else {
@@ -205,19 +208,20 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 
-fn generic_lifetimes(g: &syn::Generics) -> Vec<QuoteT> {
-    // get all the generic lifetimes
+fn generics(g: &syn::Generics) -> Vec<Option<proc_macro2::Ident>> {
+    // get all the generics
     // we ignore type parameters because we can't
     // reasonably serialize generic structs! But e.g.
     // std::borrow::Cow; requires a lifetime parameter ... see tests/typescript.rs
-    use syn::{GenericParam, LifetimeDef};
+    use syn::{GenericParam, LifetimeDef, TypeParam, ConstParam};
     g.params
         .iter()
-        .filter_map(|p| match p {
-            GenericParam::Lifetime(LifetimeDef { lifetime, .. }) => Some(lifetime),
-            _ => None,
+        .map(|p| match p {
+            GenericParam::Lifetime(LifetimeDef { /* lifetime,*/ .. }) => None,
+            GenericParam::Type(TypeParam { ident, ..}) => Some(ident.clone()),
+            GenericParam::Const(ConstParam { ident, ..}) => Some(ident.clone()),
+
         })
-        .map(|lt| quote!(#lt))
         .collect()
 }
 
@@ -310,9 +314,7 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         "Result" if ts.args.len() == 2 => {
             let k = &ts.args[0];
             let v = &ts.args[1];
-            // TODO what if k or v is A | B | C ?
-            // maybe A | B | C | #v is actually better than (A|B|C) | #v
-            quote!(  #k | #v  )
+            quote!(  { Ok : #k } __ZZ__patch_me__ZZ__ { Err : #v }  )
         }
         _ => {
             let ident = ts.ident;
