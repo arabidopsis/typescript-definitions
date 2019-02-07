@@ -20,8 +20,8 @@ pub(crate) fn derive_enum<'a>(
     variants: &[ast::Variant<'a>],
     container: &ast::Container,
     cx: &Ctxt,
-) -> (bool, QuoteT) {
-    // let n = variants.len() - 1;
+) -> (bool /* is enum */, QuoteT) {
+
     let taginfo = match container.attrs.tag() {
         EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
         EnumTag::Adjacent { tag, content, .. } => TagInfo {
@@ -46,14 +46,14 @@ pub(crate) fn derive_enum<'a>(
     if is_enum {
         let v = variants
             .iter()
-            .map(|v| v.attrs.name().serialize_name())
+            .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
             .collect::<Vec<_>>();
         let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
         return (true, quote! ( { #(#k = #v),* } ));
     }
 
     let content = variants.iter().map(|variant| {
-        let variant_name = variant.attrs.name().serialize_name();
+        let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
         match variant.style {
             ast::Style::Struct => {
                 derive_struct_variant(&taginfo, &variant_name, &variant.fields, container, cx)
@@ -134,7 +134,6 @@ fn derive_tuple_variant<'a>(
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
     let contents = fields.iter().map(|field| type_to_ts(&field.ty));
-    // .collect::<Vec<_>>();
 
     let tag = ident_from_str(taginfo.tag);
     let content = if let Some(content) = taginfo.content {

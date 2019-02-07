@@ -134,7 +134,7 @@ use::typescript_definitions::TypeScriptify;
 // *you* have to provide this Trait because, currently, rust proc-macro crates can't
 // export any public Traits etc... sorry about that.
 pub trait TypeScriptifyTrait {
-    fn type_script_ify() -> &'static str;
+    fn type_script_ify() -> String;
 }
 #[derive(Serialize, TypeScriptify)]
 pub struct MyStruct {
@@ -330,6 +330,8 @@ Generate a typescript verifier for each type (maybe).
 export verify_A<T>(obj: any): boolean {/*... */ }
 // *or*
 export verify_A<T>(obj: any): {Ok: A<T>} | {Err: string} {/* ... */}
+// *or* using guards https://www.typescriptlang.org/docs/handbook/advanced-types.html
+export is_A<T>(obj: any): obj is A<T> { /* ... */ }
 ```
 or something...
 

@@ -29,7 +29,7 @@ mod typescript {
     // Run these with `cargo test --features=test`
 
     trait TypeScriptifyTrait {
-        fn type_script_ify() -> &'static str;
+        fn type_script_ify() -> String;
     }
 
     // can't get access to typescript_definitions::patch!?

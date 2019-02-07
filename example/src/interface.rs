@@ -9,7 +9,7 @@ use typescript_definitions::TypescriptDefinition;
 use wasm_bindgen::prelude::*;
 
 pub trait TypeScriptifyTrait {
-    fn type_script_ify() -> &'static str;
+    fn type_script_ify() -> String;
 }
 
 #[derive(Serialize, TypescriptDefinition)]

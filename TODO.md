@@ -20,6 +20,7 @@ type Enum = "a" | "b" | "c"
 
 Maybe change QuoteT
 
+```rust
 enum QuoteT {
     Tokens(TokenStream),
     Builder(Box<Fn() -> TokenStream>)
@@ -32,5 +33,14 @@ impl ToTokens for QuoteT {
             Builder(f) => f().to_tokens(tokens)
         }
     }
+}
+```
+
+If we want to honour `#[serde(flatten)]` then this will only be possible
+with `TypeScriptify`. we can laydown a
+
+trait TypeScriptifyTrait {
+    fn type_script_ify() -> String;
+    fn 
 }
 

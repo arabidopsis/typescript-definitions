@@ -10,7 +10,6 @@ trait Tbuild {
 enum QuoteT<'a> {
     Tokens(TokenStream),
     Closure(Box<Fn() -> TokenStream + 'a>), //Builder(fn() -> TokenStream)
-    //Builder(Fn() -> TokenStream)
     Builder(Box<Tbuild + 'a>),
 }
 

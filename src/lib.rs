@@ -103,8 +103,8 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
             quote! {
 
                 impl TypeScriptifyTrait for #ident {
-                    fn type_script_ify() ->  &'static str {
-                        #export_string
+                    fn type_script_ify() ->  String {
+                        #export_string.to_owned()
                     }
                 }
             }
@@ -115,8 +115,8 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
             quote! {
 
                 impl#rustg TypeScriptifyTrait for #ident<#(#generics),*> {
-                    fn type_script_ify() ->  &'static str {
-                        #export_string
+                    fn type_script_ify() ->  String {
+                        #export_string.to_owned()
                     }
                 }
             }
