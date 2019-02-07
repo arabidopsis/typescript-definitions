@@ -14,7 +14,7 @@ extern crate wasm_bindgen;
 extern crate proc_macro2;
 
 #[cfg(test)]
-mod test {
+mod typescript {
     use std::borrow::Cow;
     use serde::de::value::Error;
     use typescript_definitions::{TypescriptDefinition, TypeScriptify};
@@ -123,7 +123,7 @@ mod test {
         }
 
         assert_eq!(Point___typescript_definition(), patch(quote!{
-            export type Point = {x: number[], y: number, z:  number | null  };
+            export type Point = {x: number[], y: number, z:  number | undefined  };
         }));
     }
     #[cfg(feature="test")]
@@ -141,7 +141,7 @@ mod test {
         }
 
         assert_eq!(Point2___typescript_definition(), patch(quote!{
-            export type Point2 = {x: [number, string, number[]], y: number, v: number[], z: Map<string,number>};
+            export type Point2 = {x: [number, string, number[]], y: number, v: number[], z: {[key: string]: number}};
         }));
     }
     #[cfg(feature="test")]
@@ -181,10 +181,11 @@ mod test {
         }
 
         assert_eq!(Enum___typescript_definition(), patch(quote!{
-            export type  Enum = 
-            {kind: "V1"}
-            | {kind: "V2"}
-            | {kind: "V3"};
+            export enum Enum {
+            V1 =  "V1",
+            V2 = "V2",
+            V3 = "V3"
+            };
         }));
     }
     #[cfg(feature="test")]
@@ -278,7 +279,7 @@ mod test {
             d: Result<Option<i32>,String>,
         }
         assert_eq!(A___typescript_definition(), patch(quote!{
-        export type A = { x: number ,b: B<number>, xxx: {Ok: number } | {Err: string}, d: {Ok: number | null} | { Err: string} };
+        export type A = { x: number ,b: B<number>, xxx: {Ok: number } | {Err: string}, d: {Ok: number | undefined} | { Err: string} };
         }));
     }
 
@@ -292,7 +293,7 @@ mod test {
             d: Result<Option<i32>,String>,
         }
         assert_eq!(A::type_script_ify(), patcht(quote!{
-            export type A = { x: number ,c: {Ok: number } | {Err: string}, d: {Ok: number | null} | { Err: string} };
+            export type A = { x: number ,c: {Ok: number } | {Err: string}, d: {Ok: number | undefined } | { Err: string} };
         }));
     }
 
@@ -317,10 +318,27 @@ mod test {
         // #[should_panic] doesn't work here
         // since the panic occurs during compiling
         // not during execution
-        #[derive(TypeScriptify)]
+        // #[derive(TypeScriptify)]
         enum A {
             Unit,
             B { kind: i32, b: String}
         }
+    }
+
+    #[test]
+    fn unit_enum_is_enum() {
+
+        // #[should_panic] doesn't work here
+        // since the panic occurs during compiling
+        // not during execution
+        #[derive(TypeScriptify)]
+        enum Color {
+            Red,
+            Green,
+            Blue,
+        }
+        assert_eq!(Color::type_script_ify(), patcht(quote!(
+            export enum Color {Red = "Red", Green="Green", Blue="Blue"};
+        )))
     }
 }

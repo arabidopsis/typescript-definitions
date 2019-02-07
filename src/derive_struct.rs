@@ -13,13 +13,13 @@ pub(crate) fn derive_struct<'a>(
     style: ast::Style,
     fields: &[ast::Field<'a>],
     attr_container: &attr::Container,
-) -> QuoteT {
-    match style {
+) -> (bool, QuoteT) {
+    (false, match style {
         ast::Style::Struct => derive_struct_named_fields(fields, attr_container),
         ast::Style::Newtype => derive_struct_newtype(fields, attr_container),
         ast::Style::Tuple => derive_struct_tuple(fields, attr_container),
         ast::Style::Unit => derive_struct_unit(attr_container),
-    }
+    })
 }
 
 fn derive_struct_newtype<'a>(

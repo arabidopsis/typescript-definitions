@@ -40,6 +40,7 @@ mod patch;
 type QuoteT = proc_macro2::TokenStream;
 
 struct Parsed {
+    is_enum : bool,
     ident: syn::Ident,
     generics: Vec<Option<Ident>>,
     body: QuoteT,
@@ -47,23 +48,20 @@ struct Parsed {
 impl Parsed {
     fn to_export_string(&self) -> String {
         let ts = self.body.to_string();
+        let ts = patch::patch(&ts);
         let ts_ident = self.ts_ident().to_string();
-        format!(
-            "export type {} = {};",
-            patch::patch(&ts_ident),
-            patch::patch(&ts)
-        )
+        let ts_ident = patch::patch(&ts_ident);
+        if self.is_enum {
+            format!("export enum {} {};", ts_ident, ts)
+        } else {
+            format!("export type {} = {};", ts_ident, ts)
+        }
     }
 
     fn ts_ident(&self) -> QuoteT {
         let ident = self.ident.clone();
 
-        let args_wo_lt: Vec<_> = self
-            .generics
-            .iter()
-            .filter_map(|g| g.clone())
-            .map(|g| quote!(#g))
-            .collect();
+        let args_wo_lt: Vec<_> = self.generic_args_wo_lifetimes().collect();
         if args_wo_lt.len() == 0 {
             quote!(#ident)
         } else {
@@ -91,10 +89,10 @@ impl Parsed {
         let cx = Ctxt::new();
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
-        let typescript: QuoteT = match container.data {
-            ast::Data::Enum(ref variants) => derive_enum::derive_enum(&variants, &container),
-            ast::Data::Struct(style, fields) => {
-                derive_struct::derive_struct(style, &fields, &container.attrs)
+        let (is_enum, typescript) = match container.data {
+            ast::Data::Enum(ref variants) => derive_enum::derive_enum(variants, &container, &cx),
+            ast::Data::Struct(style, ref fields) => {
+                derive_struct::derive_struct(style, fields, &container.attrs)
             }
         };
 
@@ -103,6 +101,7 @@ impl Parsed {
         // consumes context
         cx.check().unwrap();
         Parsed {
+            is_enum : is_enum,
             ident: container.ident,
             generics: generics,
             body: typescript,
@@ -205,6 +204,9 @@ fn syn_generics(g: &syn::Generics) -> Vec<Option<Ident>> {
     // we ignore type parameters because we can't
     // reasonably serialize generic structs! But e.g.
     // std::borrow::Cow; requires a lifetime parameter ... see tests/typescript.rs
+    // 
+    // lifetime params are represented by None since we are only going
+    // to translate the to '_
     use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam};
     g.params
         .iter()
@@ -219,11 +221,12 @@ fn syn_generics(g: &syn::Generics) -> Vec<Option<Ident>> {
 
 fn return_type(rt: &syn::ReturnType) -> Option<QuoteT> {
     match rt {
-        syn::ReturnType::Default => None,
+        syn::ReturnType::Default => None, // e.g. ()
         syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp)),
     }
 }
 
+// represents a typescript type T<A,B>
 struct TSType {
     ident: syn::Ident,
     args: Vec<QuoteT>,
@@ -283,7 +286,7 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         | "isize" | "f64" | "f32" => quote! { number },
         "String" | "str" => quote! { string },
         "bool" => quote! { boolean },
-        "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => ts.args[0].clone(),
+        "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => ts.args[0].clone(),
 
         // std::collections
         "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
@@ -293,21 +296,25 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
             let k = &ts.args[0];
             let v = &ts.args[1];
-            quote!(Map<#k,#v>)
+            // quote!(Map<#k,#v>)
+            quote!( { [key: #k]:#v } )
         }
         "HashSet" | "BTreeSet" if ts.args.len() == 1 => {
             let k = &ts.args[0];
-            quote!(Set<#k>)
+            //quote!(Set<#k>)
+            quote! ( #k[] )
         }
         "Option" if ts.args.len() == 1 => {
             let k = &ts.args[0];
-            quote!(  #k | null  )
+            quote!(  #k | undefined  )
         }
         "Result" if ts.args.len() == 2 => {
             let k = &ts.args[0];
             let v = &ts.args[1];
+            // ugh!
             // see patch.rs...
-            quote!(  { Ok : #k } __ZZ__patch_me__ZZ__ { Err : #v }  )
+            let bar = ident_from_str(patch::PATCH);
+            quote!(  { Ok : #k } #bar { Err : #v }  )
         }
         _ => {
             let ident = ts.ident;
@@ -363,18 +370,20 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
                     _ => None, // skip lifetime etc.
                 })
                 .map(|t| {
-                    let ident = t.ident;
-                    quote!(#ident)
+                    // let ident = t.ident;
+                    // quote!(#ident)
+                    generic_to_ts(t)
                 });
 
             // TODO check for zero length?
-            quote!(#(#elems)|*)
+            // A + B + C => A & B & C
+            quote!(#(#elems)&*)
         }
-        Paren(TypeParen { elem, .. }) => {
+        Paren(TypeParen { elem, .. }) | Group(TypeGroup { elem, .. }) => {
             let tp = type_to_ts(elem);
             quote! { ( #tp ) }
         }
-        Group(TypeGroup { elem, .. }) => type_to_ts(elem),
+        // Group(TypeGroup { elem, .. }) => type_to_ts(elem),
         Infer(..) | Macro(..) | Verbatim(..) => quote! { any },
     }
 }

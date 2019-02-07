@@ -9,18 +9,22 @@
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 
+
+pub const PATCH : &'static str ="__XYZZ__patch_me__XYZZ__";
+
 type N = [(&'static str, &'static str); 10];
 const NAMES: N = [
-    ("nl", r"\n+"),
+
     ("brack", r"\s*\[\s+\]"),
     ("brace", r"\{\s+\}"),
-    ("colon", r"\s[:]\s"),
+    ("colon", r"\s+[:]\s"),
     ("bar", r"\s\|\s+\{"),
     ("enl", r"\n+\}"),
     ("fnl", r"\{\n+"),
-    ("result", "__ZZ__patch_me__ZZ__"), // for Result...
+    ("result", PATCH), // for Result...
     ("lt", r"\s<\s"),
     ("gt", r"\s>(\s|$)"),
+    ("nl", r"\n+"), // last!
 ];
 lazy_static! {
     static ref RE: Regex = {
@@ -68,23 +72,8 @@ impl Has for Captures<'_> {
     */
 }
 
-// pub fn debug_patch<'t>(s: &'t str) -> Cow<'t, str> {
-//     RE.replace_all(s, |c: &Captures| {
-//         let key = c.key();
-//         match key {
-//             "brace" => "{ }",
-//             "brack" => " [ ]",
-//             "colon" => " : ",
-//             "fnl" =>  "{ ",
-//             "nl" => " ",
-//             "result" => "|",
-//             _ => c.get(0).unwrap().as_str()
-
-//         }
-//     })
-// }
-
 // TODO: where does the newline come from? why the double spaces?
+// maybe use Regex::new(&[.....])
 pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
     RE.replace_all(s, |c: &Captures| {
         let key = c.key();

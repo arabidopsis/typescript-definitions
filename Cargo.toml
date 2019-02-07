@@ -1,6 +1,6 @@
 [package]
 name = "typescript-definitions"
-version = "0.1.4"
+version = "0.1.5"
 description = "serde support for exporting Typescript definitions"
 readme = "README.md"
 authors = ["Tim Ryan <id@timryan.org>", "Sam Rijs <srijs@airpost.net>" , "Ian Castleden <ian.castleden@gmail.com>"]
