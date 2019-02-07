@@ -25,3 +25,12 @@ enum QuoteT {
     Builder(Box<Fn() -> TokenStream>)
 }
 
+impl ToTokens for QuoteT {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Tokens(t) => t.to_tokens(tokens),
+            Builder(f) => f().to_tokens(tokens)
+        }
+    }
+}
+

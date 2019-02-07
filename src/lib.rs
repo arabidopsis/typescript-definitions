@@ -39,8 +39,12 @@ mod patch;
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
 
+fn make_quote<'a>(q: &'a QuoteT) -> &'a QuoteT {
+    q
+}
+
 struct Parsed {
-    is_enum : bool,
+    is_enum: bool,
     ident: syn::Ident,
     generics: Vec<Option<Ident>>,
     body: QuoteT,
@@ -69,11 +73,12 @@ impl Parsed {
         }
     }
 
-    fn generic_args_wo_lifetimes(&self) -> impl Iterator<Item = QuoteT> + '_ {
-        self.generics
-            .iter()
-            .filter_map(|g| g.clone())
-            .map(|g| quote!(#g))
+    fn generic_args_wo_lifetimes(&self) -> impl Iterator<Item = &Ident> + '_ {
+        self.generics.iter().filter_map(|g| match g {
+            Some(ref i) => Some(i),
+            _ => None,
+        })
+        //.map(|g| g.clone())
     }
 
     fn generic_args_with_lifetimes(&self) -> impl Iterator<Item = QuoteT> + '_ {
@@ -101,7 +106,7 @@ impl Parsed {
         // consumes context
         cx.check().unwrap();
         Parsed {
-            is_enum : is_enum,
+            is_enum: is_enum,
             ident: container.ident,
             generics: generics,
             body: typescript,
@@ -169,7 +174,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
         let parsed = Parsed::parse(input);
         let export_string = parsed.to_export_string();
 
-        let ident = parsed.ident.clone();
+        let ident = &parsed.ident;
         let ret = if parsed.generics.len() == 0 {
             quote! {
 
@@ -200,11 +205,6 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 fn syn_generics(g: &syn::Generics) -> Vec<Option<Ident>> {
-    // get all the generics
-    // we ignore type parameters because we can't
-    // reasonably serialize generic structs! But e.g.
-    // std::borrow::Cow; requires a lifetime parameter ... see tests/typescript.rs
-    // 
     // lifetime params are represented by None since we are only going
     // to translate the to '_
     use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam};
@@ -219,18 +219,18 @@ fn syn_generics(g: &syn::Generics) -> Vec<Option<Ident>> {
         .collect()
 }
 
-fn return_type(rt: &syn::ReturnType) -> Option<QuoteT> {
+fn return_type(rt: &syn::ReturnType) -> Option<syn::Type> {
     match rt {
         syn::ReturnType::Default => None, // e.g. ()
-        syn::ReturnType::Type(_, tp) => Some(type_to_ts(tp)),
+        syn::ReturnType::Type(_, tp) => Some(*tp.clone()),
     }
 }
 
 // represents a typescript type T<A,B>
 struct TSType {
     ident: syn::Ident,
-    args: Vec<QuoteT>,
-    ret : Option<QuoteT>
+    args: Vec<syn::Type>,
+    return_type: Option<syn::Type>,
 }
 fn last_path_element(path: &syn::Path) -> Option<TSType> {
     match path.segments.last().map(|p| p.into_value()) {
@@ -247,19 +247,19 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     inputs,
                     ..
                 }) => {
-                    let args = inputs.iter().map(|ty| type_to_ts(ty)).collect::<Vec<_>>();
+                    let args = inputs.iter().map(|ty| ty.clone()).collect::<Vec<_>>();
                     let ret = return_type(output);
                     return Some(TSType {
                         ident: ident,
                         args: args,
-                        ret : ret
+                        return_type: ret,
                     });
                 }
                 _ => {
                     return Some(TSType {
                         ident: ident,
                         args: vec![],
-                        ret : None
+                        return_type: None,
                     })
                 }
             };
@@ -270,57 +270,59 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     syn::GenericArgument::Type(t) => Some(t),
                     _ => None,
                 })
-                .map(|p| type_to_ts(p))
+                .map(|ty| ty.clone())
                 .collect::<Vec<_>>();
 
             Some(TSType {
                 ident: ident,
                 args: args,
-                ret : None
+                return_type: None,
             })
         }
         None => None,
     }
 }
+
 fn generic_to_ts(ts: TSType) -> QuoteT {
     match ts.ident.to_string().as_ref() {
         "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64" | "i128"
         | "isize" | "f64" | "f32" => quote! { number },
         "String" | "str" => quote! { string },
         "bool" => quote! { boolean },
-        "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => ts.args[0].clone(),
+        "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => type_to_ts(&ts.args[0]),
 
         // std::collections
         "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
-            let t = &ts.args[0];
+            let t = type_to_ts(&ts.args[0]);
             quote! { #t[] }
         }
         "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
-            let k = &ts.args[0];
-            let v = &ts.args[1];
+            let k = type_to_ts(&ts.args[0]);
+            let v = type_to_ts(&ts.args[1]);
             // quote!(Map<#k,#v>)
             quote!( { [key: #k]:#v } )
         }
         "HashSet" | "BTreeSet" if ts.args.len() == 1 => {
-            let k = &ts.args[0];
+            let k = type_to_ts(&ts.args[0]);
             //quote!(Set<#k>)
             quote! ( #k[] )
         }
         "Option" if ts.args.len() == 1 => {
-            let k = &ts.args[0];
+            let k = type_to_ts(&ts.args[0]);
             quote!(  #k | undefined  )
         }
         "Result" if ts.args.len() == 2 => {
-            let k = &ts.args[0];
-            let v = &ts.args[1];
+            let k = type_to_ts(&ts.args[0]);
+            let v = type_to_ts(&ts.args[1]);
             // ugh!
             // see patch.rs...
             let bar = ident_from_str(patch::PATCH);
             quote!(  { Ok : #k } #bar { Err : #v }  )
         }
         "Fn" | "FnOnce" | "FnMut" => {
-            let args = ts.args;
-            if let Some(rt) = ts.ret {
+            let args = ts.args.iter().map(|ty| type_to_ts(ty));
+            if let Some(ref rt) = ts.return_type {
+                let rt = type_to_ts(rt);
                 quote! { (#(#args),*) => #rt }
             } else {
                 quote! { (#(#args),*) => undefined }
@@ -329,7 +331,7 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         _ => {
             let ident = ts.ident;
             if ts.args.len() > 0 {
-                let args = ts.args;
+                let args = ts.args.iter().map(|ty| type_to_ts(ty));
                 quote! { #ident<#(#args),*> }
             } else {
                 quote! {#ident}
@@ -337,7 +339,6 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
         }
     }
 }
-
 
 fn type_to_ts(ty: &syn::Type) -> QuoteT {
     fn type_to_array(elem: &syn::Type) -> QuoteT {
@@ -347,34 +348,35 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
 
     use syn::Type::*;
     use syn::{
-        TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen, TypePath,
-        TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple, BareFnArgName,
+        BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen,
+        TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
     };
     match ty {
         Slice(TypeSlice { elem, .. }) => type_to_array(elem),
         Array(TypeArray { elem, .. }) => type_to_array(elem),
         Ptr(TypePtr { elem, .. }) => type_to_array(elem),
         Reference(TypeReference { elem, .. }) => type_to_ts(elem),
-        // fn(a: A,b: B, c:C) -> D 
+        // fn(a: A,b: B, c:C) -> D
         BareFn(TypeBareFn { output, inputs, .. }) => {
-            let mut args : Vec<Ident> = Vec::with_capacity(inputs.len());
-            let mut typs : Vec<QuoteT> = Vec::with_capacity(inputs.len());
+            let mut args: Vec<Ident> = Vec::with_capacity(inputs.len());
+            let mut typs: Vec<&syn::Type> = Vec::with_capacity(inputs.len());
             for (idx, t) in inputs.iter().enumerate() {
-                    let i = match t.name { 
-                        Some((ref n,_)) => match n { 
-                            BareFnArgName::Named(m) => m.clone()
-                            , _ => ident_from_str("_")
-                            } 
-                        ,_ => ident_from_str(&format!("_dummy{}", idx))
-                    };
-                    args.push(i);
-                    typs.push(type_to_ts(&t.ty));
+                let i = match t.name {
+                    Some((ref n, _)) => match n {
+                        BareFnArgName::Named(m) => m.clone(),
+                        _ => ident_from_str("_"),
+                    },
+                    _ => ident_from_str(&format!("_dummy{}", idx)),
+                };
+                args.push(i);
+                typs.push(&t.ty);
             }
-            if let Some(rt) = return_type(&output) {
-
+            let typs = typs.iter().map(|ty| type_to_ts(ty));
+            if let Some(ref rt) = return_type(&output) {
+                let rt = type_to_ts(rt);
                 quote! { ( #(#args: #typs),* ) => #rt }
             } else {
-                 quote! { ( #(#args: #typs),* ) => undefined}
+                quote! { ( #(#args: #typs),* ) => undefined}
             }
         }
         Never(..) => quote! { never },

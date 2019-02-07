@@ -222,7 +222,8 @@ The default for NewTypes and Tuple types is
 Oh yes there are problems....
 
 Currently `typescript-descriptions` will not fail (AFAIK) even for
-structs and enums with function types `Fn(A,B) -> C` (generates `C`). These make no sense in the current 
+structs and enums with function pointers `fn(a:A, b: B) -> C` (generates typescript lambda `(a:A, b:B) => C`)
+and closures `Fn(A,B) -> C` (generates `(A,B) => C`). These make no sense in the current 
 context (data types, json serialization) so this might be considered a bug.
 Watchout!
 
@@ -283,7 +284,7 @@ token stream. I don't know what it does with whitespace for example... (is white
 Anyhow... this crate applies a few bandaid regex patches to pretty things up.
 
 
-We are not as clever as serde in determining the actual type. For example this won't "work":
+We are not as clever as serde or the compiler in determining the actual type. For example this won't "work":
 
 ```rust
 use std::borrow::Cow as Pig;
@@ -294,6 +295,13 @@ struct S<'a> {
 ```
 
 gives `export type S = { pig : Pig<string> }` instead of `export type S = { pig : string }`
+
+At a certain point `typescript-definitions` just *assumes* that the token identifier `i32` (say)
+*is* really the rust signed 32 bit integer and not some crazy renamed struct in your code!
+
+Complex paths are ignored `std::borrow::Cow` and `mycrate::mod::Cow` are the same to us. We're
+not going to reimplement the compiler to find out if they are *actually* different. A Cow is
+always "Clone on write".
 
 We can't reasonably obey serde attributes like "flatten" since we would need
 to find the *actual* Struct object (from somewhere) and query its fields.

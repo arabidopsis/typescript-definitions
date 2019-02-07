@@ -9,12 +9,10 @@
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 
-
-pub const PATCH : &'static str ="__XYZZ__patch_me__XYZZ__";
+pub const PATCH: &'static str = "__XYZZ__patch_me__XYZZ__";
 
 type N = [(&'static str, &'static str); 10];
 const NAMES: N = [
-
     ("brack", r"\s*\[\s+\]"),
     ("brace", r"\{\s+\}"),
     ("colon", r"\s+[:]\s"),
@@ -36,7 +34,6 @@ lazy_static! {
         Regex::new(&v).unwrap()
     };
 }
-
 
 trait Has {
     fn has(&self, s: &'static str) -> bool;

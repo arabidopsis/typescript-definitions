@@ -10,13 +10,17 @@ use serde_derive_internals::{ast, attr::EnumTag, Ctxt};
 
 use super::{derive_field, ident_from_str, type_to_ts, QuoteT};
 
-const CONTENT : &'static str = "fields"; // default content tag
+const CONTENT: &'static str = "fields"; // default content tag
 
 struct TagInfo<'a> {
     tag: &'a str,
     content: Option<&'a str>,
 }
-pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], container: &ast::Container, cx: &Ctxt) -> (bool, QuoteT) {
+pub(crate) fn derive_enum<'a>(
+    variants: &[ast::Variant<'a>],
+    container: &ast::Container,
+    cx: &Ctxt,
+) -> (bool, QuoteT) {
     // let n = variants.len() - 1;
     let taginfo = match container.attrs.tag() {
         EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
@@ -31,22 +35,29 @@ pub(crate) fn derive_enum<'a>(variants: &[ast::Variant<'a>], container: &ast::Co
     };
     let mut is_enum = true;
     for v in variants {
-        match v.style { 
-            ast::Style::Unit => continue, 
-            _ => { is_enum = false; break }
+        match v.style {
+            ast::Style::Unit => continue,
+            _ => {
+                is_enum = false;
+                break;
+            }
         }
     }
     if is_enum {
-        let v = variants.iter().map(|v| v.attrs.name().serialize_name()).collect::<Vec<_>>();
+        let v = variants
+            .iter()
+            .map(|v| v.attrs.name().serialize_name())
+            .collect::<Vec<_>>();
         let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
-        return (true, quote! ( { #(#k = #v),* } ) );
+        return (true, quote! ( { #(#k = #v),* } ));
     }
-
 
     let content = variants.iter().map(|variant| {
         let variant_name = variant.attrs.name().serialize_name();
         match variant.style {
-            ast::Style::Struct => derive_struct_variant(&taginfo, &variant_name, &variant.fields, container, cx),
+            ast::Style::Struct => {
+                derive_struct_variant(&taginfo, &variant_name, &variant.fields, container, cx)
+            }
             ast::Style::Newtype => {
                 derive_newtype_variant(&taginfo, &variant_name, &variant.fields[0])
             }
@@ -88,11 +99,10 @@ fn derive_struct_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
     container: &ast::Container,
-    cx : &Ctxt // for error reporting
+    cx: &Ctxt, // for error reporting
 ) -> QuoteT {
     use std::collections::HashSet;
     let contents = fields.iter().map(|field| derive_field(field));
-
 
     let tag = ident_from_str(taginfo.tag);
     if let Some(content) = taginfo.content {
@@ -101,10 +111,16 @@ fn derive_struct_variant<'a>(
             { #tag: #variant_name, #content: { #(#contents),* } }
         }
     } else {
-        let fnames = fields.iter().map(|field| field.attrs.name().serialize_name()).collect::<HashSet<_>>();
+        let fnames = fields
+            .iter()
+            .map(|field| field.attrs.name().serialize_name())
+            .collect::<HashSet<_>>();
         if fnames.contains(taginfo.tag) {
-            cx.error(format!("tag \"{}\" clashes with field in Enum variant \"{}::{}\". \
-                    Maybe use a #[serde(content=\"...\")] attribute.", taginfo.tag, container.ident, variant_name ));
+            cx.error(format!(
+                "tag \"{}\" clashes with field in Enum variant \"{}::{}\". \
+                 Maybe use a #[serde(content=\"...\")] attribute.",
+                taginfo.tag, container.ident, variant_name
+            ));
         }
         quote! {
             { #tag: #variant_name, #(#contents),* }
