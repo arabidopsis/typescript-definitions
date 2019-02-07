@@ -59,7 +59,7 @@ impl Parsed {
     }
 
     fn ts_ident(&self) -> QuoteT {
-        let ident = self.ident.clone();
+        let ident = &self.ident; //.clone();
 
         let args_wo_lt: Vec<_> = self.generic_args_wo_lifetimes().collect();
         if args_wo_lt.len() == 0 {
@@ -230,6 +230,7 @@ fn return_type(rt: &syn::ReturnType) -> Option<QuoteT> {
 struct TSType {
     ident: syn::Ident,
     args: Vec<QuoteT>,
+    ret : Option<QuoteT>
 }
 fn last_path_element(path: &syn::Path) -> Option<TSType> {
     match path.segments.last().map(|p| p.into_value()) {
@@ -243,22 +244,22 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                 // turn func(A,B) ->C into  func<C>?
                 syn::PathArguments::Parenthesized(syn::ParenthesizedGenericArguments {
                     output,
+                    inputs,
                     ..
                 }) => {
-                    let args = if let Some(rt) = return_type(output) {
-                        vec![rt]
-                    } else {
-                        vec![]
-                    };
+                    let args = inputs.iter().map(|ty| type_to_ts(ty)).collect::<Vec<_>>();
+                    let ret = return_type(output);
                     return Some(TSType {
                         ident: ident,
                         args: args,
+                        ret : ret
                     });
                 }
                 _ => {
                     return Some(TSType {
                         ident: ident,
                         args: vec![],
+                        ret : None
                     })
                 }
             };
@@ -275,6 +276,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
             Some(TSType {
                 ident: ident,
                 args: args,
+                ret : None
             })
         }
         None => None,
@@ -316,6 +318,14 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
             let bar = ident_from_str(patch::PATCH);
             quote!(  { Ok : #k } #bar { Err : #v }  )
         }
+        "Fn" | "FnOnce" | "FnMut" => {
+            let args = ts.args;
+            if let Some(rt) = ts.ret {
+                quote! { (#(#args),*) => #rt }
+            } else {
+                quote! { (#(#args),*) => undefined }
+            }
+        }
         _ => {
             let ident = ts.ident;
             if ts.args.len() > 0 {
@@ -328,6 +338,7 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
     }
 }
 
+
 fn type_to_ts(ty: &syn::Type) -> QuoteT {
     fn type_to_array(elem: &syn::Type) -> QuoteT {
         let tp = type_to_ts(elem);
@@ -337,19 +348,33 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
     use syn::Type::*;
     use syn::{
         TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen, TypePath,
-        TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
+        TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple, BareFnArgName,
     };
     match ty {
         Slice(TypeSlice { elem, .. }) => type_to_array(elem),
         Array(TypeArray { elem, .. }) => type_to_array(elem),
         Ptr(TypePtr { elem, .. }) => type_to_array(elem),
         Reference(TypeReference { elem, .. }) => type_to_ts(elem),
-        // fn(A,B,C) -> D to D?
-        BareFn(TypeBareFn { output, .. }) => {
+        // fn(a: A,b: B, c:C) -> D 
+        BareFn(TypeBareFn { output, inputs, .. }) => {
+            let mut args : Vec<Ident> = Vec::with_capacity(inputs.len());
+            let mut typs : Vec<QuoteT> = Vec::with_capacity(inputs.len());
+            for (idx, t) in inputs.iter().enumerate() {
+                    let i = match t.name { 
+                        Some((ref n,_)) => match n { 
+                            BareFnArgName::Named(m) => m.clone()
+                            , _ => ident_from_str("_")
+                            } 
+                        ,_ => ident_from_str(&format!("_dummy{}", idx))
+                    };
+                    args.push(i);
+                    typs.push(type_to_ts(&t.ty));
+            }
             if let Some(rt) = return_type(&output) {
-                rt
+
+                quote! { ( #(#args: #typs),* ) => #rt }
             } else {
-                quote!(undefined)
+                 quote! { ( #(#args: #typs),* ) => undefined}
             }
         }
         Never(..) => quote! { never },

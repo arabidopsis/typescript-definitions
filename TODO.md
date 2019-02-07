@@ -18,3 +18,10 @@ Maybe make an enum as set of const strings e.g.
 type Enum = "a" | "b" | "c"
 ```
 
+Maybe change QuoteT
+
+enum QuoteT {
+    Tokens(TokenStream),
+    Builder(Box<Fn() -> TokenStream>)
+}
+

@@ -49,6 +49,7 @@ mod typescript {
         .replace("{ }", "{}")
         .replace("[ ]", "[]")
         .replace(" ;", ";")
+        .replace(">=", "> =")
         
     }
 
@@ -327,10 +328,6 @@ mod typescript {
 
     #[test]
     fn unit_enum_is_enum() {
-
-        // #[should_panic] doesn't work here
-        // since the panic occurs during compiling
-        // not during execution
         #[derive(TypeScriptify)]
         enum Color {
             Red,
@@ -339,6 +336,23 @@ mod typescript {
         }
         assert_eq!(Color::type_script_ify(), patcht(quote!(
             export enum Color {Red = "Red", Green="Green", Blue="Blue"};
+        )))
+    }
+
+    #[test]
+    fn struct_has_function() {
+
+        #[derive(TypeScriptify)]
+        struct API<T> {
+            key : i32,
+            a : T,
+            get : fn(arg: &i32) -> String,
+            get2 : Fn(T,  i32) -> Option<i32>,
+
+ 
+        }
+        assert_eq!(API::<i32>::type_script_ify(), patcht(quote!(
+            export type API<T> = {key: number, a: T, get: (arg: number) => string, get2: (T, number) => number | undefined };
         )))
     }
 }
