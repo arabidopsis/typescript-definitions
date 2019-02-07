@@ -40,96 +40,6 @@ mod patch;
 type QuoteT = proc_macro2::TokenStream;
 type Bounds = Vec<TSType>;
 
-
-struct Parsed {
-    is_enum: bool,
-    ident: syn::Ident,
-    generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
-    body: QuoteT,
-}
-impl Parsed {
-    fn to_export_string(&self) -> String {
-        let ts = self.body.to_string();
-        let ts = patch::patch(&ts);
-        let ts_ident = self.ts_ident().to_string();
-        let ts_ident = patch::patch(&ts_ident);
-        if self.is_enum {
-            format!("export enum {} {};", ts_ident, ts)
-        } else {
-            format!("export type {} = {};", ts_ident, ts)
-        }
-    }
-
-    /// type name suitable for typescript i.e. *no* 'a lifetimes
-    fn ts_ident(&self) -> QuoteT {
-        let ident = &self.ident; //.clone();
-
-        let args_wo_lt: Vec<_> = self.generic_args_wo_lifetimes(false).collect();
-        if args_wo_lt.len() == 0 {
-            quote!(#ident)
-        } else {
-            quote!(#ident<#(#args_wo_lt),*>)
-        }
-    }
-
-    fn generic_args_wo_lifetimes(&self, with_bounds : bool) -> impl Iterator<Item = QuoteT> + '_ {
-        self.generics.iter().filter_map(move |g| match g {
-            Some((ref ident, ref bounds)) => { 
-                // we ignore trait bounds for typescript
-                if bounds.len() == 0 || !with_bounds {
-                    Some(quote! (#ident))
-                } else {
-                    let bounds = bounds.iter().map(|ts| &ts.ident);
-                    //if for_ts {
-                    //    Some( quote!{ #ident extends #(#bounds)&* } )
-                    //} else {
-                        Some( quote!{ #ident : #(#bounds)+* } )
-                    //}
-                }
-            }
-
-            _ => None,
-        })
-        //.map(|g| g.clone())
-    }
-    // required for impl Trait for T<.....>
-    fn generic_args_with_lifetimes(&self) -> impl Iterator<Item = QuoteT> + '_ {
-        // we need to return quotes because '_ is not an Ident
-        self.generics.iter().map(|g| match g {
-            Some((ref i, ref _bounds)) => quote!(#i),
-            None => quote!('_), // only need '_
-        })
-    }
-
-    fn parse(input: proc_macro::TokenStream) -> Parsed {
-        let input: DeriveInput = syn::parse(input).unwrap();
-
-        let cx = Ctxt::new();
-        let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
-
-        let (is_enum, typescript) = match container.data {
-            ast::Data::Enum(ref variants) => derive_enum::derive_enum(variants, &container, &cx),
-            ast::Data::Struct(style, ref fields) => {
-                derive_struct::derive_struct(style, fields, &container, &cx)
-            }
-        };
-
-        let generics = syn_generics(container.generics);
-
-        // consumes context
-        cx.check().unwrap();
-        Parsed {
-            is_enum: is_enum,
-            ident: container.ident,
-            generics: generics,
-            body: typescript,
-        }
-    }
-}
-
-fn ident_from_str(s: &str) -> Ident {
-    syn::Ident::new(s, Span::call_site())
-}
 /// derive proc_macro to expose typescript definitions to `wasm-bindgen`.
 ///
 /// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
@@ -189,7 +99,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
         // eprintln!("{}", export_string);
 
         let ident = &parsed.ident;
-        let ret = if parsed.generics.len() == 0 {
+        let ret = if parsed.ts_generics.len() == 0 {
             quote! {
 
                 impl TypeScriptifyTrait for #ident {
@@ -200,10 +110,11 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
             }
         } else {
             let generics = parsed.generic_args_with_lifetimes();
-            let implg = parsed.generic_args_wo_lifetimes(true); // true => give me the bounds too
+            // let implg = parsed.generic_args_wo_lifetimes(true); // true => give me the bounds too
+            let rustg = &parsed.rust_generics;
             quote! {
 
-                impl<#(#implg),*> TypeScriptifyTrait for #ident<#(#generics),*> {
+                impl#rustg TypeScriptifyTrait for #ident<#(#generics),*> {
                     fn type_script_ify() ->  &'static str {
                         #export_string
                     }
@@ -218,9 +129,113 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
     }
 }
 
-fn syn_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
+struct Parsed {
+    is_enum: bool,
+    ident: syn::Ident,
+    ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
+    body: QuoteT,
+    rust_generics: syn::Generics
+}
+impl Parsed {
+    fn to_export_string(&self) -> String {
+        let ts = self.body.to_string();
+        let ts = patch::patch(&ts);
+        let ts_ident = self.ts_ident().to_string();
+        let ts_ident = patch::patch(&ts_ident);
+        if self.is_enum {
+            format!("export enum {} {};", ts_ident, ts)
+        } else {
+            format!("export type {} = {};", ts_ident, ts)
+        }
+    }
+
+    /// type name suitable for typescript i.e. *no* 'a lifetimes
+    fn ts_ident(&self) -> QuoteT {
+        let ident = &self.ident;
+
+        // currently we ignore trait bounds
+        let args_wo_lt: Vec<_> = self.ts_generic_args_wo_lifetimes(false).collect();
+        if args_wo_lt.len() == 0 {
+            quote!(#ident)
+        } else {
+            quote!(#ident<#(#args_wo_lt),*>)
+        }
+    }
+
+    fn ts_generic_args_wo_lifetimes(&self, with_bounds: bool) -> impl Iterator<Item = QuoteT> + '_ {
+        self.ts_generics.iter().filter_map(move |g| match g {
+            Some((ref ident, ref bounds)) => {
+                // we ignore trait bounds for typescript
+                if bounds.len() == 0 || !with_bounds {
+                    Some(quote! (#ident))
+                } else {
+                    let bounds = bounds.iter().map(|ts| &ts.ident);
+                    if with_bounds {
+                        Some( quote!{ #ident extends #(#bounds)&* } )
+                    } else {
+                        Some(quote! { #ident : #(#bounds)+* })
+                    }
+                }
+            }
+
+            _ => None,
+        })
+
+    }
+
+    fn generic_args_with_lifetimes(&self) -> impl Iterator<Item = QuoteT> + '_ {
+        // suitable for impl<...> Trait for T<#generic_args_with_lifetime> ...
+        // we need to return quotes because '_ is not an Ident
+        self.ts_generics.iter().map(|g| match g {
+            Some((ref i, ref _bounds)) => quote!(#i),
+            None => quote!('_), // only need '_
+        })
+    }
+
+    fn parse(input: proc_macro::TokenStream) -> Parsed {
+        let input: DeriveInput = syn::parse(input).unwrap();
+
+        let cx = Ctxt::new();
+        let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
+
+        let (is_enum, typescript) = match container.data {
+            ast::Data::Enum(ref variants) => derive_enum::derive_enum(variants, &container, &cx),
+            ast::Data::Struct(style, ref fields) => {
+                derive_struct::derive_struct(style, fields, &container, &cx)
+            }
+        };
+
+
+        let ts_generics = ts_generics(container.generics);
+
+        // consumes context
+        cx.check().unwrap();
+        Parsed {
+            is_enum: is_enum,
+            ident: container.ident,
+            ts_generics: ts_generics,
+            body: typescript,
+            rust_generics: container.generics.clone() // keep original type generics around for type_script_ify
+        }
+    }
+}
+
+fn ident_from_str(s: &str) -> Ident {
+    syn::Ident::new(s, Span::call_site())
+}
+
+
+fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
     // lifetime params are represented by None since we are only going
     // to translate the to '_
+
+    // TODO: since `type_script_ify` needs to generate an impl of TypeScriptTrait
+    // we really need to get *all* the information out of this so as to
+    // correctly regenerate the generic args. Also syn:Generics implements
+    // ToTokens so it can go straight into quote! Still need to replace 'a with '_
+    // etc...
+    // impl#generics TypeScriptTrait for A<... lifetimes to '_ and T without bounds>
+
     use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam, TypeParamBound};
     g.params
         .iter()
@@ -247,7 +262,7 @@ fn syn_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
 
 fn return_type(rt: &syn::ReturnType) -> Option<syn::Type> {
     match rt {
-        syn::ReturnType::Default => None, // e.g. ()
+        syn::ReturnType::Default => None, // e.g. undefined
         syn::ReturnType::Type(_, tp) => Some(*tp.clone()),
     }
 }
@@ -267,13 +282,13 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     args,
                     ..
                 }) => args,
-                // turn func(A,B) ->C into  func<C>?
+                // closures Fn(A,B) -> C
                 syn::PathArguments::Parenthesized(syn::ParenthesizedGenericArguments {
                     output,
                     inputs,
                     ..
                 }) => {
-                    let args = inputs.iter().map(|ty| ty.clone()).collect::<Vec<_>>();
+                    let args : Vec<_> = inputs.iter().map(|ty| ty.clone()).collect();
                     let ret = return_type(output);
                     return Some(TSType {
                         ident: ident,
@@ -281,7 +296,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                         return_type: ret,
                     });
                 }
-                _ => {
+                syn::PathArguments::None => {
                     return Some(TSType {
                         ident: ident,
                         args: vec![],
@@ -294,7 +309,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                 .iter()
                 .filter_map(|p| match p {
                     syn::GenericArgument::Type(t) => Some(t),
-                    _ => None,
+                    _ => None, // bindings A=I, expr, constraints A : B ... skip!
                 })
                 .map(|ty| ty.clone())
                 .collect::<Vec<_>>();
@@ -366,7 +381,15 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
     }
 }
 
-fn type_to_ts(ty: &syn::Type) -> QuoteT {
+/// # convert a `syn::Type` rust type to a 
+/// `TokenStream` of typescript type: basically i32 => number etc.
+fn type_to_ts(ty: &syn::Type) -> QuoteT { 
+    // `type_to_ts` recursively calls itself occationally
+    // finding a Path which it hands to last_path_element
+    // which generates a "simplified" TSType struct which
+    // is handed to `generic_to_ts` which possibly "bottoms out"
+    // by generating tokens for typescript types.
+
     fn type_to_array(elem: &syn::Type) -> QuoteT {
         let tp = type_to_ts(elem);
         quote! { #tp[] }
@@ -375,7 +398,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
     use syn::Type::*;
     use syn::{
         BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen,
-        TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
+        TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple, Member
     };
     match ty {
         Slice(TypeSlice { elem, .. }) => type_to_array(elem),
@@ -386,17 +409,20 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
         BareFn(TypeBareFn { output, inputs, .. }) => {
             let mut args: Vec<Ident> = Vec::with_capacity(inputs.len());
             let mut typs: Vec<&syn::Type> = Vec::with_capacity(inputs.len());
+            
             for (idx, t) in inputs.iter().enumerate() {
                 let i = match t.name {
                     Some((ref n, _)) => match n {
                         BareFnArgName::Named(m) => m.clone(),
-                        _ => ident_from_str("_"),
+                        _ => ident_from_str("_"), // Wild token '_'
                     },
                     _ => ident_from_str(&format!("_dummy{}", idx)),
                 };
                 args.push(i);
-                typs.push(&t.ty);
+                typs.push(&t.ty); // TODO: check type is known
             }
+            // typescript lambda (a: A, b:B) => C
+            
             let typs = typs.iter().map(|ty| type_to_ts(ty));
             if let Some(ref rt) = return_type(&output) {
                 let rt = type_to_ts(rt);
@@ -407,6 +433,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
         }
         Never(..) => quote! { never },
         Tuple(TypeTuple { elems, .. }) => {
+
             let elems = elems.iter().map(|t| type_to_ts(t));
             quote!([ #(#elems),* ])
         }
@@ -436,13 +463,12 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
             let tp = type_to_ts(elem);
             quote! { ( #tp ) }
         }
-        // Group(TypeGroup { elem, .. }) => type_to_ts(elem),
         Infer(..) | Macro(..) | Verbatim(..) => quote! { any },
     }
 }
 
 fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
-    let field_name = field.attrs.name().serialize_name();
+    let field_name = field.attrs.name().serialize_name(); // use serde name instead of field.member
     let field_name = ident_from_str(&field_name);
 
     let ty = type_to_ts(&field.ty);
