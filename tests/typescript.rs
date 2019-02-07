@@ -355,4 +355,19 @@ mod typescript {
             export type API<T> = {key: number, a: T, get: (arg: number) => string, get2: (T, number) => number | undefined };
         )))
     }
+
+   #[test]
+    fn struct_with_traitbounds() {
+        use std::fmt::Display;
+
+        #[derive(TypeScriptify)]
+        struct API<T : Display + Send>  {
+            key : i32,
+            a : T,
+
+        }
+        assert_eq!(API::<i32>::type_script_ify(), patcht(quote!(
+            export type API<T> = {key: number, a: T };
+        )))
+    }
 }

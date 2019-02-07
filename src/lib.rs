@@ -38,15 +38,13 @@ mod patch;
 
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
+type Bounds = Vec<TSType>;
 
-fn make_quote<'a>(q: &'a QuoteT) -> &'a QuoteT {
-    q
-}
 
 struct Parsed {
     is_enum: bool,
     ident: syn::Ident,
-    generics: Vec<Option<Ident>>,
+    generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     body: QuoteT,
 }
 impl Parsed {
@@ -62,10 +60,11 @@ impl Parsed {
         }
     }
 
+    /// type name suitable for typescript i.e. *no* 'a lifetimes
     fn ts_ident(&self) -> QuoteT {
         let ident = &self.ident; //.clone();
 
-        let args_wo_lt: Vec<_> = self.generic_args_wo_lifetimes().collect();
+        let args_wo_lt: Vec<_> = self.generic_args_wo_lifetimes(false).collect();
         if args_wo_lt.len() == 0 {
             quote!(#ident)
         } else {
@@ -73,18 +72,32 @@ impl Parsed {
         }
     }
 
-    fn generic_args_wo_lifetimes(&self) -> impl Iterator<Item = &Ident> + '_ {
-        self.generics.iter().filter_map(|g| match g {
-            Some(ref i) => Some(i),
+    fn generic_args_wo_lifetimes(&self, with_bounds : bool) -> impl Iterator<Item = QuoteT> + '_ {
+        self.generics.iter().filter_map(move |g| match g {
+            Some((ref ident, ref bounds)) => { 
+                // we ignore trait bounds for typescript
+                if bounds.len() == 0 || !with_bounds {
+                    Some(quote! (#ident))
+                } else {
+                    let bounds = bounds.iter().map(|ts| &ts.ident);
+                    //if for_ts {
+                    //    Some( quote!{ #ident extends #(#bounds)&* } )
+                    //} else {
+                        Some( quote!{ #ident : #(#bounds)+* } )
+                    //}
+                }
+            }
+
             _ => None,
         })
         //.map(|g| g.clone())
     }
-
+    // required for impl Trait for T<.....>
     fn generic_args_with_lifetimes(&self) -> impl Iterator<Item = QuoteT> + '_ {
+        // we need to return quotes because '_ is not an Ident
         self.generics.iter().map(|g| match g {
-            Some(i) => quote!(#i),
-            None => quote!('_),
+            Some((ref i, ref _bounds)) => quote!(#i),
+            None => quote!('_), // only need '_
         })
     }
 
@@ -97,7 +110,7 @@ impl Parsed {
         let (is_enum, typescript) = match container.data {
             ast::Data::Enum(ref variants) => derive_enum::derive_enum(variants, &container, &cx),
             ast::Data::Struct(style, ref fields) => {
-                derive_struct::derive_struct(style, fields, &container.attrs)
+                derive_struct::derive_struct(style, fields, &container, &cx)
             }
         };
 
@@ -173,6 +186,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let parsed = Parsed::parse(input);
         let export_string = parsed.to_export_string();
+        // eprintln!("{}", export_string);
 
         let ident = &parsed.ident;
         let ret = if parsed.generics.len() == 0 {
@@ -186,7 +200,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
             }
         } else {
             let generics = parsed.generic_args_with_lifetimes();
-            let implg = parsed.generic_args_wo_lifetimes();
+            let implg = parsed.generic_args_wo_lifetimes(true); // true => give me the bounds too
             quote! {
 
                 impl<#(#implg),*> TypeScriptifyTrait for #ident<#(#generics),*> {
@@ -204,16 +218,28 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
     }
 }
 
-fn syn_generics(g: &syn::Generics) -> Vec<Option<Ident>> {
+fn syn_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
     // lifetime params are represented by None since we are only going
     // to translate the to '_
-    use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam};
+    use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam, TypeParamBound};
     g.params
         .iter()
         .map(|p| match p {
             GenericParam::Lifetime(LifetimeDef { /* lifetime,*/ .. }) => None,
-            GenericParam::Type(TypeParam { ident, ..}) => Some(ident.clone()),
-            GenericParam::Const(ConstParam { ident, ..}) => Some(ident.clone()),
+            GenericParam::Type(TypeParam { ident, bounds, ..}) => {
+                let bounds = bounds.iter()
+                    .map(|b| match b {
+                        TypeParamBound::Trait(t) => Some(&t.path),
+                        _ => None // skip lifetimes for bounds
+                    })
+                    .filter_map(|b| b)
+                    .map(last_path_element)
+                    .filter_map(|b| b)
+                    .collect::<Vec<_>>();
+
+                Some((ident.clone(), bounds))
+            },
+            GenericParam::Const(ConstParam { ident, ..}) => Some((ident.clone(), vec![])),
 
         })
         .collect()
@@ -230,7 +256,7 @@ fn return_type(rt: &syn::ReturnType) -> Option<syn::Type> {
 struct TSType {
     ident: syn::Ident,
     args: Vec<syn::Type>,
-    return_type: Option<syn::Type>,
+    return_type: Option<syn::Type>, // only if function
 }
 fn last_path_element(path: &syn::Path) -> Option<TSType> {
     match path.segments.last().map(|p| p.into_value()) {
