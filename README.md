@@ -103,8 +103,8 @@ mkdir pkg
 wasm-bindgen target/wasm32-unknown-unknown/debug/mywasm.wasm --typescript --out-dir pkg/
 cat pkg/mywasm.d.ts
 ```
-If you don't have these tools then [see here](https://rustwasm.github.io/wasm-bindgen/whirlwind-tour/basic-usage.html):
-
+If you don't have these tools then [see here](https://rustwasm.github.io/wasm-bindgen/whirlwind-tour/basic-usage.html)
+(You might also need to get [rustup](https://rustup.rs) first):
 ```bash
 rustup target add wasm32-unknown-unknown --toolchain nightly
 cargo +nightly install wasm-bindgen-cli
@@ -120,8 +120,7 @@ cat pkg/mywasm.d.ts
 
 ## Using `type_script_ify`
 
-You can ignore WASM *totally* and derive using `TypeScriptify` as long as you have the following `TypeScriptifyTrait` Trait
-in scope (which *you* have to provide):
+You can ignore WASM *totally* and derive using `TypeScriptify`:
 
 ```rust
 // interface.rs
@@ -130,11 +129,9 @@ extern crate typescript_definitions;
 // wasm_bindgen not needed
 // use::wasm_bindgen::prelude::*;
 use::serde_derive::Serialize;
-use::typescript_definitions::TypeScriptify;
-// *you* have to provide this Trait because, currently, rust proc-macro crates can't
-// export any public Traits etc... sorry about that.
-pub trait TypeScriptifyTrait {
-    fn type_script_ify() -> String;
+#[allow(unused)]
+use::typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+
 }
 #[derive(Serialize, TypeScriptify)]
 pub struct MyStruct {
@@ -146,7 +143,7 @@ Then in `main.rs` (say) you can generate your own typescript specification using
 ```rust
 mod interface;
 // need to pull in trait
-use self::interface::TypeScriptifyTrait;
+use::typescript_definitions::TypeScriptifyTrait;
 
 fn main() {
     println!("{}", interface::MyStruct::type_script_ify());

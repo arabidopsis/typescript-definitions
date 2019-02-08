@@ -1,12 +1,13 @@
 extern crate serde;
 extern crate serde_json;
+extern crate typescript_definitions;
 // use serde::{Deserialize, Serialize};
 use serde_json::Error;
 mod interface;
 
 use self::interface::*;
+use typescript_definitions::TypeScriptifyTrait;
 
-// use self::interface::{TypeScriptifyTrait};
 
 fn main() -> Result<(), Error> {
     let p = Point {

@@ -17,7 +17,7 @@ extern crate proc_macro2;
 mod typescript {
     use std::borrow::Cow;
     use serde::de::value::Error;
-    use typescript_definitions::{TypescriptDefinition, TypeScriptify};
+    use typescript_definitions::{TypescriptDefinition, TypeScriptify, TypeScriptifyTrait};
     use proc_macro2::TokenStream;
 
     use wasm_bindgen::prelude::*;
@@ -25,12 +25,6 @@ mod typescript {
     // NOTE:
     // #[cfg(feature="test")] so that test functions 
     // within derive_typescript_definition are compiled...
-    // I don't know why I can't just test for test!
-    // Run these with `cargo test --features=test`
-
-    trait TypeScriptifyTrait {
-        fn type_script_ify() -> String;
-    }
 
     // can't get access to typescript_definitions::patch!?
     // so we do our own.

@@ -4,13 +4,9 @@ extern crate typescript_definitions;
 extern crate wasm_bindgen;
 
 use serde_derive::Serialize;
-use typescript_definitions::TypeScriptify;
-use typescript_definitions::TypescriptDefinition;
-use wasm_bindgen::prelude::*;
+use typescript_definitions::{TypescriptDefinition,TypeScriptify} ;
 
-pub trait TypeScriptifyTrait {
-    fn type_script_ify() -> String;
-}
+use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, TypescriptDefinition)]
 pub struct Newtype(i64);

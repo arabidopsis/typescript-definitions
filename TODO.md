@@ -39,8 +39,14 @@ impl ToTokens for QuoteT {
 If we want to honour `#[serde(flatten)]` then this will only be possible
 with `TypeScriptify`. we can laydown a
 
+```rust
 trait TypeScriptifyTrait {
     fn type_script_ify() -> String;
-    fn 
+    fn fields() -> Vec<String>;
 }
+```
+
+Then we can flatten by finding the fields for a type with `#T::<???>::fields()`
+
+
 
