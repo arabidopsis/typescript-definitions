@@ -3,7 +3,7 @@ extern crate quote;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-// use std::str::ToString;
+
 pub trait Tbuild {
     fn build(&self) -> TokenStream;
 }
@@ -12,6 +12,18 @@ pub enum QuoteT<'a> {
     Tokens(TokenStream),
     Closure(Box<Fn() -> TokenStream + 'a>), //Builder(fn() -> TokenStream)
     Builder(Box<Tbuild + 'a>),
+}
+#[allow(unused)]
+impl QuoteT<'_> {
+    fn from_quote<'a>(s: TokenStream) -> QuoteT<'a> {
+        QuoteT::Tokens(s)
+    }
+    fn from_closure<'a, F: Fn() -> TokenStream + 'a>(f: F) -> QuoteT<'a> {
+        QuoteT::Closure(Box::new(f))
+    }
+    fn from_builder<'a, F: Tbuild + 'a>(f: F) -> QuoteT<'a> {
+        QuoteT::Builder(Box::new(f))
+    }
 }
 
 impl ToTokens for QuoteT<'_> {
@@ -32,25 +44,17 @@ impl ToString for QuoteT<'_> {
         }
     }
 }
-impl QuoteT<'_> {
-    fn from_quote<'a>(s: TokenStream) -> QuoteT<'a> {
-        QuoteT::Tokens(s)
-    }
-    fn from_closure<'a, F: Fn() -> TokenStream + 'a>(f: F) -> QuoteT<'a> {
-        QuoteT::Closure(Box::new(f))
-    }
-    fn from_builder<'a, F: Tbuild + 'a>(f: F) -> QuoteT<'a> {
-        QuoteT::Builder(Box::new(f))
-    }
-}
+
 
 impl From<TokenStream> for QuoteT<'_> {
     fn from(t: TokenStream) -> Self {
        QuoteT::Tokens(t)
     }
 }
-#[allow(unused)]
+
+#[cfg(test)]
 mod test {
+    #![allow(unused)]
     use super::{Tbuild, QuoteT, TokenStream};
     struct S {
         v: Vec<QuoteT<'static>>,
@@ -73,12 +77,16 @@ mod test {
         };
         QuoteT::from_closure(f)
     }
-    fn make_builder<'a>() -> QuoteT<'a> {
-        let s = vec![
-            QuoteT::from_quote(quote!(a b)),
-            QuoteT::from_quote(quote!(c b)),
-        ];
-    ;
-        QuoteT::from_builder(S { v: s })
+
+    #[test]
+    fn can_build_from_struct() {
+        fn make_builder<'a>() -> QuoteT<'a> {
+            let s = vec![
+                QuoteT::from_quote(quote!(a b)),
+                QuoteT::from_quote(quote!(c b)),
+            ];
+            QuoteT::from_builder(S { v: s })
+        }
+        assert_eq!(make_builder().to_string(), "some more a b & c b".to_string());
     }
 }

@@ -41,7 +41,7 @@ mod quotet;
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
 
-type QuoteT2 = quotet::QuoteT<'static>;
+type QuoteMaker = quotet::QuoteT<'static>;
 
 type Bounds = Vec<TSType>;
 
@@ -138,7 +138,7 @@ struct Parsed {
     is_enum: bool,
     ident: syn::Ident,
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
-    body: QuoteT2,
+    body: QuoteMaker,
     rust_generics: syn::Generics,
 }
 impl Parsed {

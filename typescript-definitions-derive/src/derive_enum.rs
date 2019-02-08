@@ -8,7 +8,7 @@
 
 use serde_derive_internals::{ast, attr::EnumTag, Ctxt};
 
-use super::{derive_field, ident_from_str, type_to_ts, filter_visible, QuoteT2};
+use super::{derive_field, ident_from_str, type_to_ts, filter_visible, QuoteMaker};
 
 const CONTENT: &'static str = "fields"; // default content tag
 
@@ -20,7 +20,7 @@ pub(crate) fn derive_enum<'a>(
     variants: &[ast::Variant<'a>],
     container: &ast::Container,
     cx: &Ctxt,
-) -> (bool /* is enum */, QuoteT2) {
+) -> (bool /* is enum */, QuoteMaker) {
     let taginfo = match container.attrs.tag() {
         EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
         EnumTag::Adjacent { tag, content, .. } => TagInfo {
@@ -78,7 +78,7 @@ pub(crate) fn derive_enum<'a>(
     (false, quote! ( #(#content)|* ).into())
 }
 
-fn derive_unit_variant(taginfo: &TagInfo, variant_name: &str) -> QuoteT2 {
+fn derive_unit_variant(taginfo: &TagInfo, variant_name: &str) -> QuoteMaker {
     let tag = ident_from_str(taginfo.tag);
     quote! (
         { #tag: #variant_name }
@@ -89,7 +89,7 @@ fn derive_newtype_variant<'a>(
     taginfo: &TagInfo,
     variant_name: &str,
     field: &ast::Field<'a>,
-) -> QuoteT2 {
+) -> QuoteMaker {
     if field.attrs.skip_serializing() {
         return derive_unit_variant(taginfo, variant_name);
     }
@@ -112,7 +112,7 @@ fn derive_struct_variant<'a>(
     fields: &[ast::Field<'a>],
     container: &ast::Container,
     cx: &Ctxt, // for error reporting
-) -> QuoteT2 {
+) -> QuoteMaker {
     use std::collections::HashSet;
     let fields = filter_visible(fields);
     if fields.len() == 0 {
@@ -149,7 +149,7 @@ fn derive_tuple_variant<'a>(
     taginfo: &TagInfo,
     variant_name: &str,
     fields: &[ast::Field<'a>],
-) -> QuoteT2 {
+) -> QuoteMaker {
     let fields = filter_visible(fields);
     let contents = fields.iter().map(|field| type_to_ts(&field.ty));
 
