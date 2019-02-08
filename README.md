@@ -1,6 +1,11 @@
-# typescript-definitions [![](https://img.shields.io/crates/v/typescript-definitions.svg)](https://crates.io/crates/typescript-definitions) [![](https://docs.rs/typescript-definitions/badge.svg)](https://docs.rs/typescript-definitions)
+# typescript-definitions 
 
-Exports serde-serializable structs and enums to Typescript definitions.
+> Exports serde-serializable structs and enums to Typescript definitions.
+
+[![](https://img.shields.io/crates/v/typescript-definitions.svg)](https://crates.io/crates/typescript-definitions) 
+[![](https://docs.rs/typescript-definitions/badge.svg)](https://docs.rs/typescript-definitions)
+![License](https://img.shields.io/crates/l/typescript-definitions.svg)
+
 
 ## Motivation
 
@@ -48,6 +53,10 @@ enum Enum {
     V3 {
         #[serde(rename = "Quux")]
         quux: String,
+    },
+    #[serde(skip)]
+    Internal {
+        err: String
     },
 }
 ```
@@ -212,6 +221,12 @@ to `#[serde(tag="kind")]` (Internal).
 
 The default for NewTypes and Tuple types is
 `#[serde(tag="kind", content="fields")]` (Adjacent).
+
+Serde attributes understood
+
+* tag
+* content
+* skip (also skips by default PhantomData fields)
 
 ## Problems
 

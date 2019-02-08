@@ -42,6 +42,7 @@ impl QuoteT<'_> {
         QuoteT::Builder(Box::new(f))
     }
 }
+
 struct S {
     v: Vec<QuoteT>,
 }

@@ -167,14 +167,13 @@ mod typescript {
         #[derive(Serialize, TypescriptDefinition)]
         enum Enum {
             #[serde(rename = "Var1")]
-            #[allow(unused)]
             V1(bool),
             #[serde(rename = "Var2")]
-            #[allow(unused)]
             V2(i64),
             #[serde(rename = "Var3")]
-            #[allow(unused)]
             V3(String),
+            #[serde(skip)]
+            Internal(i32)
         }
 
         assert_eq!(
@@ -192,11 +191,8 @@ mod typescript {
     fn enum_with_unit_variants() {
         #[derive(Serialize, TypescriptDefinition)]
         enum Enum {
-            #[allow(unused)]
             V1,
-            #[allow(unused)]
             V2,
-            #[allow(unused)]
             V3,
         }
 
@@ -444,6 +440,23 @@ mod typescript {
            normalize(S::type_script_ify()),
             patcht(quote!(
                 export type S = {kind : "A" } | {kind: "E" , key: number, a: number } | { kind: "F" , fields : [number, string]};
+            ))
+        )
+    }
+    #[test]
+    fn struct_with_phantom_data_skip() {
+        use std::marker::PhantomData;
+
+        #[derive(Serialize, TypeScriptify)]
+        struct S {
+            key: i32,
+            a : i32,
+            b : PhantomData<String>,
+        }
+        assert_eq!(
+           S::type_script_ify(),
+            patcht(quote!(
+                export type S = {key: number, a: number };
             ))
         )
     }

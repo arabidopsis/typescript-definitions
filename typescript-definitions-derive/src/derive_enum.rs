@@ -119,9 +119,7 @@ fn derive_struct_variant<'a>(
         return derive_unit_variant(taginfo, variant_name);
     }
 
-
     let contents = fields.iter().map(|f| derive_field(f));
-
 
     let tag = ident_from_str(taginfo.tag);
     if let Some(content) = taginfo.content {

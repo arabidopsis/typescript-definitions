@@ -446,8 +446,6 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
                     _ => None, // skip lifetime etc.
                 })
                 .map(|t| {
-                    // let ident = t.ident;
-                    // quote!(#ident)
                     generic_to_ts(t)
                 });
 
@@ -468,8 +466,22 @@ fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
     let field_name = ident_from_str(&field_name);
 
     let ty = type_to_ts(&field.ty);
+
     quote! {
         #field_name: #ty
+    }
+}
+
+fn is_phantom(ty : &syn::Type) -> bool {
+    use syn::Type::Path;
+    match ty {
+         Path(syn::TypePath { path, .. }) => {
+             match path.segments.last().map(|p| p.into_value()) {
+                 Some(t) => t.ident.to_string() == "PhantomData",
+                 _ => false,
+             }
+         },
+         _ => false,
     }
 }
 
@@ -477,9 +489,10 @@ fn filter_visible<'a>(fields: &'a [ast::Field<'a>])  -> Vec<&'a ast::Field<'a>> 
     let mut content : Vec<&'a ast::Field<'a>> = Vec::with_capacity(fields.len());
 
     for field in fields {
-        if field.attrs.skip_serializing() {
+        if field.attrs.skip_serializing() || is_phantom(field.ty) {
             continue;
         }
+        
         content.push(field);
         
     }
