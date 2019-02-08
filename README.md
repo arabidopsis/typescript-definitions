@@ -1,4 +1,4 @@
-# typescript-definitions
+# typescript-definitions [![](https://img.shields.io/crates/v/typescript-definitions.svg)](https://crates.io/crates/typescript-definitions) [![](https://docs.rs/typescript-definitions/badge.svg)](https://docs.rs/typescript-definitions)
 
 Exports serde-serializable structs and enums to Typescript definitions.
 
