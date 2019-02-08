@@ -7,14 +7,14 @@
 // except according to those terms.
 use serde_derive_internals::{ast, Ctxt};
 
-use super::{derive_field, type_to_ts, QuoteT, filter_visible};
+use super::{derive_field, type_to_ts, filter_visible, QuoteT2};
 
 pub(crate) fn derive_struct<'a>(
     style: ast::Style,
     fields: &[ast::Field<'a>],
     container: &ast::Container,
     _cx: &Ctxt, // for error reporting
-) -> (bool, QuoteT) {
+) -> (bool, QuoteT2) {
     (
         false,
         match style {
@@ -29,36 +29,36 @@ pub(crate) fn derive_struct<'a>(
 fn derive_struct_newtype<'a>(
     field: &ast::Field<'a>,
     _ast_container: &ast::Container,
-) -> QuoteT {
+) -> QuoteT2 {
     if field.attrs.skip_serializing() {
         return derive_struct_unit();
     }
-    type_to_ts(&field.ty)
+    type_to_ts(&field.ty).into()
 }
 
-fn derive_struct_unit() -> QuoteT {
-    quote! {
+fn derive_struct_unit() -> QuoteT2 {
+    quote! (
         {}
-    }
+    ).into()
 }
 
 fn derive_struct_named_fields<'a>(
     fields: &[ast::Field<'a>],
     _ast_container: &ast::Container,
-) -> QuoteT {
+) -> QuoteT2 {
     let fields = filter_visible(fields);
     if fields.len() == 0  {
         return derive_struct_unit();
     }
     let content = fields.iter().map(|f| derive_field(f));
-    quote!({#(#content),*})
+    quote!({#(#content),*}).into()
 }
 
-fn derive_struct_tuple<'a>(fields: &[ast::Field<'a>], _ast_container: &ast::Container) -> QuoteT {
+fn derive_struct_tuple<'a>(fields: &[ast::Field<'a>], _ast_container: &ast::Container) -> QuoteT2 {
     let fields = filter_visible(fields);
     if fields.len() == 0 {
         return derive_struct_unit();
     }
     let content = fields.iter().map(|f| type_to_ts(f.ty));
-    quote!([#(#content),*])
+    quote!([#(#content),*]).into()
 }

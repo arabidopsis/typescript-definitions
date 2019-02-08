@@ -35,9 +35,14 @@ use syn::DeriveInput;
 mod derive_enum;
 mod derive_struct;
 mod patch;
+mod quotet;
+
 
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
+
+type QuoteT2 = quotet::QuoteT<'static>;
+
 type Bounds = Vec<TSType>;
 
 /// derive proc_macro to expose typescript definitions to `wasm-bindgen`.
@@ -133,7 +138,7 @@ struct Parsed {
     is_enum: bool,
     ident: syn::Ident,
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
-    body: QuoteT,
+    body: QuoteT2,
     rust_generics: syn::Generics,
 }
 impl Parsed {
