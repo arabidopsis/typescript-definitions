@@ -40,6 +40,7 @@ mod utils;
 
 use utils::*;
 
+use patch::patch;
 
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
@@ -118,7 +119,6 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
             }
         } else {
             let generics = parsed.generic_args_with_lifetimes();
-            // let implg = parsed.generic_args_wo_lifetimes(true); // true => give me the bounds too
             let rustg = &parsed.rust_generics;
             quote! {
 
@@ -147,9 +147,9 @@ struct Parsed {
 impl Parsed {
     fn to_export_string(&self) -> String {
         let ts = self.body.to_string();
-        let ts = patch::patch(&ts);
+        let ts = patch(&ts);
         let ts_ident = self.ts_ident().to_string();
-        let ts_ident = patch::patch(&ts_ident);
+        let ts_ident = patch(&ts_ident);
         if self.is_enum {
             format!("export enum {} {};", ts_ident, ts)
         } else {
@@ -225,7 +225,6 @@ impl Parsed {
         }
     }
 }
-
 
 fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
     // lifetime params are represented by None since we are only going
@@ -450,9 +449,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
                     TypeParamBound::Trait(t) => last_path_element(&t.path),
                     _ => None, // skip lifetime etc.
                 })
-                .map(|t| {
-                    generic_to_ts(t)
-                });
+                .map(|t| generic_to_ts(t));
 
             // TODO check for zero length?
             // A + B + C => A & B & C

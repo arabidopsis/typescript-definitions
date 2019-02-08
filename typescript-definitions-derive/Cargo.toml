@@ -1,6 +1,6 @@
 [package]
 name = "typescript-definitions-derive"
-version = "0.1.6"
+version = "0.1.7"
 description = "serde support for exporting Typescript definitions"
 authors = ["Tim Ryan <id@timryan.org>", "Sam Rijs <srijs@airpost.net>" , "Ian Castleden <ian.castleden@gmail.com>"]
 license = "MIT/Apache-2.0"
