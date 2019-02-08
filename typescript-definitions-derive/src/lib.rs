@@ -472,3 +472,16 @@ fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
         #field_name: #ty
     }
 }
+
+fn filter_visible<'a>(fields: &'a [ast::Field<'a>])  -> Vec<&'a ast::Field<'a>> {
+    let mut content : Vec<&'a ast::Field<'a>> = Vec::with_capacity(fields.len());
+
+    for field in fields {
+        if field.attrs.skip_serializing() {
+            continue;
+        }
+        content.push(field);
+        
+    }
+    content
+}

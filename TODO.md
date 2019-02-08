@@ -49,4 +49,6 @@ trait TypeScriptifyTrait {
 Then we can flatten by finding the fields for a type with `#T::<???>::fields()`
 
 
+Configuration via `option_env!`. Yesss!
+
 

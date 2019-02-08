@@ -8,7 +8,7 @@
 
 use serde_derive_internals::{ast, attr::EnumTag, Ctxt};
 
-use super::{derive_field, ident_from_str, type_to_ts, QuoteT};
+use super::{derive_field, ident_from_str, type_to_ts, QuoteT, filter_visible};
 
 const CONTENT: &'static str = "fields"; // default content tag
 
@@ -32,8 +32,16 @@ pub(crate) fn derive_enum<'a>(
             content: None,
         },
     };
-    let mut is_enum = true;
+    // check for #[serde(skip)]
+    let mut skip_variants : Vec<&ast::Variant<'a>> = Vec::with_capacity(variants.len());
     for v in variants {
+        if v.attrs.skip_serializing() { continue; }
+        skip_variants.push(v); 
+    }
+
+
+    let mut is_enum = true;
+    for v in &skip_variants {
         match v.style {
             ast::Style::Unit => continue,
             _ => {
@@ -43,7 +51,7 @@ pub(crate) fn derive_enum<'a>(
         }
     }
     if is_enum {
-        let v = variants
+        let v = &skip_variants
             .iter()
             .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
             .collect::<Vec<_>>();
@@ -51,7 +59,9 @@ pub(crate) fn derive_enum<'a>(
         return (true, quote! ( { #(#k = #v),* } ));
     }
 
-    let content = variants.iter().map(|variant| {
+
+
+    let content = skip_variants.iter().map(|variant| {
         let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
         match variant.style {
             ast::Style::Struct => {
@@ -80,6 +90,9 @@ fn derive_newtype_variant<'a>(
     variant_name: &str,
     field: &ast::Field<'a>,
 ) -> QuoteT {
+    if field.attrs.skip_serializing() {
+        return derive_unit_variant(taginfo, variant_name);
+    }
     let ty = type_to_ts(&field.ty);
     let tag = ident_from_str(taginfo.tag);
     let content = if let Some(content) = taginfo.content {
@@ -101,7 +114,14 @@ fn derive_struct_variant<'a>(
     cx: &Ctxt, // for error reporting
 ) -> QuoteT {
     use std::collections::HashSet;
-    let contents = fields.iter().map(|field| derive_field(field));
+    let fields = filter_visible(fields);
+    if fields.len() == 0 {
+        return derive_unit_variant(taginfo, variant_name);
+    }
+
+
+    let contents = fields.iter().map(|f| derive_field(f));
+
 
     let tag = ident_from_str(taginfo.tag);
     if let Some(content) = taginfo.content {
@@ -132,6 +152,7 @@ fn derive_tuple_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
 ) -> QuoteT {
+    let fields = filter_visible(fields);
     let contents = fields.iter().map(|field| type_to_ts(&field.ty));
 
     let tag = ident_from_str(taginfo.tag);

@@ -1,15 +1,16 @@
 #![allow(unused)]
-
+#[macro_use]
+extern crate typescript_definitions;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate typescript_definitions;
 #[macro_use]
 extern crate quote;
 #[macro_use]
 extern crate wasm_bindgen;
 extern crate proc_macro2;
+extern crate regex;
+
 
 #[cfg(test)]
 mod typescript {
@@ -19,6 +20,9 @@ mod typescript {
     use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 
     use wasm_bindgen::prelude::*;
+    use regex::Regex;
+
+    
 
     // NOTE:
     // #[cfg(feature="test")] so that test functions
@@ -41,6 +45,10 @@ mod typescript {
             .replace("[ ]", "[]")
             .replace(" ;", ";")
             .replace(">=", "> =")
+    }
+    fn normalize(s : String) -> String {
+        let space : Regex = Regex::new(r"\s+").unwrap();
+        space.replace_all(&s, " ").to_string()
     }
 
     #[cfg(feature = "test")]
@@ -396,6 +404,46 @@ mod typescript {
             API::<i32>::type_script_ify(),
             patcht(quote!(
                 export type API<T> = {key: number, a: T };
+            ))
+        )
+    }
+    #[test]
+    fn struct_with_serde_skip() {
+
+        #[derive(Serialize, TypeScriptify)]
+        struct S {
+            key: i32,
+            a : i32,
+            #[serde(skip)]
+            b : f64
+        }
+        assert_eq!(
+           S::type_script_ify(),
+            patcht(quote!(
+                export type S = {key: number, a: number };
+            ))
+        )
+    }
+    #[test]
+    fn enum_with_serde_skip() {
+
+        #[derive(Serialize, TypeScriptify)]
+        enum S {
+            A,
+            E {
+                key: i32,
+                a : i32,
+                #[serde(skip)]
+                b : f64
+            },
+            F(i32, #[serde(skip)]f64, String),
+            #[serde(skip)]
+            Z
+        }
+        assert_eq!(
+           normalize(S::type_script_ify()),
+            patcht(quote!(
+                export type S = {kind : "A" } | {kind: "E" , key: number, a: number } | { kind: "F" , fields : [number, string]};
             ))
         )
     }
