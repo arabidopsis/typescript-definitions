@@ -120,7 +120,7 @@ cat pkg/mywasm.d.ts
 
 ## Using `type_script_ify`
 
-You can ignore WASM *totally* and derive using `TypeScriptify`:
+You can ignore WASM *totally* by derive using `TypeScriptify`:
 
 ```rust
 // interface.rs
@@ -129,8 +129,7 @@ extern crate typescript_definitions;
 // wasm_bindgen not needed
 // use::wasm_bindgen::prelude::*;
 use::serde_derive::Serialize;
-#[allow(unused)]
-use::typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+use::typescript_definitions::TypeScriptify;
 
 }
 #[derive(Serialize, TypeScriptify)]
@@ -143,7 +142,7 @@ Then in `main.rs` (say) you can generate your own typescript specification using
 ```rust
 mod interface;
 // need to pull in trait
-use::typescript_definitions::TypeScriptifyTrait;
+use typescript_definitions::TypeScriptifyTrait;
 
 fn main() {
     println!("{}", interface::MyStruct::type_script_ify());
