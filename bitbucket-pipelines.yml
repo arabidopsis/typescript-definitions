@@ -1,4 +1,4 @@
-image: rustlang/rust:stable
+image: rustlang/rust:nightly
 
 pipelines:
   default:
