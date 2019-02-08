@@ -21,7 +21,6 @@ pub(crate) fn derive_enum<'a>(
     container: &ast::Container,
     cx: &Ctxt,
 ) -> (bool /* is enum */, QuoteT) {
-
     let taginfo = match container.attrs.tag() {
         EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
         EnumTag::Adjacent { tag, content, .. } => TagInfo {

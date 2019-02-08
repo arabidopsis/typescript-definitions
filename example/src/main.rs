@@ -8,7 +8,6 @@ mod interface;
 use self::interface::*;
 use typescript_definitions::TypeScriptifyTrait;
 
-
 fn main() -> Result<(), Error> {
     let p = Point {
         x: 23,

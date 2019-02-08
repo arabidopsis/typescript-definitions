@@ -4,7 +4,7 @@ extern crate typescript_definitions;
 extern crate wasm_bindgen;
 
 use serde_derive::Serialize;
-use typescript_definitions::{TypescriptDefinition, TypeScriptify};
+use typescript_definitions::{TypeScriptify, TypescriptDefinition};
 
 use wasm_bindgen::prelude::*;
 

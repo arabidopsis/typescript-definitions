@@ -134,7 +134,7 @@ struct Parsed {
     ident: syn::Ident,
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     body: QuoteT,
-    rust_generics: syn::Generics
+    rust_generics: syn::Generics,
 }
 impl Parsed {
     fn to_export_string(&self) -> String {
@@ -171,7 +171,7 @@ impl Parsed {
                 } else {
                     let bounds = bounds.iter().map(|ts| &ts.ident);
                     if with_bounds {
-                        Some( quote!{ #ident extends #(#bounds)&* } )
+                        Some(quote! { #ident extends #(#bounds)&* })
                     } else {
                         Some(quote! { #ident : #(#bounds)+* })
                     }
@@ -180,7 +180,6 @@ impl Parsed {
 
             _ => None,
         })
-
     }
 
     fn generic_args_with_lifetimes(&self) -> impl Iterator<Item = QuoteT> + '_ {
@@ -205,7 +204,6 @@ impl Parsed {
             }
         };
 
-
         let ts_generics = ts_generics(container.generics);
 
         // consumes context
@@ -215,7 +213,7 @@ impl Parsed {
             ident: container.ident,
             ts_generics: ts_generics,
             body: typescript,
-            rust_generics: container.generics.clone() // keep original type generics around for type_script_ify
+            rust_generics: container.generics.clone(), // keep original type generics around for type_script_ify
         }
     }
 }
@@ -223,7 +221,6 @@ impl Parsed {
 fn ident_from_str(s: &str) -> Ident {
     syn::Ident::new(s, Span::call_site())
 }
-
 
 fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
     // lifetime params are represented by None since we are only going
@@ -288,7 +285,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     inputs,
                     ..
                 }) => {
-                    let args : Vec<_> = inputs.iter().map(|ty| ty.clone()).collect();
+                    let args: Vec<_> = inputs.iter().map(|ty| ty.clone()).collect();
                     let ret = return_type(output);
                     return Some(TSType {
                         ident: ident,
@@ -301,7 +298,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                         ident: ident,
                         args: vec![],
                         return_type: None,
-                    })
+                    });
                 }
             };
             // ignore lifetimes
@@ -381,9 +378,9 @@ fn generic_to_ts(ts: TSType) -> QuoteT {
     }
 }
 
-/// # convert a `syn::Type` rust type to a 
+/// # convert a `syn::Type` rust type to a
 /// `TokenStream` of typescript type: basically i32 => number etc.
-fn type_to_ts(ty: &syn::Type) -> QuoteT { 
+fn type_to_ts(ty: &syn::Type) -> QuoteT {
     // `type_to_ts` recursively calls itself occationally
     // finding a Path which it hands to last_path_element
     // which generates a "simplified" TSType struct which
@@ -398,7 +395,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
     use syn::Type::*;
     use syn::{
         BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen,
-        TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple
+        TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
     };
     match ty {
         Slice(TypeSlice { elem, .. }) => type_to_array(elem),
@@ -409,7 +406,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
         BareFn(TypeBareFn { output, inputs, .. }) => {
             let mut args: Vec<Ident> = Vec::with_capacity(inputs.len());
             let mut typs: Vec<&syn::Type> = Vec::with_capacity(inputs.len());
-            
+
             for (idx, t) in inputs.iter().enumerate() {
                 let i = match t.name {
                     Some((ref n, _)) => match n {
@@ -422,7 +419,7 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
                 typs.push(&t.ty); // TODO: check type is known
             }
             // typescript lambda (a: A, b:B) => C
-            
+
             let typs = typs.iter().map(|ty| type_to_ts(ty));
             if let Some(ref rt) = return_type(&output) {
                 let rt = type_to_ts(rt);
@@ -433,7 +430,6 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
         }
         Never(..) => quote! { never },
         Tuple(TypeTuple { elems, .. }) => {
-
             let elems = elems.iter().map(|t| type_to_ts(t));
             quote!([ #(#elems),* ])
         }

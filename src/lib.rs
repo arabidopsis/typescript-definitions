@@ -1,4 +1,3 @@
-
 // Copyright 2019 Ian Castleden
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -7,12 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 //! # TypeScriptifyTrait
-//! 
+//!
 //! Used with the TypeScriptify proc_macro
 //!
 //! please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
 //!
-
 
 #![allow(unused_imports)]
 #[macro_use]
@@ -20,7 +18,7 @@ pub extern crate typescript_definitions_derive;
 pub use typescript_definitions_derive::*;
 
 /// # TypeScriptifyTrait
-/// 
+///
 /// Used with the TypeScriptify proc_macro
 ///
 /// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
