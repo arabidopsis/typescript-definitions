@@ -5,14 +5,13 @@ rust:
   - beta
   - nightly
 matrix:
-  allow_failures
+  allow_failures:
     - rust: nightly
   include:
     - rust: nightly
-      env: FEATURES="--features=test"
     - rust: stable
       env: RUN=FMT
       before_script: rustup component add rustfmt-preview
       script: cargo fmt -- --check
 script:
-  - cargo test $FEATURES
+  - cargo test --features=test

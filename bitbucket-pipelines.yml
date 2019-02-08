@@ -1,0 +1,17 @@
+image: rustlang/rust:stable
+
+pipelines:
+  default:
+    - step:
+        caches:
+          - cargo
+          - rust-target
+        script:
+          - echo "Build project"                    ; cargo build
+          - echo "Run unit tests"                   ; cargo test --features=test -v --no-fail-fast -- --nocapture --test
+
+
+definitions:
+  caches:
+    cargo: /usr/local/cargo # CARGO_HOME
+    rust-target: $BITBUCKET_CLONE_DIR/target
