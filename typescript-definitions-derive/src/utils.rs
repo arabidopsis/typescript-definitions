@@ -29,6 +29,7 @@ pub fn field_type_name(ty: &syn::Type) -> Option<String> {
         _ => None,
     }
 }
+#[allow(unused)]
 pub fn full_field_type_name(ty: &syn::Type) -> Option<Vec<Ident>> {
     use syn::Type::Path;
     match ty {

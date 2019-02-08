@@ -7,7 +7,7 @@
 // except according to those terms.
 use serde_derive_internals::{ast, Ctxt};
 
-use super::{derive_field, type_to_ts, filter_visible, QuoteMaker};
+use super::{derive_field, filter_visible, type_to_ts, QuoteMaker};
 
 pub(crate) fn derive_struct<'a>(
     style: ast::Style,
@@ -37,9 +37,7 @@ fn derive_struct_newtype<'a>(
 }
 
 fn derive_struct_unit() -> QuoteMaker {
-    quote! (
-        {}
-    ).into()
+    quote!({}).into()
 }
 
 fn derive_struct_named_fields<'a>(
@@ -47,20 +45,17 @@ fn derive_struct_named_fields<'a>(
     _ast_container: &ast::Container,
 ) -> QuoteMaker {
     let fields = filter_visible(fields);
-    if fields.len() == 0  {
+    if fields.len() == 0 {
         return derive_struct_unit();
     }
-    let content : Vec<_> = fields.iter().map(|f| derive_field(f)).collect();
-    let f = move || {
-        let c = &content;
-         quote!({#(#c),*})
-    };
-    QuoteMaker::from_closure(f)
-    
-    // quote!({#(#content),*}).into()
+    let content = fields.iter().map(|f| derive_field(f));
+    quote!({#(#content),*}).into()
 }
 
-fn derive_struct_tuple<'a>(fields: &[ast::Field<'a>], _ast_container: &ast::Container) -> QuoteMaker {
+fn derive_struct_tuple<'a>(
+    fields: &[ast::Field<'a>],
+    _ast_container: &ast::Container,
+) -> QuoteMaker {
     let fields = filter_visible(fields);
     if fields.len() == 0 {
         return derive_struct_unit();
