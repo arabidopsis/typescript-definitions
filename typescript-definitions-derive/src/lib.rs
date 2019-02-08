@@ -26,7 +26,7 @@ extern crate syn;
 #[cfg(feature = "bytes")]
 extern crate serde_bytes;
 
-use proc_macro2::{Ident, Span};
+use proc_macro2::Ident;
 
 use serde_derive_internals::{ast, Ctxt, Derive};
 use std::str::FromStr;
@@ -36,6 +36,9 @@ mod derive_enum;
 mod derive_struct;
 mod patch;
 mod quotet;
+mod utils;
+
+use utils::*;
 
 
 // too many TokenStreams around! give it a different name
@@ -223,9 +226,6 @@ impl Parsed {
     }
 }
 
-fn ident_from_str(s: &str) -> Ident {
-    syn::Ident::new(s, Span::call_site())
-}
 
 fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
     // lifetime params are represented by None since we are only going
@@ -464,42 +464,4 @@ fn type_to_ts(ty: &syn::Type) -> QuoteT {
         }
         Infer(..) | Macro(..) | Verbatim(..) => quote! { any },
     }
-}
-
-fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
-    let field_name = field.attrs.name().serialize_name(); // use serde name instead of field.member
-    let field_name = ident_from_str(&field_name);
-
-    let ty = type_to_ts(&field.ty);
-
-    quote! {
-        #field_name: #ty
-    }
-}
-
-fn is_phantom(ty : &syn::Type) -> bool {
-    use syn::Type::Path;
-    match ty {
-         Path(syn::TypePath { path, .. }) => {
-             match path.segments.last().map(|p| p.into_value()) {
-                 Some(t) => t.ident.to_string() == "PhantomData",
-                 _ => false,
-             }
-         },
-         _ => false,
-    }
-}
-
-fn filter_visible<'a>(fields: &'a [ast::Field<'a>])  -> Vec<&'a ast::Field<'a>> {
-    let mut content : Vec<&'a ast::Field<'a>> = Vec::with_capacity(fields.len());
-
-    for field in fields {
-        if field.attrs.skip_serializing() || is_phantom(field.ty) {
-            continue;
-        }
-        
-        content.push(field);
-        
-    }
-    content
 }

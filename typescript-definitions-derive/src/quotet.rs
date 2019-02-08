@@ -15,13 +15,13 @@ pub enum QuoteT<'a> {
 }
 #[allow(unused)]
 impl QuoteT<'_> {
-    fn from_quote<'a>(s: TokenStream) -> QuoteT<'a> {
+    pub fn from_quote<'a>(s: TokenStream) -> QuoteT<'a> {
         QuoteT::Tokens(s)
     }
-    fn from_closure<'a, F: Fn() -> TokenStream + 'a>(f: F) -> QuoteT<'a> {
+    pub fn from_closure<'a, F: Fn() -> TokenStream + 'a>(f: F) -> QuoteT<'a> {
         QuoteT::Closure(Box::new(f))
     }
-    fn from_builder<'a, F: Tbuild + 'a>(f: F) -> QuoteT<'a> {
+    pub fn from_builder<'a, F: Tbuild + 'a>(f: F) -> QuoteT<'a> {
         QuoteT::Builder(Box::new(f))
     }
 }
@@ -66,17 +66,7 @@ mod test {
             quote ! (some more #(#v)&* )
         }
     }
-    fn make_closure<'a>() -> QuoteT<'a> {
-        let s = vec![
-            QuoteT::from_quote(quote!(a b)),
-            QuoteT::from_quote(quote!(c b)),
-        ];
-        let f = move || {
-            let t = &s; // this needs to be a ref....!
-            quote! (some more #(#t),*)
-        };
-        QuoteT::from_closure(f)
-    }
+
 
     #[test]
     fn can_build_from_struct() {
@@ -88,5 +78,20 @@ mod test {
             QuoteT::from_builder(S { v: s })
         }
         assert_eq!(make_builder().to_string(), "some more a b & c b".to_string());
+    }
+    #[test]
+    fn can_build_from_closure() {
+        fn make_closure<'a>() -> QuoteT<'a> {
+            let s = vec![
+                QuoteT::from_quote(quote!(a b)),
+                QuoteT::from_quote(quote!(c b)),
+            ];
+            let f = move || {
+                let t = &s; // this needs to be a ref....!
+                quote! (some more #(#t),*)
+            };
+            QuoteT::from_closure(f)
+        }
+        assert_eq!(make_closure().to_string(), "some more a b , c b".to_string());
     }
 }
