@@ -126,7 +126,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
         };
 
 
-        let map = &parsed.map();
+        // let map = &parsed.map();
 
         let ident = &parsed.ident;
 
@@ -138,9 +138,9 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
                         #body
                     }
 
-                    fn type_script_fields() -> Option<Vec<&'static str>> {
-                        #map
-                    }
+                    // fn type_script_fields() -> Option<Vec<&'static str>> {
+                    //     #map
+                    // }
                 }
             }
         } else {
@@ -153,9 +153,9 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
                         #body
                     }
 
-                    fn type_script_fields() -> Option<Vec<&'static str>> {
-                        #map
-                    }
+                    // fn type_script_fields() -> Option<Vec<&'static str>> {
+                    //     #map
+                    // }
                 }
             }
         };
@@ -237,6 +237,7 @@ impl Typescriptify {
         })
     }
 
+    #[allow(unused)]
     fn map(&self) -> QuoteT {
         match &self.body {
             quotet::QuoteT::Builder(b) => 
@@ -381,6 +382,8 @@ struct ParseContext<'a> {
 
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
     is_enum: Cell<bool>,
+
+    #[allow(unused)]
     is_type_script_ify : bool,
 }
 impl<'a>  ParseContext<'a> {
@@ -425,7 +428,7 @@ impl<'a>  ParseContext<'a> {
                 quote!(  { Ok : #k } #bar { Err : #v }  )
             }
             "Fn" | "FnOnce" | "FnMut" => {
-                let args = ts.args.iter().map(|ty| self.type_to_ts(ty));
+                let args = self.derive_syn_types(&ts.args);
                 if let Some(ref rt) = ts.return_type {
                     let rt = self.type_to_ts(rt);
                     quote! { (#(#args),*) => #rt }
@@ -436,12 +439,22 @@ impl<'a>  ParseContext<'a> {
             _ => {
                 let ident = ts.ident;
                 if ts.args.len() > 0 {
-                    let args = ts.args.iter().map(|ty| self.type_to_ts(ty));
+                    // let args = ts.args.iter().map(|ty| self.type_to_ts(ty));
+                    let args = self.derive_syn_types(&ts.args);
                     quote! { #ident<#(#args),*> }
                 } else {
                     quote! {#ident}
                 }
             }
+        }
+    }
+    #[allow(unused)]
+    fn get_path(&self, ty: &syn::Type) -> Option<TSType> {
+        use syn::Type::Path;
+        use syn::TypePath;
+        match ty {
+            Path(TypePath { path, .. }) =>  last_path_element(&path),
+            _ => None,
         }
     }
 
@@ -487,7 +500,8 @@ impl<'a>  ParseContext<'a> {
                 }
                 // typescript lambda (a: A, b:B) => C
 
-                let typs = typs.iter().map(|ty| self.type_to_ts(ty));
+                // let typs = typs.iter().map(|ty| self.type_to_ts(ty));
+                let typs = self.derive_syn_types_ptr(&typs);
                 if let Some(ref rt) = return_type(&output) {
                     let rt = self.type_to_ts(rt);
                     quote! { ( #(#args: #typs),* ) => #rt }
@@ -541,7 +555,26 @@ impl<'a>  ParseContext<'a> {
     fn derive_fields(&'a self, fields: &'a [&'a ast::Field<'a>]) -> impl Iterator<Item=QuoteT> + 'a {
         fields.iter().map( move |f| self.derive_field(f))
     }
-    fn derive_types(&'a self, fields: &'a [&'a ast::Field<'a>]) -> impl Iterator<Item=QuoteT> + 'a {
+    fn derive_field_types(&'a self, fields: &'a [&'a ast::Field<'a>]) -> impl Iterator<Item=QuoteT> + 'a {
         fields.iter().map( move |f| self.type_to_ts(f.ty))
+    }
+    fn derive_syn_types_ptr(&'a self, types: &'a [&'a syn::Type]) -> impl Iterator<Item=QuoteT> + 'a {
+        types.iter().map( move |ty| self.type_to_ts(ty))
+    }
+    fn derive_syn_types(&'a self, types: &'a [syn::Type]) -> impl Iterator<Item=QuoteT> + 'a {
+        types.iter().map( move |ty| self.type_to_ts(ty))
+    }
+
+    fn check_flatten(&self, fields : &[&'a ast::Field<'a>], ast_container: &ast::Container) -> bool {
+        let has_flatten = fields.iter().map(|f| f.attrs.flatten()).fold(false, |a, f| a || f);
+        if has_flatten {
+            if let Some(ref ct) = self.ctxt {
+                ct.error(format!(
+                        "{}: #[serde(flatten)] does not work for typescript-definitions currently",
+                        ast_container.ident.to_string()));
+
+            }
+        };
+        has_flatten    
     }
 }

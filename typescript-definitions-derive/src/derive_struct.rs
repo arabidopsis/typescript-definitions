@@ -6,20 +6,25 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 use serde_derive_internals::{ast};
-use super::patch;
+use super::{patch, Ident};
 
+#[allow(unused)]
 struct Fields {
     fields : Vec<String>,
-    body : Vec<QuoteT>
+    body : Vec<QuoteT>,
+    flatten : Vec<Ident>
 }
 impl Tbuild for Fields {
     fn build(&self) -> QuoteT {
         let content = &self.body;
         let fields = &self.fields;
+
+        let flatten =  self.flatten.iter().map(|i| quote!(let _ = <#i>::type_script_ify()));
         let s = quote!({#(#content),*}).to_string();
         let s = patch(&s);
         quote!( {
                 let f = vec![#(#fields),*];
+                #(#flatten);*;
                 #s
             }
            
@@ -52,14 +57,16 @@ impl<'a> ParseContext<'_> {
             }
     }
 
+
     fn derive_struct_newtype(
         &self,
         field: &ast::Field<'a>,
-        _ast_container: &ast::Container,
+        ast_container: &ast::Container,
     ) -> QuoteMaker {
         if field.attrs.skip_serializing() {
             return self.derive_struct_unit();
         }
+        self.check_flatten(&[field], ast_container);
         self.type_to_ts(&field.ty).into()
     }
 
@@ -71,34 +78,49 @@ impl<'a> ParseContext<'_> {
     fn derive_struct_named_fields(
         &self,
         fields: &[ast::Field<'a>],
-        _ast_container: &ast::Container,
+        ast_container: &ast::Container,
 
     ) -> QuoteMaker {
         let fields = filter_visible(fields);
         if fields.len() == 0 {
             return self.derive_struct_unit();
         };
+        
+        self.check_flatten(&fields, ast_container);
+        
         let content = self.derive_fields(&fields);
-        if self.is_type_script_ify {
+        quote!({#(#content),*}).into()
+/*        
+       if self.is_type_script_ify {
+            let mut flatten = Vec::new();
+            for field in &fields {
+                if field.attrs.flatten() {
+                    if let Some(ts) = self.get_path(&field.ty) {
+                        flatten.push(ts.ident.clone());
+                        
+                    }
+                }
+            };
             let names = fields.iter().map(|f| f.attrs.name().serialize_name()).collect::<Vec<_>>();
             let content = content.collect::<Vec<_>>();
-            QuoteMaker::from_builder(Fields { fields: names, body: content })
+            QuoteMaker::from_builder(Fields { fields: names, body: content, flatten })
         } else {
             quote!({#(#content),*}).into()
         }
-
+ */
     }
 
     fn derive_struct_tuple(
         &self,
         fields: &[ast::Field<'a>],
-        _ast_container: &ast::Container,
+        ast_container: &ast::Container,
     ) -> QuoteMaker {
         let fields = filter_visible(fields);
         if fields.len() == 0 {
             return self.derive_struct_unit();
         }
-        let content = fields.iter().map(|f| self.type_to_ts(f.ty));
+        self.check_flatten(&fields, ast_container);
+        let content = self.derive_field_types(&fields);
 
         quote!([#(#content),*]).into()
     }

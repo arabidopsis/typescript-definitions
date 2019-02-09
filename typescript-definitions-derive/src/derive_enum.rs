@@ -125,6 +125,8 @@ impl<'a> ParseContext<'_> {
             return self.derive_unit_variant(taginfo, variant_name);
         }
 
+        self.check_flatten(&fields, container);
+
         let contents = self.derive_fields(&fields);
 
         let tag = ident_from_str(taginfo.tag);
@@ -160,7 +162,7 @@ impl<'a> ParseContext<'_> {
         fields: &[ast::Field<'a>],
     ) -> QuoteMaker {
         let fields = filter_visible(fields);
-        let contents = self.derive_types(&fields);
+        let contents = self.derive_field_types(&fields);
 
         let tag = ident_from_str(taginfo.tag);
         let content = if let Some(content) = taginfo.content {

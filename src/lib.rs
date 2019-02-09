@@ -27,5 +27,5 @@ pub use typescript_definitions_derive::*;
 ///
 pub trait TypeScriptifyTrait {
     fn type_script_ify() -> String;
-    fn type_script_fields() -> Option<Vec<&'static str>>;
+    // fn type_script_fields() -> Option<Vec<&'static str>>;
 }
