@@ -35,7 +35,7 @@ fn type_scriptify_fields() {
 
     assert_eq!(S::type_script_fields().unwrap(), vec!["a", "b", "c", "X"])
 }
-
+#[test]
 fn type_scriptify_generic_fields() {
     #[derive(Serialize, TypeScriptify)]
     struct S<'a,T> {
