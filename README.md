@@ -23,6 +23,8 @@ why not create a typescript definition library based on your rust code?
 
 Please see [Credits](#credits).
 
+`typescript-definitions` now (0.1.7) uses `edition=2018` (heh).
+
 example:
 
 ```rust
@@ -119,7 +121,7 @@ rustup target add wasm32-unknown-unknown --toolchain nightly
 cargo +nightly install wasm-bindgen-cli
 ```
 
-or use wasm-pack (the typescript library will be in `pkg/mywasm.d.ts`)
+or use wasm-pack (the typescript library will be in `pkg/mywasm.d.ts`). (**NB** as of 1.0.7 this no longer seems to work)
 
 ```bash
 curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh

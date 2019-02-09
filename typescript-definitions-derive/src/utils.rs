@@ -1,13 +1,12 @@
 // extern crate proc_macro2;
 // extern crate syn;
 
-use super::{ast};
+use super::ast;
 use proc_macro2::{Ident, Span};
 
 pub fn ident_from_str(s: &str) -> Ident {
     syn::Ident::new(s, Span::call_site())
 }
-
 
 pub fn field_type_name(ty: &syn::Type) -> Option<String> {
     use syn::Type::Path;

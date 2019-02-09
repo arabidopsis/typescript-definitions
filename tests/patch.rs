@@ -23,7 +23,7 @@ pub fn patcht(ts: proc_macro2::TokenStream) -> String {
         .replace(" ;", ";")
         .replace(">=", "> =")
 }
-pub fn normalize(s : String) -> String {
-    let space : regex::Regex = regex::Regex::new(r"\s+").unwrap();
+pub fn normalize(s: String) -> String {
+    let space: regex::Regex = regex::Regex::new(r"\s+").unwrap();
     space.replace_all(&s, " ").to_string()
 }

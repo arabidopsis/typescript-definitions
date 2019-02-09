@@ -13,14 +13,13 @@ extern crate wasm_bindgen;
 
 mod patch;
 
-
 use proc_macro2::TokenStream;
 use serde::de::value::Error;
 use std::borrow::Cow;
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 
-use wasm_bindgen::prelude::*;
 use patch::*;
+use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "test")]
 #[test]
@@ -144,7 +143,7 @@ fn enum_with_renamed_newtype_variants() {
         #[serde(rename = "Var3")]
         V3(String),
         #[serde(skip)]
-        Internal(i32)
+        Internal(i32),
     }
 
     assert_eq!(
@@ -376,13 +375,12 @@ fn struct_with_traitbounds() {
 }
 #[test]
 fn struct_with_serde_skip() {
-
     #[derive(Serialize, TypeScriptify)]
     struct S {
         key: i32,
-        a : i32,
+        a: i32,
         #[serde(skip)]
-        b : f64
+        b: f64,
     }
     assert_eq!(
         S::type_script_ify(),
@@ -393,19 +391,18 @@ fn struct_with_serde_skip() {
 }
 #[test]
 fn enum_with_serde_skip() {
-
     #[derive(Serialize, TypeScriptify)]
     enum S {
         A,
         E {
             key: i32,
-            a : i32,
+            a: i32,
             #[serde(skip)]
-            b : f64
+            b: f64,
         },
-        F(i32, #[serde(skip)]f64, String),
+        F(i32, #[serde(skip)] f64, String),
         #[serde(skip)]
-        Z
+        Z,
     }
     assert_eq!(
         normalize(S::type_script_ify()),
@@ -421,8 +418,8 @@ fn struct_with_phantom_data_skip() {
     #[derive(Serialize, TypeScriptify)]
     struct S {
         key: i32,
-        a : i32,
-        b : PhantomData<String>,
+        a: i32,
+        b: PhantomData<String>,
     }
     assert_eq!(
         S::type_script_ify(),
@@ -431,4 +428,3 @@ fn struct_with_phantom_data_skip() {
         ))
     )
 }
-

@@ -8,7 +8,7 @@
 
 use serde_derive_internals::{ast, attr::EnumTag};
 
-use super::{ident_from_str, filter_visible, QuoteMaker, ParseContext};
+use super::{filter_visible, ident_from_str, ParseContext, QuoteMaker};
 
 const CONTENT: &'static str = "fields"; // default content tag
 const TAG: &'static str = "kind"; // default tag tag
@@ -18,7 +18,6 @@ struct TagInfo<'a> {
     content: Option<&'a str>,
 }
 impl<'a> ParseContext<'_> {
-
     pub(crate) fn derive_enum(
         &self,
         variants: &[ast::Variant<'a>],
@@ -36,12 +35,13 @@ impl<'a> ParseContext<'_> {
             },
         };
         // check for #[serde(skip)]
-        let mut skip_variants : Vec<&ast::Variant<'a>> = Vec::with_capacity(variants.len());
+        let mut skip_variants: Vec<&ast::Variant<'a>> = Vec::with_capacity(variants.len());
         for v in variants {
-            if v.attrs.skip_serializing() { continue; }
-            skip_variants.push(v); 
+            if v.attrs.skip_serializing() {
+                continue;
+            }
+            skip_variants.push(v);
         }
-
 
         let mut is_enum = true;
         for v in &skip_variants {
@@ -60,11 +60,9 @@ impl<'a> ParseContext<'_> {
                 .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
                 .collect::<Vec<_>>();
             let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
-            
+
             return quote! ( { #(#k = #v),* } ).into();
         }
-
-
 
         let content = skip_variants.iter().map(|variant| {
             let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
@@ -75,7 +73,9 @@ impl<'a> ParseContext<'_> {
                 ast::Style::Newtype => {
                     self.derive_newtype_variant(&taginfo, &variant_name, &variant.fields[0])
                 }
-                ast::Style::Tuple => self.derive_tuple_variant(&taginfo, &variant_name, &variant.fields),
+                ast::Style::Tuple => {
+                    self.derive_tuple_variant(&taginfo, &variant_name, &variant.fields)
+                }
                 ast::Style::Unit => self.derive_unit_variant(&taginfo, &variant_name),
             }
         });
@@ -87,7 +87,8 @@ impl<'a> ParseContext<'_> {
         let tag = ident_from_str(taginfo.tag);
         quote! (
             { #tag: #variant_name }
-        ).into()
+        )
+        .into()
     }
 
     fn derive_newtype_variant(
@@ -109,7 +110,8 @@ impl<'a> ParseContext<'_> {
 
         quote! (
             { #tag: #variant_name, #content: #ty }
-        ).into()
+        )
+        .into()
     }
 
     fn derive_struct_variant(
@@ -134,7 +136,8 @@ impl<'a> ParseContext<'_> {
             let content = ident_from_str(&content);
             quote! (
                 { #tag: #variant_name, #content: { #(#contents),* } }
-            ).into()
+            )
+            .into()
         } else {
             if let Some(ref cx) = self.ctxt {
                 let fnames = fields
@@ -144,14 +147,15 @@ impl<'a> ParseContext<'_> {
                 if fnames.contains(taginfo.tag) {
                     cx.error(format!(
                         "tag \"{}\" clashes with field in Enum variant \"{}::{}\". \
-                        Maybe use a #[serde(content=\"...\")] attribute.",
+                         Maybe use a #[serde(content=\"...\")] attribute.",
                         taginfo.tag, container.ident, variant_name
                     ));
                 }
             }
             quote! (
                 { #tag: #variant_name, #(#contents),* }
-            ).into()
+            )
+            .into()
         }
     }
 
@@ -173,7 +177,7 @@ impl<'a> ParseContext<'_> {
 
         quote! (
         { #tag: #variant_name, #content : [ #(#contents),* ] }
-        ).into()
+        )
+        .into()
     }
-
 }

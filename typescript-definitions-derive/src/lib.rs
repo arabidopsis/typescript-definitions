@@ -39,8 +39,8 @@ mod patch;
 mod quotet;
 mod utils;
 
-use utils::*;
 use std::cell::Cell;
+use utils::*;
 
 use patch::patch;
 
@@ -105,7 +105,6 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 #[proc_macro_derive(TypeScriptify)]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
-       
         let parsed = Typescriptify::parse(true, input);
         let ts_ident = parsed.ts_ident_str();
         let fmt = if parsed.ctxt.is_enum.get() {
@@ -117,14 +116,13 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
             quotet::QuoteT::Builder(b) => {
                 let b = b.build();
                 quote!( let f = #b; format!(#fmt, #ts_ident, f) )
-            },
+            }
             _ => {
                 let b = parsed.body.to_string();
                 let b = patch(&b);
                 quote!(format!(#fmt, #ts_ident, #b))
             }
         };
-
 
         // let map = &parsed.map();
 
@@ -169,7 +167,6 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
     }
 }
 
-
 struct Typescriptify {
     ctxt: ParseContext<'static>,
     ident: syn::Ident,
@@ -180,18 +177,25 @@ struct Typescriptify {
 impl Typescriptify {
     fn wasm_string(&self) -> String {
         if self.ctxt.is_enum.get() {
-            format!("export enum {} {};", self.ts_ident_str(), self.ts_body_str())
+            format!(
+                "export enum {} {};",
+                self.ts_ident_str(),
+                self.ts_body_str()
+            )
         } else {
-            format!("export type {} = {};", self.ts_ident_str(), self.ts_body_str())
+            format!(
+                "export type {} = {};",
+                self.ts_ident_str(),
+                self.ts_body_str()
+            )
         }
-
     }
 
     fn ts_ident_str(&self) -> String {
         let ts_ident = self.ts_ident().to_string();
         patch(&ts_ident).into()
     }
-    fn ts_body_str(&self)  -> String {
+    fn ts_body_str(&self) -> String {
         let ts = self.body.to_string();
         patch(&ts).into()
     }
@@ -240,12 +244,11 @@ impl Typescriptify {
     #[allow(unused)]
     fn map(&self) -> QuoteT {
         match &self.body {
-            quotet::QuoteT::Builder(b) => 
-                match b.map() { 
-                    Some(t) => t,
-                    _ => quote! (None)
-                }
-            _ => quote!(None)
+            quotet::QuoteT::Builder(b) => match b.map() {
+                Some(t) => t,
+                _ => quote!(None),
+            },
+            _ => quote!(None),
         }
     }
 
@@ -254,24 +257,27 @@ impl Typescriptify {
 
         let cx = Ctxt::new();
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
-        
+
         let (typescript, ctxt) = {
             let pctxt = ParseContext::new(is_type_script_ify, &cx);
 
             let typescript = match container.data {
-                ast::Data::Enum(ref variants) => {
-                    pctxt.derive_enum(variants, &container)
-                },
+                ast::Data::Enum(ref variants) => pctxt.derive_enum(variants, &container),
                 ast::Data::Struct(style, ref fields) => {
                     pctxt.derive_struct(style, fields, &container)
                 }
             };
             // erase serde context
-            (typescript, ParseContext { ctxt: None, ..pctxt  })
+            (
+                typescript,
+                ParseContext {
+                    ctxt: None,
+                    ..pctxt
+                },
+            )
         };
 
         let ts_generics = ts_generics(container.generics);
-
 
         // consumes context panics with errors
         cx.check().unwrap();
@@ -379,22 +385,24 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
 }
 
 struct ParseContext<'a> {
-
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
     is_enum: Cell<bool>,
 
     #[allow(unused)]
-    is_type_script_ify : bool,
+    is_type_script_ify: bool,
 }
-impl<'a>  ParseContext<'a> {
-    fn new(is_type_script_ify: bool, ctxt : &'a Ctxt) -> ParseContext<'a> {
-        ParseContext {is_enum: Cell::new(false), ctxt: Some(ctxt), is_type_script_ify}
+impl<'a> ParseContext<'a> {
+    fn new(is_type_script_ify: bool, ctxt: &'a Ctxt) -> ParseContext<'a> {
+        ParseContext {
+            is_enum: Cell::new(false),
+            ctxt: Some(ctxt),
+            is_type_script_ify,
+        }
     }
     fn generic_to_ts(&self, ts: TSType) -> QuoteT {
-
         match ts.ident.to_string().as_ref() {
-            "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64" | "i128"
-            | "isize" | "f64" | "f32" => quote! { number },
+            "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
+            | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" => quote! { string },
             "bool" => quote! { boolean },
             "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => self.type_to_ts(&ts.args[0]),
@@ -453,7 +461,7 @@ impl<'a>  ParseContext<'a> {
         use syn::Type::Path;
         use syn::TypePath;
         match ty {
-            Path(TypePath { path, .. }) =>  last_path_element(&path),
+            Path(TypePath { path, .. }) => last_path_element(&path),
             _ => None,
         }
     }
@@ -474,8 +482,8 @@ impl<'a>  ParseContext<'a> {
 
         use syn::Type::*;
         use syn::{
-            BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound, TypeParen,
-            TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
+            BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound,
+            TypeParen, TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
         };
         match ty {
             Slice(TypeSlice { elem, .. }) => type_to_array(elem),
@@ -519,7 +527,8 @@ impl<'a>  ParseContext<'a> {
                 Some(ts) => self.generic_to_ts(ts),
                 _ => quote! { any },
             },
-            TraitObject(TypeTraitObject { bounds, .. }) | ImplTrait(TypeImplTrait { bounds, .. }) => {
+            TraitObject(TypeTraitObject { bounds, .. })
+            | ImplTrait(TypeImplTrait { bounds, .. }) => {
                 let elems = bounds
                     .iter()
                     .filter_map(|t| match t {
@@ -540,41 +549,51 @@ impl<'a>  ParseContext<'a> {
         }
     }
 
-
-    fn derive_field(&self,field: &ast::Field<'a>) -> QuoteT {
+    fn derive_field(&self, field: &ast::Field<'a>) -> QuoteT {
         let field_name = field.attrs.name().serialize_name(); // use serde name instead of field.member
         let field_name = ident_from_str(&field_name);
 
         let ty = self.type_to_ts(&field.ty);
 
         quote! {
-                #field_name: #ty
-            }
-    
+            #field_name: #ty
+        }
     }
-    fn derive_fields(&'a self, fields: &'a [&'a ast::Field<'a>]) -> impl Iterator<Item=QuoteT> + 'a {
-        fields.iter().map( move |f| self.derive_field(f))
+    fn derive_fields(
+        &'a self,
+        fields: &'a [&'a ast::Field<'a>],
+    ) -> impl Iterator<Item = QuoteT> + 'a {
+        fields.iter().map(move |f| self.derive_field(f))
     }
-    fn derive_field_types(&'a self, fields: &'a [&'a ast::Field<'a>]) -> impl Iterator<Item=QuoteT> + 'a {
-        fields.iter().map( move |f| self.type_to_ts(f.ty))
+    fn derive_field_types(
+        &'a self,
+        fields: &'a [&'a ast::Field<'a>],
+    ) -> impl Iterator<Item = QuoteT> + 'a {
+        fields.iter().map(move |f| self.type_to_ts(f.ty))
     }
-    fn derive_syn_types_ptr(&'a self, types: &'a [&'a syn::Type]) -> impl Iterator<Item=QuoteT> + 'a {
-        types.iter().map( move |ty| self.type_to_ts(ty))
+    fn derive_syn_types_ptr(
+        &'a self,
+        types: &'a [&'a syn::Type],
+    ) -> impl Iterator<Item = QuoteT> + 'a {
+        types.iter().map(move |ty| self.type_to_ts(ty))
     }
-    fn derive_syn_types(&'a self, types: &'a [syn::Type]) -> impl Iterator<Item=QuoteT> + 'a {
-        types.iter().map( move |ty| self.type_to_ts(ty))
+    fn derive_syn_types(&'a self, types: &'a [syn::Type]) -> impl Iterator<Item = QuoteT> + 'a {
+        types.iter().map(move |ty| self.type_to_ts(ty))
     }
 
-    fn check_flatten(&self, fields : &[&'a ast::Field<'a>], ast_container: &ast::Container) -> bool {
-        let has_flatten = fields.iter().map(|f| f.attrs.flatten()).fold(false, |a, f| a || f);
+    fn check_flatten(&self, fields: &[&'a ast::Field<'a>], ast_container: &ast::Container) -> bool {
+        let has_flatten = fields
+            .iter()
+            .map(|f| f.attrs.flatten())
+            .fold(false, |a, f| a || f);
         if has_flatten {
             if let Some(ref ct) = self.ctxt {
                 ct.error(format!(
-                        "{}: #[serde(flatten)] does not work for typescript-definitions currently",
-                        ast_container.ident.to_string()));
-
+                    "{}: #[serde(flatten)] does not work for typescript-definitions currently",
+                    ast_container.ident.to_string()
+                ));
             }
         };
-        has_flatten    
+        has_flatten
     }
 }

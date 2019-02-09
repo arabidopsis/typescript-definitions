@@ -46,17 +46,16 @@ impl ToString for QuoteT<'_> {
     }
 }
 
-
 impl From<TokenStream> for QuoteT<'_> {
     fn from(t: TokenStream) -> Self {
-       QuoteT::Tokens(t)
+        QuoteT::Tokens(t)
     }
 }
 
 #[cfg(test)]
 mod test {
     #![allow(unused)]
-    use super::{Tbuild, QuoteT, TokenStream};
+    use super::{QuoteT, Tbuild, TokenStream};
     struct S {
         v: Vec<QuoteT<'static>>,
     }
@@ -71,7 +70,6 @@ mod test {
         }
     }
 
-
     #[test]
     fn can_build_from_struct() {
         fn make_builder<'a>() -> QuoteT<'a> {
@@ -81,7 +79,10 @@ mod test {
             ];
             QuoteT::from_builder(S { v: s })
         }
-        assert_eq!(make_builder().to_string(), "some more a b & c b".to_string());
+        assert_eq!(
+            make_builder().to_string(),
+            "some more a b & c b".to_string()
+        );
     }
     #[test]
     fn can_build_from_closure() {
@@ -96,6 +97,9 @@ mod test {
             };
             QuoteT::from_closure(f)
         }
-        assert_eq!(make_closure().to_string(), "some more a b , c b".to_string());
+        assert_eq!(
+            make_closure().to_string(),
+            "some more a b , c b".to_string()
+        );
     }
 }
