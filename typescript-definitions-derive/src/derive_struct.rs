@@ -78,12 +78,12 @@ impl<'a> ParseContext<'_> {
         if fields.len() == 0 {
             return self.derive_struct_unit();
         };
+        let content = self.derive_fields(&fields);
         if self.is_type_script_ify {
             let names = fields.iter().map(|f| f.attrs.name().serialize_name()).collect::<Vec<_>>();
-            let content = fields.iter().map(|f| self.derive_field(f)).collect::<Vec<_>>();
+            let content = content.collect::<Vec<_>>();
             QuoteMaker::from_builder(Fields { fields: names, body: content })
         } else {
-            let content = fields.iter().map(|f| self.derive_field(f));
             quote!({#(#content),*}).into()
         }
 
@@ -99,6 +99,7 @@ impl<'a> ParseContext<'_> {
             return self.derive_struct_unit();
         }
         let content = fields.iter().map(|f| self.type_to_ts(f.ty));
+
         quote!([#(#content),*]).into()
     }
 }

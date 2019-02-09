@@ -54,12 +54,13 @@ impl<'a> ParseContext<'_> {
             }
         }
         if is_enum {
+            self.is_enum.set(is_enum); // tell parser context
             let v = &skip_variants
                 .iter()
                 .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
                 .collect::<Vec<_>>();
             let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
-            self.is_enum.set(is_enum);
+            
             return quote! ( { #(#k = #v),* } ).into();
         }
 
@@ -124,7 +125,7 @@ impl<'a> ParseContext<'_> {
             return self.derive_unit_variant(taginfo, variant_name);
         }
 
-        let contents = fields.iter().map(|f| self.derive_field(f));
+        let contents = self.derive_fields(&fields);
 
         let tag = ident_from_str(taginfo.tag);
         if let Some(content) = taginfo.content {
@@ -159,7 +160,7 @@ impl<'a> ParseContext<'_> {
         fields: &[ast::Field<'a>],
     ) -> QuoteMaker {
         let fields = filter_visible(fields);
-        let contents = fields.iter().map(|field| self.type_to_ts(&field.ty));
+        let contents = self.derive_types(&fields);
 
         let tag = ident_from_str(taginfo.tag);
         let content = if let Some(content) = taginfo.content {

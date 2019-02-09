@@ -59,7 +59,7 @@ type Bounds = Vec<TSType>;
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let parsed = Typescriptify::parse(false, input);
-        let export_string = parsed.to_export_body();
+        let export_string = parsed.wasm_string();
 
         let export_ident = ident_from_str(&format!(
             "TS_EXPORT_{}",
@@ -178,7 +178,7 @@ struct Typescriptify {
     rust_generics: syn::Generics,
 }
 impl Typescriptify {
-    fn to_export_body(&self) -> String {
+    fn wasm_string(&self) -> String {
         if self.ctxt.is_enum.get() {
             format!("export enum {} {};", self.ts_ident_str(), self.ts_body_str())
         } else {
@@ -288,11 +288,6 @@ fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
     // lifetime params are represented by None since we are only going
     // to translate the to '_
 
-    // TODO: since `type_script_ify` needs to generate an impl of TypeScriptTrait
-    // we really need to get *all* the information out of this so as to
-    // correctly regenerate the generic args. Also syn:Generics implements
-    // ToTokens so it can go straight into quote! Still need to replace 'a with '_
-    // etc...
     // impl#generics TypeScriptTrait for A<... lifetimes to '_ and T without bounds>
 
     use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam, TypeParamBound};
@@ -302,11 +297,10 @@ fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
             GenericParam::Lifetime(LifetimeDef { /* lifetime,*/ .. }) => None,
             GenericParam::Type(TypeParam { ident, bounds, ..}) => {
                 let bounds = bounds.iter()
-                    .map(|b| match b {
+                    .filter_map(|b| match b {
                         TypeParamBound::Trait(t) => Some(&t.path),
                         _ => None // skip lifetimes for bounds
                     })
-                    .filter_map(|b| b)
                     .map(last_path_element)
                     .filter_map(|b| b)
                     .collect::<Vec<_>>();
@@ -543,5 +537,11 @@ impl<'a>  ParseContext<'a> {
                 #field_name: #ty
             }
     
+    }
+    fn derive_fields(&'a self, fields: &'a [&'a ast::Field<'a>]) -> impl Iterator<Item=QuoteT> + 'a {
+        fields.iter().map( move |f| self.derive_field(f))
+    }
+    fn derive_types(&'a self, fields: &'a [&'a ast::Field<'a>]) -> impl Iterator<Item=QuoteT> + 'a {
+        fields.iter().map( move |f| self.type_to_ts(f.ty))
     }
 }
