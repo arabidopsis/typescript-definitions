@@ -1,22 +1,23 @@
-extern crate proc_macro2;
-extern crate syn;
+// extern crate proc_macro2;
+// extern crate syn;
 
-use super::{ast, type_to_ts, QuoteT};
+use super::{ast, type_to_ts, QuoteT, ParseContext};
 use proc_macro2::{Ident, Span};
 
 pub fn ident_from_str(s: &str) -> Ident {
     syn::Ident::new(s, Span::call_site())
 }
 
-pub fn derive_field<'a>(field: &ast::Field<'a>) -> QuoteT {
+pub(crate) fn derive_field<'a>(field: &ast::Field<'a>, ctxt : &ParseContext) -> QuoteT {
     let field_name = field.attrs.name().serialize_name(); // use serde name instead of field.member
     let field_name = ident_from_str(&field_name);
 
-    let ty = type_to_ts(&field.ty);
+    let ty = type_to_ts(&field.ty, ctxt);
 
     quote! {
-        #field_name: #ty
-    }
+            #field_name: #ty
+        }
+ 
 }
 
 pub fn field_type_name(ty: &syn::Type) -> Option<String> {

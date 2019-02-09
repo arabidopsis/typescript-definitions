@@ -71,10 +71,10 @@ impl Has for Captures<'_> {
 
 // TODO: where does the newline come from? why the double spaces?
 // maybe use Regex::new(&[.....])
-pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
+pub fn patch(s: &str) -> Cow<'_, str> {
     RE.replace_all(s, |c: &Captures| {
         let key = c.key();
-        match key {
+        let m = match key {
             "brace" => "{}",
             "brack" => "[]",
             "colon" => ": ",
@@ -86,6 +86,7 @@ pub fn patch<'t>(s: &'t str) -> Cow<'t, str> {
             "lt" => "<",
             "gt" => ">",
             _ => c.get(0).unwrap().as_str(),
-        }
+        };
+        m.to_owned()
     })
 }

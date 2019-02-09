@@ -1,13 +1,14 @@
-extern crate proc_macro2;
-extern crate quote;
+// extern crate proc_macro2;
+// extern crate quote;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 
 pub trait Tbuild {
     fn build(&self) -> TokenStream;
+    fn map(&self) -> Option<TokenStream>;
 }
-#[allow(unused)]
+
 pub enum QuoteT<'a> {
     Tokens(TokenStream),
     Closure(Box<Fn() -> TokenStream + 'a>), //Builder(fn() -> TokenStream)
@@ -64,6 +65,9 @@ mod test {
         fn build(&self) -> TokenStream {
             let v = &self.v;
             quote ! (some more #(#v)&* )
+        }
+        fn map(&self) -> Option<TokenStream> {
+            None
         }
     }
 

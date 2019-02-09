@@ -7,6 +7,7 @@ license = "MIT/Apache-2.0"
 repository = "https://bitbucket.org/athaliana/typescript-definitions"
 keywords =["typescript", "serde"]
 categories = ["data-structures", "development-tools", "wasm" , "web-programming"]
+edition = "2018"
 
 
 [lib]

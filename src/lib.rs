@@ -16,6 +16,7 @@
 #![allow(unused_imports)]
 #[macro_use]
 pub extern crate typescript_definitions_derive;
+// re-export macros
 pub use typescript_definitions_derive::*;
 
 /// # TypeScriptifyTrait
@@ -26,4 +27,5 @@ pub use typescript_definitions_derive::*;
 ///
 pub trait TypeScriptifyTrait {
     fn type_script_ify() -> String;
+    fn type_script_fields() -> Option<Vec<&'static str>>;
 }

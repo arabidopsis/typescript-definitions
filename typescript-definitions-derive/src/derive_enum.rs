@@ -6,11 +6,12 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use serde_derive_internals::{ast, attr::EnumTag, Ctxt};
+use serde_derive_internals::{ast, attr::EnumTag};
 
-use super::{derive_field, ident_from_str, type_to_ts, filter_visible, QuoteMaker};
+use super::{derive_field, ident_from_str, type_to_ts, filter_visible, QuoteMaker, ParseContext};
 
 const CONTENT: &'static str = "fields"; // default content tag
+const TAG: &'static str = "kind"; // default tag tag
 
 struct TagInfo<'a> {
     tag: &'a str,
@@ -19,8 +20,8 @@ struct TagInfo<'a> {
 pub(crate) fn derive_enum<'a>(
     variants: &[ast::Variant<'a>],
     container: &ast::Container,
-    cx: &Ctxt,
-) -> (bool /* is enum */, QuoteMaker) {
+    ctxt: &ParseContext,
+) -> QuoteMaker {
     let taginfo = match container.attrs.tag() {
         EnumTag::Internal { tag, .. } => TagInfo { tag, content: None },
         EnumTag::Adjacent { tag, content, .. } => TagInfo {
@@ -28,7 +29,7 @@ pub(crate) fn derive_enum<'a>(
             content: Some(&content),
         },
         _ => TagInfo {
-            tag: "kind",
+            tag: TAG,
             content: None,
         },
     };
@@ -56,7 +57,8 @@ pub(crate) fn derive_enum<'a>(
             .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
             .collect::<Vec<_>>();
         let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
-        return (true, quote! ( { #(#k = #v),* } ).into());
+        ctxt.is_enum.set(is_enum);
+        return quote! ( { #(#k = #v),* } ).into();
     }
 
 
@@ -65,17 +67,17 @@ pub(crate) fn derive_enum<'a>(
         let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
         match variant.style {
             ast::Style::Struct => {
-                derive_struct_variant(&taginfo, &variant_name, &variant.fields, container, cx)
+                derive_struct_variant(&taginfo, &variant_name, &variant.fields, container, ctxt)
             }
             ast::Style::Newtype => {
-                derive_newtype_variant(&taginfo, &variant_name, &variant.fields[0])
+                derive_newtype_variant(&taginfo, &variant_name, &variant.fields[0], ctxt)
             }
-            ast::Style::Tuple => derive_tuple_variant(&taginfo, &variant_name, &variant.fields),
+            ast::Style::Tuple => derive_tuple_variant(&taginfo, &variant_name, &variant.fields, ctxt),
             ast::Style::Unit => derive_unit_variant(&taginfo, &variant_name),
         }
     });
     // OK generate A | B | C etc
-    (false, quote! ( #(#content)|* ).into())
+    quote! ( #(#content)|* ).into()
 }
 
 fn derive_unit_variant(taginfo: &TagInfo, variant_name: &str) -> QuoteMaker {
@@ -89,11 +91,12 @@ fn derive_newtype_variant<'a>(
     taginfo: &TagInfo,
     variant_name: &str,
     field: &ast::Field<'a>,
+    ctxt : &ParseContext,
 ) -> QuoteMaker {
     if field.attrs.skip_serializing() {
         return derive_unit_variant(taginfo, variant_name);
     }
-    let ty = type_to_ts(&field.ty);
+    let ty = type_to_ts(&field.ty, ctxt);
     let tag = ident_from_str(taginfo.tag);
     let content = if let Some(content) = taginfo.content {
         ident_from_str(&content)
@@ -111,7 +114,7 @@ fn derive_struct_variant<'a>(
     variant_name: &str,
     fields: &[ast::Field<'a>],
     container: &ast::Container,
-    cx: &Ctxt, // for error reporting
+    ctxt: &ParseContext, // for error reporting
 ) -> QuoteMaker {
     use std::collections::HashSet;
     let fields = filter_visible(fields);
@@ -119,7 +122,7 @@ fn derive_struct_variant<'a>(
         return derive_unit_variant(taginfo, variant_name);
     }
 
-    let contents = fields.iter().map(|f| derive_field(f));
+    let contents = fields.iter().map(|f| derive_field(f, ctxt));
 
     let tag = ident_from_str(taginfo.tag);
     if let Some(content) = taginfo.content {
@@ -128,16 +131,18 @@ fn derive_struct_variant<'a>(
             { #tag: #variant_name, #content: { #(#contents),* } }
         ).into()
     } else {
-        let fnames = fields
-            .iter()
-            .map(|field| field.attrs.name().serialize_name())
-            .collect::<HashSet<_>>();
-        if fnames.contains(taginfo.tag) {
-            cx.error(format!(
-                "tag \"{}\" clashes with field in Enum variant \"{}::{}\". \
-                 Maybe use a #[serde(content=\"...\")] attribute.",
-                taginfo.tag, container.ident, variant_name
-            ));
+        if let Some(ref cx) = ctxt.ctxt {
+            let fnames = fields
+                .iter()
+                .map(|field| field.attrs.name().serialize_name())
+                .collect::<HashSet<_>>();
+            if fnames.contains(taginfo.tag) {
+                cx.error(format!(
+                    "tag \"{}\" clashes with field in Enum variant \"{}::{}\". \
+                    Maybe use a #[serde(content=\"...\")] attribute.",
+                    taginfo.tag, container.ident, variant_name
+                ));
+            }
         }
         quote! (
             { #tag: #variant_name, #(#contents),* }
@@ -149,9 +154,10 @@ fn derive_tuple_variant<'a>(
     taginfo: &TagInfo,
     variant_name: &str,
     fields: &[ast::Field<'a>],
+    ctxt : &ParseContext,
 ) -> QuoteMaker {
     let fields = filter_visible(fields);
-    let contents = fields.iter().map(|field| type_to_ts(&field.ty));
+    let contents = fields.iter().map(|field| type_to_ts(&field.ty, ctxt));
 
     let tag = ident_from_str(taginfo.tag);
     let content = if let Some(content) = taginfo.content {
