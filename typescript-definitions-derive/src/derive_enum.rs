@@ -100,7 +100,7 @@ impl<'a> ParseContext<'_> {
         if field.attrs.skip_serializing() {
             return self.derive_unit_variant(taginfo, variant_name);
         }
-        let ty = self.type_to_ts(&field.ty);
+        let ty = self.field_to_ts(field);
         let tag = ident_from_str(taginfo.tag);
         let content = if let Some(content) = taginfo.content {
             ident_from_str(&content)

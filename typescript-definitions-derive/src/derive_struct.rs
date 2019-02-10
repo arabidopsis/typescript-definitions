@@ -66,7 +66,7 @@ impl<'a> ParseContext<'_> {
             return self.derive_struct_unit();
         }
         self.check_flatten(&[field], ast_container);
-        self.type_to_ts(&field.ty).into()
+        self.field_to_ts(field).into()
     }
 
     fn derive_struct_unit(&self) -> QuoteMaker {

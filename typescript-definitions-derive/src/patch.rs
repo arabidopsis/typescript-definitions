@@ -6,6 +6,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+//! # Patch
+//! 
+//! we are generating *typescript* from rust tokens so
+//! the final result when rendered to a string has a typescript
+//! formatting problems. This mod just applies a few patches
+//! to make the final result a little more acceptable.
+//!
+
+
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 
@@ -85,7 +94,7 @@ pub fn patch(s: &str) -> Cow<'_, str> {
             "result" => "|",
             "lt" => "<",
             "gt" => ">",
-            _ => c.get(0).unwrap().as_str(),
+            _ => c.get(0).unwrap().as_str(), // maybe should just panic?
         };
         m.to_owned()
     })

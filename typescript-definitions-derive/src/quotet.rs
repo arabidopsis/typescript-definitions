@@ -1,5 +1,3 @@
-// extern crate proc_macro2;
-// extern crate quote;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;

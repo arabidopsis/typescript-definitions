@@ -4,6 +4,7 @@
 use super::ast;
 use proc_macro2::{Ident, Span};
 
+
 pub fn ident_from_str(s: &str) -> Ident {
     syn::Ident::new(s, Span::call_site())
 }
@@ -18,6 +19,22 @@ pub fn field_type_name(ty: &syn::Type) -> Option<String> {
         _ => None,
     }
 }
+#[allow(unused)]
+pub fn is_bytes<'a>(field: &ast::Field<'a>) -> bool {
+    // check for #[serde(with="serde_bytes")]
+    use syn::ExprPath;
+    if let Some(ExprPath { ref path, ..}) = field.attrs.serialize_with() {
+        match path.segments.first().map(|p| p.into_value()) {
+            Some(t) => { 
+                return t.ident.to_string() == "serde_bytes"
+                
+            },
+            _ => return false
+        }
+    };
+    false
+}
+
 #[allow(unused)]
 pub fn full_field_type_name(ty: &syn::Type) -> Option<Vec<Ident>> {
     use syn::Type::Path;

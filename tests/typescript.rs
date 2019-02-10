@@ -7,6 +7,8 @@ extern crate serde_derive;
 extern crate quote;
 #[macro_use]
 extern crate wasm_bindgen;
+//#[macro_use]
+//extern crate serde_bytes;
 
 // extern crate proc_macro2;
 // extern crate serde;
@@ -107,7 +109,7 @@ fn struct_with_array() {
     assert_eq!(
         Point___typescript_definition(),
         patch(quote! {
-            export type Point = {x: number[], y: number, z:  number | undefined  };
+            export type Point = {x: number[], y: number, z:  number | null  };
         })
     );
 }
@@ -274,7 +276,7 @@ fn struct_with_attr_refering_to_other_type() {
     assert_eq!(
         A___typescript_definition(),
         patch(quote! {
-        export type A = { x: number ,b: B<number>, xxx: {Ok: number } | {Err: string}, d: {Ok: number | undefined} | { Err: string} };
+        export type A = { x: number ,b: B<number>, xxx: {Ok: number } | {Err: string}, d: {Ok: number | null} | { Err: string} };
         })
     );
 }
@@ -290,7 +292,7 @@ fn struct_typescriptify() {
     assert_eq!(
         A::type_script_ify(),
         patcht(quote! {
-            export type A = { x: number ,c: {Ok: number } | {Err: string}, d: {Ok: number | undefined } | { Err: string} };
+            export type A = { x: number ,c: {Ok: number } | {Err: string}, d: {Ok: number | null } | { Err: string} };
         })
     );
 }
@@ -352,7 +354,7 @@ fn struct_has_function() {
     assert_eq!(
         API::<i32>::type_script_ify(),
         patcht(quote!(
-            export type API<T> = {key: number, a: T, get: (arg: number) => string, get2: (T, number) => number | undefined };
+            export type API<T> = {key: number, a: T, get: (arg: number) => string, get2: (T, number) => number | null };
         ))
     )
 }
@@ -427,4 +429,22 @@ fn struct_with_phantom_data_skip() {
             export type S = {key: number, a: number };
         ))
     )
+}
+#[test]
+fn struct_with_pointers_and_slices() {
+    #[derive(Serialize, TypescriptDefinition)]
+    struct Pointers<'a> {
+        keys: &'a [String],
+        // a_ptr: * const i32,
+        // #[serde(with="serde_bytes")]
+        buffer: &'a [u8],
+        buffer2: Vec<u8>,
+
+    }
+    assert_eq!(
+        Pointers___typescript_definition(),
+        patch(quote! { 
+            export type Pointers = { keys: string[], buffer: number[], buffer2: number[]};
+        }));
+
 }

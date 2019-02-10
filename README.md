@@ -276,9 +276,11 @@ This might be relaxed in future.
 
 The following types are rendered as:
 
-* `Option<T>` => `T | undefined`
+* `Option<T>` => `T | null` (can't use undefined because this will mess with object checking)
 * `HashMap<K,V>` => `{ [key:K]:V }` (same for `BTreeMap`)
 * `HashSet<V>` => `V[]` (same for `BTreeSet`)
+* `&[u8]` and `Vec<u8>` are expected to be byte buffers but are still rendered as `number[]` since
+  this is what `serde_json` does.
 
 An `enum` that is all Unit types such as
 

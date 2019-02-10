@@ -169,10 +169,10 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 
 struct Typescriptify {
     ctxt: ParseContext<'static>,
-    ident: syn::Ident,
+    ident: syn::Ident, // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     body: QuoteMaker,
-    rust_generics: syn::Generics,
+    rust_generics: syn::Generics, // original rust generics
 }
 impl Typescriptify {
     fn wasm_string(&self) -> String {
@@ -220,11 +220,7 @@ impl Typescriptify {
                     Some(quote! (#ident))
                 } else {
                     let bounds = bounds.iter().map(|ts| &ts.ident);
-                    if with_bounds {
-                        Some(quote! { #ident extends #(#bounds)&* })
-                    } else {
-                        Some(quote! { #ident : #(#bounds)+* })
-                    }
+                    Some(quote! { #ident extends #(#bounds)&* })
                 }
             }
 
@@ -293,7 +289,7 @@ impl Typescriptify {
 
 fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
     // lifetime params are represented by None since we are only going
-    // to translate the to '_
+    // to translate them to '_
 
     // impl#generics TypeScriptTrait for A<... lifetimes to '_ and T without bounds>
 
@@ -399,46 +395,46 @@ impl<'a> ParseContext<'a> {
             is_type_script_ify,
         }
     }
-    fn generic_to_ts(&self, ts: TSType) -> QuoteT {
+    fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {
         match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" => quote! { string },
             "bool" => quote! { boolean },
-            "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => self.type_to_ts(&ts.args[0]),
+            "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => self.type_to_ts(&ts.args[0], field),
 
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
-                let t = self.type_to_ts(&ts.args[0]);
-                quote! { #t[] }
+                self.type_to_array(&ts.args[0], field)
+
             }
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
-                let k = self.type_to_ts(&ts.args[0]);
-                let v = self.type_to_ts(&ts.args[1]);
+                let k = self.type_to_ts(&ts.args[0], field);
+                let v = self.type_to_ts(&ts.args[1], field);
                 // quote!(Map<#k,#v>)
                 quote!( { [key: #k]:#v } )
             }
             "HashSet" | "BTreeSet" if ts.args.len() == 1 => {
-                let k = self.type_to_ts(&ts.args[0]);
+                let k = self.type_to_ts(&ts.args[0], field);
                 //quote!(Set<#k>)
                 quote! ( #k[] )
             }
             "Option" if ts.args.len() == 1 => {
-                let k = self.type_to_ts(&ts.args[0]);
-                quote!(  #k | undefined  )
+                let k = self.type_to_ts(&ts.args[0], field);
+                quote!(  #k | null  )
             }
             "Result" if ts.args.len() == 2 => {
-                let k = self.type_to_ts(&ts.args[0]);
-                let v = self.type_to_ts(&ts.args[1]);
+                let k = self.type_to_ts(&ts.args[0], field);
+                let v = self.type_to_ts(&ts.args[1], field);
                 // ugh!
                 // see patch.rs...
                 let bar = ident_from_str(patch::PATCH);
                 quote!(  { Ok : #k } #bar { Err : #v }  )
             }
             "Fn" | "FnOnce" | "FnMut" => {
-                let args = self.derive_syn_types(&ts.args);
+                let args = self.derive_syn_types(&ts.args, field);
                 if let Some(ref rt) = ts.return_type {
-                    let rt = self.type_to_ts(rt);
+                    let rt = self.type_to_ts(rt, field);
                     quote! { (#(#args),*) => #rt }
                 } else {
                     quote! { (#(#args),*) => undefined }
@@ -448,7 +444,7 @@ impl<'a> ParseContext<'a> {
                 let ident = ts.ident;
                 if ts.args.len() > 0 {
                     // let args = ts.args.iter().map(|ty| self.type_to_ts(ty));
-                    let args = self.derive_syn_types(&ts.args);
+                    let args = self.derive_syn_types(&ts.args, field);
                     quote! { #ident<#(#args),*> }
                 } else {
                     quote! {#ident}
@@ -465,20 +461,26 @@ impl<'a> ParseContext<'a> {
             _ => None,
         }
     }
-
+    fn type_to_array(&self, elem: &syn::Type, field: &'a ast::Field<'a>) -> QuoteT {
+            
+            if let Some(ty) = self.get_path(elem) {
+                match ty.ident.to_string().as_ref() {
+                    "u8" => if is_bytes(field) { return quote!( Uint8Array ) } else {}
+                    _ => {}
+                }
+            };
+            
+            let tp = self.type_to_ts(elem, field);
+            quote! { #tp[] }
+    }
     /// # convert a `syn::Type` rust type to a
     /// `TokenStream` of typescript type: basically i32 => number etc.
-    fn type_to_ts(&self, ty: &syn::Type) -> QuoteT {
+    fn type_to_ts(&self, ty: &syn::Type,  field: &'a ast::Field<'a>) -> QuoteT {
         // `type_to_ts` recursively calls itself occationally
         // finding a Path which it hands to last_path_element
         // which generates a "simplified" TSType struct which
         // is handed to `generic_to_ts` which possibly "bottoms out"
         // by generating tokens for typescript types.
-
-        let type_to_array = |elem: &syn::Type| -> QuoteT {
-            let tp = self.type_to_ts(elem);
-            quote! { #tp[] }
-        };
 
         use syn::Type::*;
         use syn::{
@@ -486,10 +488,10 @@ impl<'a> ParseContext<'a> {
             TypeParen, TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
         };
         match ty {
-            Slice(TypeSlice { elem, .. }) => type_to_array(elem),
-            Array(TypeArray { elem, .. }) => type_to_array(elem),
-            Ptr(TypePtr { elem, .. }) => type_to_array(elem),
-            Reference(TypeReference { elem, .. }) => self.type_to_ts(elem),
+            Slice(TypeSlice { elem, .. }) => self.type_to_array(elem, field),
+            Array(TypeArray { elem, .. }) => self.type_to_array(elem, field),
+            Ptr(TypePtr { elem, .. }) => self.type_to_array(elem, field),
+            Reference(TypeReference { elem, .. }) => self.type_to_ts(elem, field),
             // fn(a: A,b: B, c:C) -> D
             BareFn(TypeBareFn { output, inputs, .. }) => {
                 let mut args: Vec<Ident> = Vec::with_capacity(inputs.len());
@@ -509,9 +511,9 @@ impl<'a> ParseContext<'a> {
                 // typescript lambda (a: A, b:B) => C
 
                 // let typs = typs.iter().map(|ty| self.type_to_ts(ty));
-                let typs = self.derive_syn_types_ptr(&typs);
+                let typs = self.derive_syn_types_ptr(&typs, field);
                 if let Some(ref rt) = return_type(&output) {
-                    let rt = self.type_to_ts(rt);
+                    let rt = self.type_to_ts(rt, field);
                     quote! { ( #(#args: #typs),* ) => #rt }
                 } else {
                     quote! { ( #(#args: #typs),* ) => undefined}
@@ -519,12 +521,12 @@ impl<'a> ParseContext<'a> {
             }
             Never(..) => quote! { never },
             Tuple(TypeTuple { elems, .. }) => {
-                let elems = elems.iter().map(|t| self.type_to_ts(t));
+                let elems = elems.iter().map(|t| self.type_to_ts(t, field));
                 quote!([ #(#elems),* ])
             }
 
             Path(TypePath { path, .. }) => match last_path_element(&path) {
-                Some(ts) => self.generic_to_ts(ts),
+                Some(ts) => self.generic_to_ts(ts, field),
                 _ => quote! { any },
             },
             TraitObject(TypeTraitObject { bounds, .. })
@@ -535,25 +537,30 @@ impl<'a> ParseContext<'a> {
                         TypeParamBound::Trait(t) => last_path_element(&t.path),
                         _ => None, // skip lifetime etc.
                     })
-                    .map(|t| self.generic_to_ts(t));
+                    .map(|t| self.generic_to_ts(t, field));
 
                 // TODO check for zero length?
                 // A + B + C => A & B & C
                 quote!(#(#elems)&*)
             }
             Paren(TypeParen { elem, .. }) | Group(TypeGroup { elem, .. }) => {
-                let tp = self.type_to_ts(elem);
+                let tp = self.type_to_ts(elem, field);
                 quote! { ( #tp ) }
             }
             Infer(..) | Macro(..) | Verbatim(..) => quote! { any },
         }
     }
 
+    fn field_to_ts(&self, field: &ast::Field<'a>) -> QuoteT {
+        self.type_to_ts(&field.ty, field)
+
+    }
+
     fn derive_field(&self, field: &ast::Field<'a>) -> QuoteT {
         let field_name = field.attrs.name().serialize_name(); // use serde name instead of field.member
         let field_name = ident_from_str(&field_name);
-
-        let ty = self.type_to_ts(&field.ty);
+        
+        let ty = self.field_to_ts(&field);
 
         quote! {
             #field_name: #ty
@@ -569,16 +576,18 @@ impl<'a> ParseContext<'a> {
         &'a self,
         fields: &'a [&'a ast::Field<'a>],
     ) -> impl Iterator<Item = QuoteT> + 'a {
-        fields.iter().map(move |f| self.type_to_ts(f.ty))
+        fields.iter().map(move |f| self.field_to_ts(f))
     }
     fn derive_syn_types_ptr(
         &'a self,
         types: &'a [&'a syn::Type],
+        field: &'a ast::Field<'a>,
     ) -> impl Iterator<Item = QuoteT> + 'a {
-        types.iter().map(move |ty| self.type_to_ts(ty))
+        types.iter().map(move |ty| self.type_to_ts(ty, field))
     }
-    fn derive_syn_types(&'a self, types: &'a [syn::Type]) -> impl Iterator<Item = QuoteT> + 'a {
-        types.iter().map(move |ty| self.type_to_ts(ty))
+    fn derive_syn_types(&'a self, types: &'a [syn::Type], 
+        field: &'a ast::Field<'a>,) -> impl Iterator<Item = QuoteT> + 'a {
+        types.iter().map(move |ty| self.type_to_ts(ty, field))
     }
 
     fn check_flatten(&self, fields: &[&'a ast::Field<'a>], ast_container: &ast::Container) -> bool {

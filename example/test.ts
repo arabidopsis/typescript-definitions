@@ -1,4 +1,4 @@
-import {Point, Value, FrontendMessage} from './pkg/mywasm.d';
+import {Point, Value, FrontendMessage, MyBytes} from './pkg/mywasm.d';
 
 
 let x : Point  =  { X:1, Y: 2, z: 3 };

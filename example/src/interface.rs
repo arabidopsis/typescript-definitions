@@ -3,7 +3,8 @@ extern crate serde_derive;
 extern crate typescript_definitions;
 extern crate wasm_bindgen;
 
-use serde_derive::Serialize;
+use serde_derive::{Serialize};
+
 use typescript_definitions::{TypeScriptify, TypescriptDefinition};
 
 use wasm_bindgen::prelude::*;
@@ -75,4 +76,12 @@ pub struct Borrow<'a> {
     raw: &'a str,
     cow: Cow<'a, str>,
     map: HashMap<String, i32>,
+    
+}
+
+#[derive(Serialize, TypescriptDefinition, TypeScriptify)]
+pub struct MyBytes<'a> {
+    #[serde(with="serde_bytes")]
+    pub buffer: &'a [u8]
+    
 }

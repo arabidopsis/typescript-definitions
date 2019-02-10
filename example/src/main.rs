@@ -3,10 +3,12 @@ extern crate serde_json;
 extern crate typescript_definitions;
 // use serde::{Deserialize, Serialize};
 use serde_json::Error;
+
 mod interface;
 
 use self::interface::*;
 use typescript_definitions::TypeScriptifyTrait;
+
 
 fn main() -> Result<(), Error> {
     let p = Point {
@@ -25,10 +27,12 @@ fn main() -> Result<(), Error> {
         time: 33,
         other: None,
     };
+    let b = MyBytes { buffer: &[5u8,6,7,8,9]};
     println!("Point {:?}", p);
     println!("{}", j);
     println!("{}", serde_json::to_string(&f)?);
     println!("{}", serde_json::to_string(&f2)?);
+    println!("{}", serde_json::to_string(&b)?);
 
     println!("{}", Point::type_script_ify());
 

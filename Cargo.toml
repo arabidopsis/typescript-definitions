@@ -21,6 +21,7 @@ wasm-bindgen = "0.2"
 quote = "0.6"
 proc-macro2 = "0.4"
 regex = "1"
+# serde_bytes = "0.10"
 
 [features]
 export-typescript = ["typescript-definitions-derive/export-typescript"]
