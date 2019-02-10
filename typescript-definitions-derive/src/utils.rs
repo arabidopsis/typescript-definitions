@@ -19,14 +19,14 @@ pub fn field_type_name(ty: &syn::Type) -> Option<String> {
         _ => None,
     }
 }
-#[allow(unused)]
+
 pub fn is_bytes<'a>(field: &ast::Field<'a>) -> bool {
     // check for #[serde(with="serde_bytes")]
     use syn::ExprPath;
     if let Some(ExprPath { ref path, ..}) = field.attrs.serialize_with() {
-        match path.segments.first().map(|p| p.into_value()) {
+        match path.segments.last().map(|p| p.into_value()) {
             Some(t) => { 
-                return t.ident.to_string() == "serde_bytes"
+                return t.ident.to_string() == "as_byte_string"
                 
             },
             _ => return false

@@ -1,12 +1,10 @@
 #![allow(unused)]
-extern crate serde_derive;
-extern crate typescript_definitions;
-extern crate wasm_bindgen;
+// extern crate serde_derive;
+// extern crate typescript_definitions;
+// extern crate wasm_bindgen;
 
 use serde_derive::{Serialize};
-
 use typescript_definitions::{TypeScriptify, TypescriptDefinition};
-
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, TypescriptDefinition)]
@@ -79,9 +77,13 @@ pub struct Borrow<'a> {
     
 }
 
+
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
-pub struct MyBytes<'a> {
-    #[serde(with="serde_bytes")]
-    pub buffer: &'a [u8]
+pub struct MyBytes {
+    #[serde(serialize_with="typescript_definitions::as_byte_string")]
+    pub buffer : Vec<u8>
+    //pub buffer: &'a [u8]
+    // pub buffer : Bytes<'a>
+
     
 }

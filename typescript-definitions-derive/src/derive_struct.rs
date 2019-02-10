@@ -83,8 +83,11 @@ impl<'a> ParseContext<'_> {
             return self.derive_struct_unit();
         };
 
-        self.check_flatten(&fields, ast_container);
 
+        if fields.len() == 1 && ast_container.attrs.transparent() {
+            return self.derive_struct_newtype(&fields[0], ast_container);
+        };
+        self.check_flatten(&fields, ast_container);
         let content = self.derive_fields(&fields);
         quote!({#(#content),*}).into()
         /*

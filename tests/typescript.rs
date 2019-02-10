@@ -16,7 +16,7 @@ extern crate wasm_bindgen;
 mod patch;
 
 use proc_macro2::TokenStream;
-use serde::de::value::Error;
+// use serde::de::value::Error;
 use std::borrow::Cow;
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 
@@ -448,3 +448,21 @@ fn struct_with_pointers_and_slices() {
         }));
 
 }
+#[cfg(feature = "test")]
+#[test]
+fn struct_with_one_field_is_transparent() {
+    #[derive(Serialize, TypescriptDefinition)]
+    #[serde(transparent)]
+    struct One {
+        a : i32
+    }
+
+    assert_eq!(
+        One___typescript_definition(),
+        patch(quote! {
+            export type One  = number;
+           
+        })
+    );
+}
+

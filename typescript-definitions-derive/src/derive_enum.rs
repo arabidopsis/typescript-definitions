@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use serde_derive_internals::{ast, attr::EnumTag};
+use serde_derive_internals::{ast, attr::EnumTag, ast::Variant};
 
 use super::{filter_visible, ident_from_str, ParseContext, QuoteMaker};
 
@@ -65,26 +65,26 @@ impl<'a> ParseContext<'_> {
         }
 
         let content = skip_variants.iter().map(|variant| {
-            let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
             match variant.style {
                 ast::Style::Struct => {
-                    self.derive_struct_variant(&taginfo, &variant_name, &variant.fields, container)
+                    self.derive_struct_variant(&taginfo, variant, &variant.fields, container)
                 }
                 ast::Style::Newtype => {
-                    self.derive_newtype_variant(&taginfo, &variant_name, &variant.fields[0])
+                    self.derive_newtype_variant(&taginfo, variant, &variant.fields[0])
                 }
                 ast::Style::Tuple => {
-                    self.derive_tuple_variant(&taginfo, &variant_name, &variant.fields)
+                    self.derive_tuple_variant(&taginfo, variant, &variant.fields)
                 }
-                ast::Style::Unit => self.derive_unit_variant(&taginfo, &variant_name),
+                ast::Style::Unit => self.derive_unit_variant(&taginfo, variant),
             }
         });
         // OK generate A | B | C etc
         quote! ( #(#content)|* ).into()
     }
 
-    fn derive_unit_variant(&self, taginfo: &TagInfo, variant_name: &str) -> QuoteMaker {
+    fn derive_unit_variant(&self, taginfo: &TagInfo, variant: &Variant) -> QuoteMaker {
         let tag = ident_from_str(taginfo.tag);
+        let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
         quote! (
             { #tag: #variant_name }
         )
@@ -94,11 +94,11 @@ impl<'a> ParseContext<'_> {
     fn derive_newtype_variant(
         &self,
         taginfo: &TagInfo,
-        variant_name: &str,
+        variant: &Variant,
         field: &ast::Field<'a>,
     ) -> QuoteMaker {
         if field.attrs.skip_serializing() {
-            return self.derive_unit_variant(taginfo, variant_name);
+            return self.derive_unit_variant(taginfo, variant);
         }
         let ty = self.field_to_ts(field);
         let tag = ident_from_str(taginfo.tag);
@@ -107,7 +107,8 @@ impl<'a> ParseContext<'_> {
         } else {
             ident_from_str(CONTENT)
         };
-
+        let variant_name = self.variant_name(variant);
+ 
         quote! (
             { #tag: #variant_name, #content: #ty }
         )
@@ -117,19 +118,20 @@ impl<'a> ParseContext<'_> {
     fn derive_struct_variant(
         &self,
         taginfo: &TagInfo,
-        variant_name: &str,
+        variant: &Variant,
         fields: &[ast::Field<'a>],
         container: &ast::Container,
     ) -> QuoteMaker {
         use std::collections::HashSet;
         let fields = filter_visible(fields);
         if fields.len() == 0 {
-            return self.derive_unit_variant(taginfo, variant_name);
+            return self.derive_unit_variant(taginfo, variant);
         }
 
         self.check_flatten(&fields, container);
 
         let contents = self.derive_fields(&fields);
+        let variant_name = self.variant_name(variant);
 
         let tag = ident_from_str(taginfo.tag);
         if let Some(content) = taginfo.content {
@@ -159,12 +161,18 @@ impl<'a> ParseContext<'_> {
         }
     }
 
+    #[inline]
+    fn variant_name(&self, variant: &Variant) -> String {
+        variant.attrs.name().serialize_name()  // use serde name instead of variant.ident
+    }
+
     fn derive_tuple_variant(
         &self,
         taginfo: &TagInfo,
-        variant_name: &str,
+        variant: &Variant,
         fields: &[ast::Field<'a>],
     ) -> QuoteMaker {
+        let variant_name = self.variant_name(variant);
         let fields = filter_visible(fields);
         let contents = self.derive_field_types(&fields);
 

@@ -8,7 +8,7 @@
 
 //! Exports serde-serializable structs and enums to Typescript definitions.
 //!
-//! please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+//! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
 
 extern crate proc_macro;
 
@@ -51,9 +51,9 @@ type QuoteMaker = quotet::QuoteT<'static>;
 
 type Bounds = Vec<TSType>;
 
-/// derive proc_macro to expose typescript definitions to `wasm-bindgen`.
+/// derive proc_macro to expose Typescript definitions to `wasm-bindgen`.
 ///
-/// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+/// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
 ///
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -98,9 +98,9 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
     }
 }
 
-/// derive proc_macro to expose typescript definitions to as a static function.
+/// derive proc_macro to expose Typescript definitions as a static function.
 ///
-/// please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+/// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
 #[proc_macro_derive(TypeScriptify)]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -463,12 +463,15 @@ impl<'a> ParseContext<'a> {
     }
     fn type_to_array(&self, elem: &syn::Type, field: &'a ast::Field<'a>) -> QuoteT {
             
+            // check for [u8] or Vec<u8>
+            
             if let Some(ty) = self.get_path(elem) {
                 match ty.ident.to_string().as_ref() {
-                    "u8" => if is_bytes(field) { return quote!( Uint8Array ) } else {}
+                    "u8" => if is_bytes(field) { return quote!( string ) } else {},
                     _ => {}
                 }
             };
+            
             
             let tp = self.type_to_ts(elem, field);
             quote! { #tp[] }

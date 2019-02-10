@@ -1,12 +1,14 @@
-extern crate serde;
-extern crate serde_json;
-extern crate typescript_definitions;
+// extern crate serde;
+// extern crate serde_json;
+// extern crate typescript_definitions;
 // use serde::{Deserialize, Serialize};
+use serde_json;
 use serde_json::Error;
 
 mod interface;
 
 use self::interface::*;
+// need the trait
 use typescript_definitions::TypeScriptifyTrait;
 
 
@@ -27,7 +29,8 @@ fn main() -> Result<(), Error> {
         time: 33,
         other: None,
     };
-    let b = MyBytes { buffer: &[5u8,6,7,8,9]};
+
+    let b = MyBytes { buffer:  vec![5u8,6,7,8,9,186,233]};
     println!("Point {:?}", p);
     println!("{}", j);
     println!("{}", serde_json::to_string(&f)?);
@@ -39,6 +42,7 @@ fn main() -> Result<(), Error> {
     println!("{}", Enum::type_script_ify());
     println!("{}", FrontendMessage::type_script_ify());
     println!("{}", Value::<i32>::type_script_ify());
+    println!("{}", MyBytes::type_script_ify());
 
     Ok(())
 }

@@ -28,9 +28,6 @@ Please see [Credits](#credits).
 example:
 
 ```rust
-extern crate serde_derive;
-extern crate typescript_definitions;
-extern crate wasm_bindgen;
 
 use::wasm_bindgen::prelude::*;
 use::serde_derive::Serialize;
@@ -39,19 +36,16 @@ use::typescript_definitions::TypescriptDefinition;
 #[derive(Serialize, TypescriptDefinition)]
 #[serde(tag = "tag", content = "fields")]
 enum Enum {
-    #[allow(unused)]
     V1 {
         #[serde(rename = "Foo")]
         foo: bool,
     },
-    #[allow(unused)]
     V2 {
         #[serde(rename = "Bar")]
         bar: i64,
         #[serde(rename = "Baz")]
         baz: u64,
     },
-    #[allow(unused)]
     V3 {
         #[serde(rename = "Quux")]
         quux: String,
@@ -114,8 +108,10 @@ mkdir pkg
 wasm-bindgen target/wasm32-unknown-unknown/debug/mywasm.wasm --typescript --out-dir pkg/
 cat pkg/mywasm.d.ts # here are your definitions
 ```
+
 If you don't have these tools then [see here](https://rustwasm.github.io/wasm-bindgen/whirlwind-tour/basic-usage.html)
 (You might also need to get [rustup](https://rustup.rs) first):
+
 ```bash
 rustup target add wasm32-unknown-unknown --toolchain nightly
 cargo +nightly install wasm-bindgen-cli
@@ -135,8 +131,6 @@ You can ignore WASM *totally* by deriving using `TypeScriptify`:
 
 ```rust
 // interface.rs
-extern crate serde_derive;
-extern crate typescript_definitions;
 // wasm_bindgen not needed
 // use::wasm_bindgen::prelude::*;
 use::serde_derive::Serialize;
@@ -148,7 +142,7 @@ pub struct MyStruct {
     v : i32,
 }
 ```
-Then in `main.rs` (say) you can generate your own typescript specification using `Struct::type_script_ify()`:
+Then in `main.rs` (say) you can generate your own typescript specification using `MyStruct::type_script_ify()`:
 
 ```rust
 mod interface;
@@ -162,7 +156,7 @@ fn main() {
 ```
 Use the cfg macro To protect  any use of `type_script_ify()`
 
-```
+```rust
 if cfg!(any(debug_assertions, feature="export-typescript") {
     let s = A::type_script_ify();
 }
@@ -180,7 +174,7 @@ pub struct Value<T> {
 then you need to choose a concrete type to generate the typescript: `Value<i32>::type_script_ify()`. The concrete type
 doesn't matter as long as it obeys rust restrictions; the output will still be generic `export type Value<T> { value: T }`.
 
-Currently type bounds are discarded.
+Currently type bounds are discarded in the typescript.
 
 So basically with `TypeScriptify` *you* have to create some binary that, via `println!` or similar statements, will
 cough up a typescript library file. I guess you have more control here... at the expense of complicating
@@ -226,9 +220,22 @@ The default for NewTypes and Tuple types is
 
 Serde attributes understood
 
-* tag
-* content
-* skip (also skips by default PhantomData fields)
+* tag:
+* content:
+* skip: (also skips - by default -  PhantomData fields ... sorry ghost who walks)
+* serialize_with="typescript_definitions::as_byte_string"
+* transparent: Newtypes are automatically transparent. Structs with a single field can
+  be marked transparent.
+
+`serialize_with`, if placed in a `[u8]` or `Vec<u8>` field, will take
+that field to be a string. (And serde_json will output a `\xdd` encoded
+string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
+
+Serde attributes understood but rejected
+
+* flatten (This will produce a panic). Currently on my TODO list.
+
+All others are ignored just ignored.
 
 ## Problems
 
@@ -256,9 +263,9 @@ If you reference another type in a struct e.g.
 ```
 
 then this will "work" (producing `export type A = { x: number ,b: B<number> })`) but B will be opaque to
-javascript unless B is *also* `#[derive(TypescriptDefinition)]`. 
+typescript unless B is *also* `#[derive(TypescriptDefinition)]`. 
 
-Currently there is no help for this.
+Currently there is no check for this omission.
 
 Also Trait bounds are stripped out for typescript; you can't serialize Traits! However...
 
@@ -280,7 +287,8 @@ The following types are rendered as:
 * `HashMap<K,V>` => `{ [key:K]:V }` (same for `BTreeMap`)
 * `HashSet<V>` => `V[]` (same for `BTreeSet`)
 * `&[u8]` and `Vec<u8>` are expected to be byte buffers but are still rendered as `number[]` since
-  this is what `serde_json` does.
+  this is what `serde_json` does. However you can force the output to be a string using
+  `#[serde(serialize_with="typescript_defintions::as_byte_string")]`
 
 An `enum` that is all Unit types such as
 
@@ -291,7 +299,7 @@ enum Color {
     Blue
 }
 ```
-is rendered as:
+is rendered as a typescript enum:
 
 ```typescript
 enum Color {
