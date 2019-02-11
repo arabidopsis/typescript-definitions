@@ -4,14 +4,15 @@
 // use serde::{Deserialize, Serialize};
 use serde_json;
 use serde_json::Error;
-
 mod interface;
 
-use self::interface::*;
-// need the trait
-use typescript_definitions::TypeScriptifyTrait;
-
+#[cfg(any(debug_assertions, feature="export-typescript"))]
 fn main() -> Result<(), Error> {
+
+    use self::interface::*;
+    // need the trait
+    use typescript_definitions::TypeScriptifyTrait;
+
     let p = Point {
         x: 23,
         y: 24,
@@ -47,3 +48,6 @@ fn main() -> Result<(), Error> {
 
     Ok(())
 }
+
+#[cfg(not(any(debug_assertions, feature="export-typescript")))]
+fn main() {}

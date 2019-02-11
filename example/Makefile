@@ -6,7 +6,8 @@ bindgen:
 	wasm-bindgen target/wasm32-unknown-unknown/debug/mywasm.wasm --typescript --out-dir pkg/
 
 wasm:
-	wasm-pack build
+	#RUST_LOG=error wasm-pack build --dev
+	wasm-pack build --dev
 
 install:
 	rustup target add wasm32-unknown-unknown --toolchain nightly

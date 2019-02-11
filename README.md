@@ -28,10 +28,11 @@ Please see [Credits](#credits).
 example:
 
 ```rust
+#[cfg(target_arch="wasm32")]
+use wasm_bindgen::prelude::*;
 
-use::wasm_bindgen::prelude::*;
-use::serde_derive::Serialize;
-use::typescript_definitions::TypescriptDefinition;
+use serde_derive::Serialize;
+use typescript_definitions::TypescriptDefinition;
 
 #[derive(Serialize, TypescriptDefinition)]
 #[serde(tag = "tag", content = "fields")]
@@ -97,9 +98,11 @@ crate-type = ["cdylib"]
 
 [dependencies]
 typescript-definitions = "0.1"
-wasm-bindgen = "0.2"
 serde = "1"
 serde_derive = "1"
+
+[target.wasm32-unknown-unknown.dependencies]
+wasm-bindgen = "0.2"
 
 ```
 
@@ -120,11 +123,11 @@ rustup target add wasm32-unknown-unknown --toolchain nightly
 cargo +nightly install wasm-bindgen-cli
 ```
 
-or use wasm-pack (the typescript library will be in `pkg/mywasm.d.ts`). (**NB** as of 1.0.7 this no longer seems to work)
+or use wasm-pack (the typescript library will be in `pkg/mywasm.d.ts`).
 
 ```sh
 curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-wasm-pack build
+wasm-pack build --dev
 cat pkg/mywasm.d.ts
 ```
 
@@ -135,9 +138,9 @@ You can ignore WASM *totally* by deriving using `TypeScriptify`:
 ```rust
 // interface.rs
 // wasm_bindgen not needed
-// use::wasm_bindgen::prelude::*;
-use::serde_derive::Serialize;
-use::typescript_definitions::TypeScriptify;
+// use wasm_bindgen::prelude::*;
+use serde_derive::Serialize;
+use typescript_definitions::TypeScriptify;
 
 }
 #[derive(Serialize, TypeScriptify)]
@@ -157,7 +160,7 @@ fn main() {
     // prints "export type MyStruct = { v: number };"
 }
 ```
-Use the cfg macro To protect  any use of `type_script_ify()`
+Use the cfg macro To protect any use of `type_script_ify()` if you need to
 
 ```rust
 if cfg!(any(debug_assertions, feature="export-typescript") {
@@ -208,7 +211,7 @@ of `wasm-bindgen` even in debug mode. So your *.wasm files are clean. You still 
 to add `--features=export-typescript` to generate anything in release mode though.
 
 
-## Serde Internally or Adjacently tagged Enums
+## Serde attributes.
 
 See Serde [Docs](https://serde.rs/enum-representations.html#internally-tagged).
 
@@ -232,6 +235,22 @@ Serde attributes understood
 `serialize_with`, if placed on a `[u8]` or `Vec<u8>` field, will take
 that field to be a string. (And serde_json will output a `\xdd` encoded
 string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
+
+```rust
+use serde;
+use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+
+#[derive(Serialize, TypeScriptify)]
+struct S {
+     #[serde(serialize_with="typescript_definitions::as_byte_string")]
+     image : Vec<u8>,
+     buffer: &'static [u8],
+}
+
+println!("{}", S::type_script_ify());
+```
+
+ prints `export type S = { image: string, buffer: number[] };`.
 
 Serde attributes understood but rejected
 
