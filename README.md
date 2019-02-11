@@ -105,7 +105,7 @@ serde_derive = "1"
 
 Then you can run (see [here](#using-type_script_ify) if you don't want to go near WASM):
 
-```bash
+```sh
 cargo +nightly build --target wasm32-unknown-unknown
 mkdir pkg
 wasm-bindgen target/wasm32-unknown-unknown/debug/mywasm.wasm --typescript --out-dir pkg/
@@ -115,14 +115,14 @@ cat pkg/mywasm.d.ts # here are your definitions
 If you don't have these tools then [see here](https://rustwasm.github.io/wasm-bindgen/whirlwind-tour/basic-usage.html)
 (You might also need to get [rustup](https://rustup.rs) first):
 
-```bash
+```sh
 rustup target add wasm32-unknown-unknown --toolchain nightly
 cargo +nightly install wasm-bindgen-cli
 ```
 
 or use wasm-pack (the typescript library will be in `pkg/mywasm.d.ts`). (**NB** as of 1.0.7 this no longer seems to work)
 
-```bash
+```sh
 curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 wasm-pack build
 cat pkg/mywasm.d.ts
@@ -254,14 +254,14 @@ This might change if use cases show that an error would be better.
 If you reference another type in a struct e.g.
 
 ```rust
-    #[derive(Serialize)]
-    struct B<T> {q: T}
-    
-    #[derive(Serialize, TypescriptDefinition)]
-    struct A {
-        x : f64, /* simple */
-        b: B<f64>,
-    }
+#[derive(Serialize)]
+struct B<T> {q: T}
+
+#[derive(Serialize, TypescriptDefinition)]
+struct A {
+    x : f64, /* simple */
+    b: B<f64>,
+}
 ```
 
 then this will "work" (producing `export type A = { x: number ,b: B<number> })`) but B will be opaque to

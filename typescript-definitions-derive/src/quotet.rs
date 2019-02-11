@@ -1,4 +1,3 @@
-
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 
@@ -55,8 +54,8 @@ mod test {
 
     #![allow(unused)]
 
-    use quote::quote;
     use super::{QuoteT, Tbuild, TokenStream};
+    use quote::quote;
     struct S {
         v: Vec<QuoteT<'static>>,
     }

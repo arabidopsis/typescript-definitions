@@ -11,7 +11,6 @@ use self::interface::*;
 // need the trait
 use typescript_definitions::TypeScriptifyTrait;
 
-
 fn main() -> Result<(), Error> {
     let p = Point {
         x: 23,
@@ -30,7 +29,9 @@ fn main() -> Result<(), Error> {
         other: None,
     };
 
-    let b = MyBytes { buffer:  vec![5u8,6,7,8,9,186,233]};
+    let b = MyBytes {
+        buffer: vec![5u8, 6, 7, 8, 9, 186, 233],
+    };
     println!("Point {:?}", p);
     println!("{}", j);
     println!("{}", serde_json::to_string(&f)?);

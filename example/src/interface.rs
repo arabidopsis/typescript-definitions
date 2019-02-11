@@ -1,8 +1,8 @@
 #![allow(unused)]
 
 // see https://github.com/graphql-rust/graphql-client/issues/176
+use serde::Serialize;
 use serde_derive::*;
-use serde::{Serialize};
 use typescript_definitions::{TypeScriptify, TypescriptDefinition};
 use wasm_bindgen::prelude::*;
 
@@ -73,16 +73,11 @@ pub struct Borrow<'a> {
     raw: &'a str,
     cow: Cow<'a, str>,
     map: HashMap<String, i32>,
-    
 }
-
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
 pub struct MyBytes {
-    #[serde(serialize_with="typescript_definitions::as_byte_string")]
-    pub buffer : Vec<u8>
-    //pub buffer: &'a [u8]
-    // pub buffer : Bytes<'a>
-
-    
+    #[serde(serialize_with = "typescript_definitions::as_byte_string")]
+    pub buffer: Vec<u8>, //pub buffer: &'a [u8]
+                         // pub buffer : Bytes<'a>
 }

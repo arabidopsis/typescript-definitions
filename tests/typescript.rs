@@ -25,7 +25,7 @@ use serde::Serialize;
 // use serde::de::value::Error;
 use std::borrow::Cow;
 
-use patch::{patch, patcht, normalize};
+use patch::{normalize, patch, patcht};
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "test")]
@@ -142,7 +142,7 @@ fn struct_with_tuple() {
 #[test]
 fn enum_with_renamed_newtype_variants() {
     #[derive(Serialize, TypescriptDefinition)]
-    #[serde(tag="kind")]
+    #[serde(tag = "kind")]
     enum Enum {
         #[serde(rename = "Var1")]
         V1(bool),
@@ -189,7 +189,7 @@ fn enum_with_unit_variants() {
 #[test]
 fn enum_with_tuple_variants() {
     #[derive(Serialize, TypescriptDefinition)]
-    #[serde(tag="kind", content="fields")]
+    #[serde(tag = "kind", content = "fields")]
     enum Enum {
         #[allow(unused)]
         V1(i64, String),
@@ -213,7 +213,7 @@ fn enum_with_tuple_variants() {
 #[test]
 fn enum_with_struct_variants_and_renamed_fields() {
     #[derive(Serialize, TypescriptDefinition)]
-    #[serde(tag="kind")]
+    #[serde(tag = "kind")]
     enum Enum {
         #[allow(unused)]
         V1 {
@@ -402,7 +402,7 @@ fn struct_with_serde_skip() {
 #[test]
 fn enum_with_serde_skip() {
     #[derive(Serialize, TypeScriptify)]
-    #[serde(tag="kind", content="fields")]
+    #[serde(tag = "kind", content = "fields")]
     enum S {
         A,
         E {
@@ -449,15 +449,14 @@ fn struct_with_pointers_and_slices() {
         // #[serde(with="serde_bytes")]
         buffer: &'a [u8],
         buffer2: Vec<u8>,
-
     }
 
     assert_eq!(
         Pointers___typescript_definition(),
-        patch(quote! { 
+        patch(quote! {
             export type Pointers = { keys: string[], buffer: number[], buffer2: number[]};
-        }));
-
+        })
+    );
 }
 #[cfg(feature = "test")]
 #[test]
@@ -465,15 +464,14 @@ fn struct_with_one_field_is_transparent() {
     #[derive(Serialize, TypescriptDefinition)]
     #[serde(transparent)]
     struct One {
-        a : i32
+        a: i32,
     }
 
     assert_eq!(
         One___typescript_definition(),
         patch(quote! {
             export type One  = number;
-           
+
         })
     );
 }
-

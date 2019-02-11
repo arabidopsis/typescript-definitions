@@ -6,17 +6,17 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 use quote::quote;
-use serde_derive_internals::{ast, attr::EnumTag, ast::Variant};
+use serde_derive_internals::{ast, ast::Variant, attr::EnumTag};
 
 use super::{filter_visible, ident_from_str, ParseContext, QuoteMaker};
 
-const CONTENT: & str = "fields"; // default content tag
-// const TAG: &'static str = "kind"; // default tag tag
+const CONTENT: &str = "fields"; // default content tag
+                                // const TAG: &'static str = "kind"; // default tag tag
 
 struct TagInfo<'a> {
     tag: Option<&'a str>,
     content: Option<&'a str>,
-    untagged : bool,
+    untagged: bool,
 }
 impl<'a> ParseContext<'_> {
     pub(crate) fn derive_enum(
@@ -25,24 +25,28 @@ impl<'a> ParseContext<'_> {
         container: &ast::Container,
     ) -> QuoteMaker {
         let taginfo = match container.attrs.tag() {
-            EnumTag::Internal { tag, .. } => TagInfo { tag: Some(tag), content: None, untagged: false },
+            EnumTag::Internal { tag, .. } => TagInfo {
+                tag: Some(tag),
+                content: None,
+                untagged: false,
+            },
             EnumTag::Adjacent { tag, content, .. } => TagInfo {
-                tag : Some(tag),
+                tag: Some(tag),
                 content: Some(&content),
-                untagged: false
+                untagged: false,
             },
             EnumTag::External => TagInfo {
-                tag:None,
+                tag: None,
                 content: None,
-                untagged: false
+                untagged: false,
             },
             EnumTag::None => TagInfo {
                 tag: None,
                 content: None,
-                untagged: true
+                untagged: true,
             },
         };
-        
+
         // check for #[serde(skip)]
         let mut skip_variants: Vec<&ast::Variant<'a>> = Vec::with_capacity(variants.len());
         for v in variants {
@@ -73,19 +77,15 @@ impl<'a> ParseContext<'_> {
             return quote! ( { #(#k = #v),* } ).into();
         }
 
-        let content = skip_variants.iter().map(|variant| {
-            match variant.style {
-                ast::Style::Struct => {
-                    self.derive_struct_variant(&taginfo, variant, &variant.fields, container)
-                }
-                ast::Style::Newtype => {
-                    self.derive_newtype_variant(&taginfo, variant, &variant.fields[0])
-                }
-                ast::Style::Tuple => {
-                    self.derive_tuple_variant(&taginfo, variant, &variant.fields)
-                }
-                ast::Style::Unit => self.derive_unit_variant(&taginfo, variant),
+        let content = skip_variants.iter().map(|variant| match variant.style {
+            ast::Style::Struct => {
+                self.derive_struct_variant(&taginfo, variant, &variant.fields, container)
             }
+            ast::Style::Newtype => {
+                self.derive_newtype_variant(&taginfo, variant, &variant.fields[0])
+            }
+            ast::Style::Tuple => self.derive_tuple_variant(&taginfo, variant, &variant.fields),
+            ast::Style::Unit => self.derive_unit_variant(&taginfo, variant),
         });
         // OK generate A | B | C etc
         quote! ( #(#content)|* ).into()
@@ -94,7 +94,7 @@ impl<'a> ParseContext<'_> {
     fn derive_unit_variant(&self, taginfo: &TagInfo, variant: &Variant) -> QuoteMaker {
         let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
         if taginfo.tag.is_none() {
-           return quote!(#variant_name).into();
+            return quote!(#variant_name).into();
         }
         let tag = ident_from_str(taginfo.tag.unwrap());
         quote! (
@@ -113,27 +113,25 @@ impl<'a> ParseContext<'_> {
             return self.derive_unit_variant(taginfo, variant);
         }
         let ty = self.field_to_ts(field);
-        let variant_name = self.variant_name(variant); 
+        let variant_name = self.variant_name(variant);
         if taginfo.tag.is_none() {
             if taginfo.untagged {
                 return quote! ( #ty ).into();
             };
             let tag = ident_from_str(&variant_name);
-            return  quote! (
+            return quote! (
                 { #tag : #ty }
             )
-            .into()
+            .into();
         };
         let tag = ident_from_str(taginfo.tag.unwrap());
-    
-        
+
         let content = if let Some(content) = taginfo.content {
             ident_from_str(&content)
         } else {
             ident_from_str(CONTENT) // should not get here...
         };
 
- 
         quote! (
             { #tag: #variant_name, #content: #ty }
         )
@@ -160,7 +158,7 @@ impl<'a> ParseContext<'_> {
         if taginfo.tag.is_none() {
             if taginfo.untagged {
                 return quote! (
-                    { #(#contents),* } 
+                    { #(#contents),* }
                 )
                 .into();
             };
@@ -179,7 +177,6 @@ impl<'a> ParseContext<'_> {
             )
             .into()
         } else {
-           
             if let Some(ref cx) = self.ctxt {
                 let fnames = fields
                     .iter()
@@ -202,7 +199,7 @@ impl<'a> ParseContext<'_> {
 
     #[inline]
     fn variant_name(&self, variant: &Variant) -> String {
-        variant.attrs.name().serialize_name()  // use serde name instead of variant.ident
+        variant.attrs.name().serialize_name() // use serde name instead of variant.ident
     }
 
     fn derive_tuple_variant(
@@ -216,16 +213,16 @@ impl<'a> ParseContext<'_> {
         let contents = self.derive_field_types(&fields);
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-             return quote! (
-                 [ #(#contents),* ] 
+                return quote! (
+                 [ #(#contents),* ]
                 )
-                .into()               
+                .into();
             }
             let tag = ident_from_str(&variant_name);
             return quote! (
              { #tag : [ #(#contents),* ] }
             )
-            .into()
+            .into();
         };
 
         let tag = ident_from_str(taginfo.tag.unwrap());
@@ -240,5 +237,4 @@ impl<'a> ParseContext<'_> {
         )
         .into()
     }
-    
 }

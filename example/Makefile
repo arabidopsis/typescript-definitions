@@ -7,3 +7,7 @@ bindgen:
 
 wasm:
 	wasm-pack build
+
+install:
+	rustup target add wasm32-unknown-unknown --toolchain nightly
+	cargo +nightly install wasm-bindgen-cli

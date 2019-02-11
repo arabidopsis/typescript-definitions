@@ -1,5 +1,5 @@
 #!/bin/bash
-rustdoc --edition 2018 --crate-name typescript-definitions -o ./doc \
+rustdoc --edition 2018 --crate-name typescript-definitions -o ./target/doc/typescript_definitions \
 	--markdown-css ../normalize.css  \
 	--markdown-css ../dark.css  \
 	--html-before-content templates/before.html \

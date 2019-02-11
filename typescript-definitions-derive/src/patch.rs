@@ -7,7 +7,7 @@
 // except according to those terms.
 
 //! # Patch
-//! 
+//!
 //! we are generating *typescript* from rust tokens so
 //! the final result when rendered to a string has a typescript
 //! formatting problem. This mod just applies a few patches

@@ -27,8 +27,8 @@ extern crate proc_macro;
 // #[cfg(feature = "bytes")]
 // extern crate serde_bytes;
 
-use quote::quote;
 use proc_macro2::Ident;
+use quote::quote;
 use serde_derive_internals::{ast, Ctxt, Derive};
 use std::str::FromStr;
 use syn::DeriveInput;
@@ -169,7 +169,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 
 struct Typescriptify {
     ctxt: ParseContext<'static>,
-    ident: syn::Ident, // name of enum struct
+    ident: syn::Ident,                         // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     body: QuoteMaker,
     rust_generics: syn::Generics, // original rust generics
@@ -401,12 +401,13 @@ impl<'a> ParseContext<'a> {
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" => quote! { string },
             "bool" => quote! { boolean },
-            "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => self.type_to_ts(&ts.args[0], field),
+            "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => {
+                self.type_to_ts(&ts.args[0], field)
+            }
 
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
                 self.type_to_array(&ts.args[0], field)
-
             }
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
                 let k = self.type_to_ts(&ts.args[0], field);
@@ -442,7 +443,7 @@ impl<'a> ParseContext<'a> {
             }
             _ => {
                 let ident = ts.ident;
-                if ! ts.args.is_empty() {
+                if !ts.args.is_empty() {
                     // let args = ts.args.iter().map(|ty| self.type_to_ts(ty));
                     let args = self.derive_syn_types(&ts.args, field);
                     quote! { #ident<#(#args),*> }
@@ -462,24 +463,22 @@ impl<'a> ParseContext<'a> {
         }
     }
     fn type_to_array(&self, elem: &syn::Type, field: &'a ast::Field<'a>) -> QuoteT {
-            
-            // check for [u8] or Vec<u8>
-            
-            if let Some(ty) = self.get_path(elem) {
-                if ty.ident == "u8" && is_bytes(field) {
-                    return quote!( string );
-                };
+        // check for [u8] or Vec<u8>
+
+        if let Some(ty) = self.get_path(elem) {
+            if ty.ident == "u8" && is_bytes(field) {
+                return quote!(string);
             };
-            
-            
-            let tp = self.type_to_ts(elem, field);
-            quote! { #tp[] }
+        };
+
+        let tp = self.type_to_ts(elem, field);
+        quote! { #tp[] }
     }
     /// # convert a `syn::Type` rust type to a
     /// `TokenStream` of typescript type: basically i32 => number etc.
-    /// 
+    ///
     /// field is the current Field for which we are trying a conversion
-    fn type_to_ts(&self, ty: &syn::Type,  field: &'a ast::Field<'a>) -> QuoteT {
+    fn type_to_ts(&self, ty: &syn::Type, field: &'a ast::Field<'a>) -> QuoteT {
         // `type_to_ts` recursively calls itself occationally
         // finding a Path which it hands to last_path_element
         // which generates a "simplified" TSType struct which
@@ -559,13 +558,12 @@ impl<'a> ParseContext<'a> {
 
     fn field_to_ts(&self, field: &ast::Field<'a>) -> QuoteT {
         self.type_to_ts(&field.ty, field)
-
     }
 
     fn derive_field(&self, field: &ast::Field<'a>) -> QuoteT {
         let field_name = field.attrs.name().serialize_name(); // use serde name instead of field.member
         let field_name = ident_from_str(&field_name);
-        
+
         let ty = self.field_to_ts(&field);
 
         quote! {
@@ -591,15 +589,16 @@ impl<'a> ParseContext<'a> {
     ) -> impl Iterator<Item = QuoteT> + 'a {
         types.iter().map(move |ty| self.type_to_ts(ty, field))
     }
-    fn derive_syn_types(&'a self, types: &'a [syn::Type], 
-        field: &'a ast::Field<'a>,) -> impl Iterator<Item = QuoteT> + 'a {
+    fn derive_syn_types(
+        &'a self,
+        types: &'a [syn::Type],
+        field: &'a ast::Field<'a>,
+    ) -> impl Iterator<Item = QuoteT> + 'a {
         types.iter().map(move |ty| self.type_to_ts(ty, field))
     }
 
     fn check_flatten(&self, fields: &[&'a ast::Field<'a>], ast_container: &ast::Container) -> bool {
-        let has_flatten = fields
-            .iter()
-            .any(|f| f.attrs.flatten()); // .any(|f| f);
+        let has_flatten = fields.iter().any(|f| f.attrs.flatten()); // .any(|f| f);
         if has_flatten {
             if let Some(ref ct) = self.ctxt {
                 ct.error(format!(

@@ -12,9 +12,9 @@ use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefini
 // see https://github.com/graphql-rust/graphql-client/issues/176
 use serde_derive::*;
 
-use serde::Serialize;
-use quote::quote;
 use proc_macro2::TokenStream;
+use quote::quote;
+use serde::Serialize;
 // use serde::de::value::Error;
 use std::borrow::Cow;
 
@@ -73,13 +73,17 @@ fn as_byte_string() {
     // use serde_json::Error;
     #[derive(Serialize, TypeScriptify)]
     struct S {
-         #[serde(serialize_with="typescript_definitions::as_byte_string")]
-        image : Vec<u8>
+        #[serde(serialize_with = "typescript_definitions::as_byte_string")]
+        image: Vec<u8>,
     }
 
-    let s = S { image: vec![1,2,3,4,5]};
-    assert_eq!(serde_json::to_string(&s).unwrap(), "{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\"}");
-
+    let s = S {
+        image: vec![1, 2, 3, 4, 5],
+    };
+    assert_eq!(
+        serde_json::to_string(&s).unwrap(),
+        "{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\"}"
+    );
 }
 
 #[test]
@@ -89,15 +93,17 @@ fn untagged_enum() {
     #[derive(Serialize, TypeScriptify)]
     #[serde(untagged)]
     enum Untagged {
-        V1 { id: i32, attr : String} ,
-        V2 { id: i32, attr2: Vec<String> }
+        V1 { id: i32, attr: String },
+        V2 { id: i32, attr2: Vec<String> },
     }
 
-    assert_eq!(Untagged::type_script_ify().replace("\n  ",""), patcht(quote!{
-        export type Untagged = {id: number, attr: string} | {id: number, attr2 : string[] };
+    assert_eq!(
+        Untagged::type_script_ify().replace("\n  ", ""),
+        patcht(quote! {
+            export type Untagged = {id: number, attr: string} | {id: number, attr2 : string[] };
 
-    }));
-
+        })
+    );
 }
 
 #[test]
@@ -106,13 +112,15 @@ fn external_enum() {
     // use serde_json::Error;
     #[derive(Serialize, TypeScriptify)]
     enum External {
-        V1 { id: i32, attr : String} ,
-        V2 { id: i32, attr2: Vec<String> }
+        V1 { id: i32, attr: String },
+        V2 { id: i32, attr2: Vec<String> },
     }
 
-    assert_eq!(External::type_script_ify().replace("\n  ",""), patcht(quote!{
-        export type External = { V1: {id: number, attr: string} } | { V2: {id: number, attr2 : string[] }};
+    assert_eq!(
+        External::type_script_ify().replace("\n  ", ""),
+        patcht(quote! {
+            export type External = { V1: {id: number, attr: string} } | { V2: {id: number, attr2 : string[] }};
 
-    }));
-
+        })
+    );
 }

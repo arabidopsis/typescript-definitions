@@ -6,9 +6,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use serde_derive_internals::ast;
-use quote::quote;
 use super::{patch, Ident};
+use quote::quote;
+use serde_derive_internals::ast;
 
 #[allow(unused)]
 struct Fields {
@@ -84,7 +84,6 @@ impl<'a> ParseContext<'_> {
         if fields.is_empty() {
             return self.derive_struct_unit();
         };
-
 
         if fields.len() == 1 && ast_container.attrs.transparent() {
             return self.derive_struct_newtype(&fields[0], ast_container);
