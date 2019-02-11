@@ -10,7 +10,7 @@ use serde_derive_internals::{ast, attr::EnumTag, ast::Variant};
 
 use super::{filter_visible, ident_from_str, ParseContext, QuoteMaker};
 
-const CONTENT: &'static str = "fields"; // default content tag
+const CONTENT: & str = "fields"; // default content tag
 // const TAG: &'static str = "kind"; // default tag tag
 
 struct TagInfo<'a> {
@@ -149,7 +149,7 @@ impl<'a> ParseContext<'_> {
     ) -> QuoteMaker {
         use std::collections::HashSet;
         let fields = filter_visible(fields);
-        if fields.len() == 0 {
+        if fields.is_empty() {
             return self.derive_unit_variant(taginfo, variant);
         }
 

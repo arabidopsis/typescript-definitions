@@ -128,7 +128,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 
         let ident = &parsed.ident;
 
-        let ret = if parsed.ts_generics.len() == 0 {
+        let ret = if parsed.ts_generics.is_empty() {
             quote! {
 
                 impl ::typescript_definitions::TypeScriptifyTrait for #ident {
@@ -205,7 +205,7 @@ impl Typescriptify {
 
         // currently we ignore trait bounds
         let args_wo_lt: Vec<_> = self.ts_generic_args_wo_lifetimes(false).collect();
-        if args_wo_lt.len() == 0 {
+        if args_wo_lt.is_empty() {
             quote!(#ident)
         } else {
             quote!(#ident<#(#args_wo_lt),*>)
@@ -216,7 +216,7 @@ impl Typescriptify {
         self.ts_generics.iter().filter_map(move |g| match g {
             Some((ref ident, ref bounds)) => {
                 // we ignore trait bounds for typescript
-                if bounds.len() == 0 || !with_bounds {
+                if bounds.is_empty() || !with_bounds {
                     Some(quote! (#ident))
                 } else {
                     let bounds = bounds.iter().map(|ts| &ts.ident);
@@ -248,7 +248,7 @@ impl Typescriptify {
         }
     }
 
-    fn parse<'a>(is_type_script_ify: bool, input: proc_macro::TokenStream) -> Self {
+    fn parse(is_type_script_ify: bool, input: proc_macro::TokenStream) -> Self {
         let input: DeriveInput = syn::parse(input).unwrap();
 
         let cx = Ctxt::new();
@@ -278,9 +278,9 @@ impl Typescriptify {
         // consumes context panics with errors
         cx.check().unwrap();
         Self {
-            ctxt: ctxt,
+            ctxt,
             ident: container.ident,
-            ts_generics: ts_generics,
+            ts_generics,
             body: typescript,
             rust_generics: container.generics.clone(), // keep original type generics around for type_script_ify
         }
@@ -344,17 +344,17 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     inputs,
                     ..
                 }) => {
-                    let args: Vec<_> = inputs.iter().map(|ty| ty.clone()).collect();
+                    let args: Vec<_> = inputs.iter().cloned().collect();
                     let ret = return_type(output);
                     return Some(TSType {
-                        ident: ident,
-                        args: args,
+                        ident,
+                        args,
                         return_type: ret,
                     });
                 }
                 syn::PathArguments::None => {
                     return Some(TSType {
-                        ident: ident,
+                        ident,
                         args: vec![],
                         return_type: None,
                     });
@@ -367,12 +367,12 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     syn::GenericArgument::Type(t) => Some(t),
                     _ => None, // bindings A=I, expr, constraints A : B ... skip!
                 })
-                .map(|ty| ty.clone())
+                .cloned()
                 .collect::<Vec<_>>();
 
             Some(TSType {
-                ident: ident,
-                args: args,
+                ident,
+                args,
                 return_type: None,
             })
         }
@@ -428,8 +428,8 @@ impl<'a> ParseContext<'a> {
                 let v = self.type_to_ts(&ts.args[1], field);
                 // ugh!
                 // see patch.rs...
-                let bar = ident_from_str(patch::PATCH);
-                quote!(  { Ok : #k } #bar { Err : #v }  )
+                let vertical_bar = ident_from_str(patch::PATCH);
+                quote!(  { Ok : #k } #vertical_bar { Err : #v }  )
             }
             "Fn" | "FnOnce" | "FnMut" => {
                 let args = self.derive_syn_types(&ts.args, field);
@@ -442,7 +442,7 @@ impl<'a> ParseContext<'a> {
             }
             _ => {
                 let ident = ts.ident;
-                if ts.args.len() > 0 {
+                if ! ts.args.is_empty() {
                     // let args = ts.args.iter().map(|ty| self.type_to_ts(ty));
                     let args = self.derive_syn_types(&ts.args, field);
                     quote! { #ident<#(#args),*> }
@@ -466,10 +466,9 @@ impl<'a> ParseContext<'a> {
             // check for [u8] or Vec<u8>
             
             if let Some(ty) = self.get_path(elem) {
-                match ty.ident.to_string().as_ref() {
-                    "u8" => if is_bytes(field) { return quote!( string ) } else {},
-                    _ => {}
-                }
+                if ty.ident == "u8" && is_bytes(field) {
+                    return quote!( string );
+                };
             };
             
             
@@ -600,8 +599,7 @@ impl<'a> ParseContext<'a> {
     fn check_flatten(&self, fields: &[&'a ast::Field<'a>], ast_container: &ast::Container) -> bool {
         let has_flatten = fields
             .iter()
-            .map(|f| f.attrs.flatten())
-            .fold(false, |a, f| a || f);
+            .any(|f| f.attrs.flatten()); // .any(|f| f);
         if has_flatten {
             if let Some(ref ct) = self.ctxt {
                 ct.error(format!(

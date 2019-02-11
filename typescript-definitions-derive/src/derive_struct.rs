@@ -81,7 +81,7 @@ impl<'a> ParseContext<'_> {
         ast_container: &ast::Container,
     ) -> QuoteMaker {
         let fields = filter_visible(fields);
-        if fields.len() == 0 {
+        if fields.is_empty() {
             return self.derive_struct_unit();
         };
 
@@ -118,7 +118,7 @@ impl<'a> ParseContext<'_> {
         ast_container: &ast::Container,
     ) -> QuoteMaker {
         let fields = filter_visible(fields);
-        if fields.len() == 0 {
+        if fields.is_empty() {
             return self.derive_struct_unit();
         }
         self.check_flatten(&fields, ast_container);

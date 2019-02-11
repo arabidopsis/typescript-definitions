@@ -55,7 +55,7 @@ pub trait TypeScriptifyTrait {
 /// ```
 /// prints `export type S = { image: string, buffer: number[] };`.
 ///
-pub fn as_byte_string<'a, S>(bytes: &'a [u8], serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+pub fn as_byte_string<S>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
     // probably not possible to serialze this as a stream
     // we have no access to the underlying io stream... :(
     let t = bytes.iter().map(|b| format!(r"\x{:02x}", b)).collect::<Vec<_>>().join("");

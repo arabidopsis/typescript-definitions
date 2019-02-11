@@ -25,7 +25,7 @@ pub fn is_bytes<'a>(field: &ast::Field<'a>) -> bool {
     if let Some(ExprPath { ref path, ..}) = field.attrs.serialize_with() {
         match path.segments.last().map(|p| p.into_value()) {
             Some(t) => { 
-                return t.ident.to_string() == "as_byte_string"
+                return t.ident  == "as_byte_string"
                 
             },
             _ => return false
