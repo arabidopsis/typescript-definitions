@@ -1,23 +1,25 @@
 #![allow(unused)]
-#[macro_use]
-extern crate typescript_definitions;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate quote;
-#[macro_use]
-extern crate wasm_bindgen;
+// #[macro_use]
+// extern crate typescript_definitions;
+// #[macro_use]
+// extern crate serde_derive;
+// #[macro_use]
+// extern crate quote;
+// #[macro_use]
+// extern crate wasm_bindgen;
 // extern crate proc_macro2;
-use serde;
+use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
+// see https://github.com/graphql-rust/graphql-client/issues/176
+use serde_derive::*;
 
-mod patch;
-
+use serde::Serialize;
+use quote::quote;
 use proc_macro2::TokenStream;
 // use serde::de::value::Error;
 use std::borrow::Cow;
-use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 
-use patch::*;
+mod patch;
+use patch::{patch, patcht};
 use wasm_bindgen::prelude::*;
 
 // #[test]
@@ -77,5 +79,23 @@ fn as_byte_string() {
 
     let s = S { image: vec![1,2,3,4,5]};
     assert_eq!(serde_json::to_string(&s).unwrap(), "{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\"}");
+
+}
+
+#[test]
+fn untagged_enum() {
+    use serde_json;
+    // use serde_json::Error;
+    #[derive(Serialize, TypeScriptify)]
+    #[serde(untagged)]
+    enum Untagged {
+        V1 { id: i32, attr : String} ,
+        V2 { id: i32, attr2: Vec<String> }
+    }
+
+    assert_eq!(Untagged::type_script_ify().replace("\n  ",""), patcht(quote!{
+        export type Untagged = {id: number, attr: string} | {id: number, attr2 : string[] };
+
+    }));
 
 }

@@ -12,23 +12,23 @@
 
 extern crate proc_macro;
 
-#[macro_use]
-extern crate quote;
+// #[macro_use]
+// extern crate quote;
 
-#[macro_use]
+//#[macro_use]
 // #[allow(unused_imports)]
-extern crate lazy_static;
+//extern crate lazy_static;
 
 // extern crate proc_macro2;
 // extern crate regex;
 // extern crate serde_derive_internals;
 // extern crate syn;
 
-#[cfg(feature = "bytes")]
-extern crate serde_bytes;
+// #[cfg(feature = "bytes")]
+// extern crate serde_bytes;
 
+use quote::quote;
 use proc_macro2::Ident;
-
 use serde_derive_internals::{ast, Ctxt, Derive};
 use std::str::FromStr;
 use syn::DeriveInput;
@@ -53,7 +53,7 @@ type Bounds = Vec<TSType>;
 
 /// derive proc_macro to expose Typescript definitions to `wasm-bindgen`.
 ///
-/// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+/// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -452,7 +452,7 @@ impl<'a> ParseContext<'a> {
             }
         }
     }
-    #[allow(unused)]
+
     fn get_path(&self, ty: &syn::Type) -> Option<TSType> {
         use syn::Type::Path;
         use syn::TypePath;
@@ -478,6 +478,8 @@ impl<'a> ParseContext<'a> {
     }
     /// # convert a `syn::Type` rust type to a
     /// `TokenStream` of typescript type: basically i32 => number etc.
+    /// 
+    /// field is the current Field for which we are trying a conversion
     fn type_to_ts(&self, ty: &syn::Type,  field: &'a ast::Field<'a>) -> QuoteT {
         // `type_to_ts` recursively calls itself occationally
         // finding a Path which it hands to last_path_element
@@ -553,6 +555,8 @@ impl<'a> ParseContext<'a> {
             Infer(..) | Macro(..) | Verbatim(..) => quote! { any },
         }
     }
+
+    // Some helpers
 
     fn field_to_ts(&self, field: &ast::Field<'a>) -> QuoteT {
         self.type_to_ts(&field.ty, field)

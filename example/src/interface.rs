@@ -1,9 +1,8 @@
 #![allow(unused)]
-// extern crate serde_derive;
-// extern crate typescript_definitions;
-// extern crate wasm_bindgen;
 
-use serde_derive::{Serialize};
+// see https://github.com/graphql-rust/graphql-client/issues/176
+use serde_derive::*;
+use serde::{Serialize};
 use typescript_definitions::{TypeScriptify, TypescriptDefinition};
 use wasm_bindgen::prelude::*;
 

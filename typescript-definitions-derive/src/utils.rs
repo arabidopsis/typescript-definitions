@@ -1,5 +1,4 @@
-// extern crate proc_macro2;
-// extern crate syn;
+
 
 use super::ast;
 use proc_macro2::{Ident, Span};

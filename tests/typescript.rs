@@ -1,26 +1,31 @@
 #![allow(unused)]
-#[macro_use]
-extern crate typescript_definitions;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate quote;
-#[macro_use]
-extern crate wasm_bindgen;
-//#[macro_use]
-//extern crate serde_bytes;
+// #[macro_use]
+// extern crate typescript_definitions;
+// #[macro_use]
+// extern crate serde_derive;
+// #[macro_use]
+// extern crate quote;
+// #[macro_use]
+// extern crate wasm_bindgen;
+// #[macro_use]
+// extern crate serde_bytes;
 
 // extern crate proc_macro2;
 // extern crate serde;
-
+use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
+// see https://github.com/graphql-rust/graphql-client/issues/176
+use serde_derive::*;
 mod patch;
 
+// use serde;
 use proc_macro2::TokenStream;
+use quote::quote;
+use serde::Serialize;
+
 // use serde::de::value::Error;
 use std::borrow::Cow;
-use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 
-use patch::*;
+use patch::{patch, patcht, normalize};
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "test")]
@@ -137,6 +142,7 @@ fn struct_with_tuple() {
 #[test]
 fn enum_with_renamed_newtype_variants() {
     #[derive(Serialize, TypescriptDefinition)]
+    #[serde(tag="kind")]
     enum Enum {
         #[serde(rename = "Var1")]
         V1(bool),
@@ -183,6 +189,7 @@ fn enum_with_unit_variants() {
 #[test]
 fn enum_with_tuple_variants() {
     #[derive(Serialize, TypescriptDefinition)]
+    #[serde(tag="kind", content="fields")]
     enum Enum {
         #[allow(unused)]
         V1(i64, String),
@@ -196,7 +203,7 @@ fn enum_with_tuple_variants() {
         Enum___typescript_definition(),
         patch(quote! {
             export type Enum =
-            {kind: "V1", fields: [number, string]}
+              {kind: "V1", fields: [number, string]}
             | {kind: "V2", fields: [number, boolean]}
             | {kind: "V3", fields: [number, number]};
         })
@@ -206,6 +213,7 @@ fn enum_with_tuple_variants() {
 #[test]
 fn enum_with_struct_variants_and_renamed_fields() {
     #[derive(Serialize, TypescriptDefinition)]
+    #[serde(tag="kind")]
     enum Enum {
         #[allow(unused)]
         V1 {
@@ -394,6 +402,7 @@ fn struct_with_serde_skip() {
 #[test]
 fn enum_with_serde_skip() {
     #[derive(Serialize, TypeScriptify)]
+    #[serde(tag="kind", content="fields")]
     enum S {
         A,
         E {
@@ -409,7 +418,7 @@ fn enum_with_serde_skip() {
     assert_eq!(
         normalize(S::type_script_ify()),
         patcht(quote!(
-            export type S = {kind : "A" } | {kind: "E" , key: number, a: number } | { kind: "F" , fields : [number, string]};
+            export type S = {kind : "A" } | {kind: "E" , fields : {key: number, a: number} } | { kind: "F" , fields : [number, string]};
         ))
     )
 }
@@ -430,6 +439,7 @@ fn struct_with_phantom_data_skip() {
         ))
     )
 }
+#[cfg(feature = "test")]
 #[test]
 fn struct_with_pointers_and_slices() {
     #[derive(Serialize, TypescriptDefinition)]
@@ -441,6 +451,7 @@ fn struct_with_pointers_and_slices() {
         buffer2: Vec<u8>,
 
     }
+
     assert_eq!(
         Pointers___typescript_definition(),
         patch(quote! { 

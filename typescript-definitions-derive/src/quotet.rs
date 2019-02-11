@@ -9,7 +9,7 @@ pub trait Tbuild {
 
 pub enum QuoteT<'a> {
     Tokens(TokenStream),
-    Closure(Box<Fn() -> TokenStream + 'a>), //Builder(fn() -> TokenStream)
+    Closure(Box<Fn() -> TokenStream + 'a>),
     Builder(Box<Tbuild + 'a>),
 }
 #[allow(unused)]
@@ -52,7 +52,10 @@ impl From<TokenStream> for QuoteT<'_> {
 
 #[cfg(test)]
 mod test {
+
     #![allow(unused)]
+
+    use quote::quote;
     use super::{QuoteT, Tbuild, TokenStream};
     struct S {
         v: Vec<QuoteT<'static>>,

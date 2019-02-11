@@ -10,18 +10,18 @@
 //! 
 //! we are generating *typescript* from rust tokens so
 //! the final result when rendered to a string has a typescript
-//! formatting problems. This mod just applies a few patches
+//! formatting problem. This mod just applies a few patches
 //! to make the final result a little more acceptable.
 //!
 
-
+use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 
-pub const PATCH: &'static str = "__XYZZ__patch_me__XYZZ__";
+pub const PATCH: &str = "__XYZZ__patch_me__XYZZ__";
 
-type N = [(&'static str, &'static str); 10];
-const NAMES: N = [
+// type N = [(&'static str, &'static str); 10];
+const NAMES: [(&str, &str); 10] = [
     ("brack", r"\s*\[\s+\]"),
     ("brace", r"\{\s+\}"),
     ("colon", r"\s+[:]\s"),
@@ -79,7 +79,7 @@ impl Has for Captures<'_> {
 }
 
 // TODO: where does the newline come from? why the double spaces?
-// maybe use Regex::new(&[.....])
+// maybe use RegexSet::new(&[.....])
 pub fn patch(s: &str) -> Cow<'_, str> {
     RE.replace_all(s, |c: &Captures| {
         let key = c.key();
