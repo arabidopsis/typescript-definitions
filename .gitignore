@@ -2,6 +2,8 @@
 /typescript-definitions-derive/target
 /example/pkg
 /target
+/doc/README.html
+/doc/README.md
 /pkg
 **/*.bk
 Cargo.lock

@@ -9,11 +9,13 @@ repository = "https://bitbucket.org/athaliana/typescript-definitions"
 keywords =["typescript", "serde"]
 categories = ["data-structures", "development-tools", "wasm" , "web-programming"]
 edition = "2018"
+exclude = ['scripts/*', 'templates/*' ]
 
 
 [dependencies]
-typescript-definitions-derive = { version = "0.1.7",  path = "typescript-definitions-derive" }
 serde = "1"
+typescript-definitions-derive = { version = "0.1.7",  path = "typescript-definitions-derive" }
+
 
 [dev-dependencies]
 serde_derive = "1"
@@ -30,3 +32,4 @@ test = ["typescript-definitions-derive/test"]
 
 [workspace]
 exclude = ["example"]
+
