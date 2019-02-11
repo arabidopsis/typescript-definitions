@@ -4,5 +4,5 @@ rustdoc --edition 2018 --crate-name typescript-definitions -o ./doc \
 	--markdown-css ../dark.css  \
 	--html-before-content templates/before.html \
 	--html-after-content templates/after.html \
-	-L ./target/debug/ \
+	-L dependency=./target/debug/deps \
 	-v README.md

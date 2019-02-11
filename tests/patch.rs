@@ -20,6 +20,7 @@ pub fn patcht(ts: proc_macro2::TokenStream) -> String {
         .replace(" > ", ">")
         .replace("{ }", "{}")
         .replace("[ ]", "[]")
+        .replace(" []", "[]")
         .replace(" ;", ";")
         .replace(">=", "> =")
 }

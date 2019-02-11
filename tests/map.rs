@@ -99,3 +99,20 @@ fn untagged_enum() {
     }));
 
 }
+
+#[test]
+fn external_enum() {
+    use serde_json;
+    // use serde_json::Error;
+    #[derive(Serialize, TypeScriptify)]
+    enum External {
+        V1 { id: i32, attr : String} ,
+        V2 { id: i32, attr2: Vec<String> }
+    }
+
+    assert_eq!(External::type_script_ify().replace("\n  ",""), patcht(quote!{
+        export type External = { V1: {id: number, attr: string} } | { V2: {id: number, attr2 : string[] }};
+
+    }));
+
+}

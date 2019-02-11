@@ -23,7 +23,7 @@ why not create a typescript definition library based on your rust code?
 
 Please see [Credits](#credits).
 
-`typescript-definitions` now (0.1.7) uses `edition=2018` (heh).
+`typescript-definitions` (as of 0.1.7) uses `edition=2018` (heh).
 
 example:
 
@@ -57,7 +57,7 @@ enum Enum {
 }
 ```
 
-With wasm-bindgen this will output in your `.d.ts` definition file:
+Using [wasm-bindgen](https://rustwasm.github.io/wasm-bindgen/) this will output in your `*.d.ts` definition file:
 
 ```typescript
 export type Enum = 
@@ -75,12 +75,15 @@ you are only using them to extract information about your current types from you
 release builds they become no-ops. This means that there is *no cost* to your release exes/libs
 or to your users by using these macros. Zero cost abstraction indeed. Beautiful.
 
+Also, although you need nightly to run `wasm-bingen` *your* code can remain stable.
+
 See [features](#features) below if you really want them in your release build.
 
 There is a very small example in the repository that [works for me (TM)](https://bitbucket.org/athaliana/typescript-definitions/src/master/example/) if you want to get started
 on your own.
 
-This crate only exports two derive macros: `TypescriptDefinition` and `TypeScriptify`.
+This crate only exports two derive macros: `TypescriptDefinition` and `TypeScriptify`, a simple
+trait `TypeScriptifyTrait` and a (very simple) serializer for byte arrays.
 
 In your crate create a lib target in `Cargo.toml` pointing
 to your "interfaces"
@@ -209,25 +212,24 @@ to add `--features=export-typescript` to generate anything in release mode thoug
 
 See Serde [Docs](https://serde.rs/enum-representations.html#internally-tagged).
 
-This crate understands `#[serde(tag="type")]` and `#[serde(tag="tag", content="fields")]`
-attributes but only for Struct variants. 
+`typescript-definitions` tries to adhere to the meaning of serde attributes
+like`#[serde(tag="type")]` and `#[serde(tag="tag", content="fields")]`.
 
-It doesn't do Untagged or Externally tagged enums but defaults
-to `#[serde(tag="kind")]` (Internal). 
+Before 0.1.8 we had an implicit default tag of "kind" for enums. Now we don't
+(although we still have a implicit `transparent` on NewTypes).
 
-The default for NewTypes and Tuple types is
-`#[serde(tag="kind", content="fields")]` (Adjacent).
 
 Serde attributes understood
 
+* rename, rename_all:
 * tag:
 * content:
-* skip: (also skips - by default -  PhantomData fields ... sorry ghost who walks)
+* skip: (`typescript-definitions` also skips - by default -  PhantomData fields ... sorry ghost who walks)
 * serialize_with="typescript_definitions::as_byte_string"
 * transparent: Newtypes are automatically transparent. Structs with a single field can
   be marked transparent.
 
-`serialize_with`, if placed in a `[u8]` or `Vec<u8>` field, will take
+`serialize_with`, if placed on a `[u8]` or `Vec<u8>` field, will take
 that field to be a string. (And serde_json will output a `\xdd` encoded
 string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
 
@@ -235,7 +237,7 @@ Serde attributes understood but rejected
 
 * flatten (This will produce a panic). Currently on my TODO list.
 
-All others are ignored just ignored.
+All others are just ignored.
 
 ## Problems
 
@@ -345,7 +347,8 @@ to find the *actual* Struct object (from somewhere) and query its fields.
 
 ## TODO
 
-Generate a typescript verifier for each type (maybe).
+Generate a typescript verifier for each type (maybe). We really need some
+testing of the typescript types against serde_json.
 
 ```typescript
 export verify_A<T>(obj: any): boolean {/*... */ }
@@ -361,7 +364,7 @@ Then one could:
 ```typescript
 let o : any = JSON.parse(some_string_from_the_inet);
 if verify_A<number>(o) {
-    return obj as A<number>
+    return o as A<number>
 } else {
     // err....
 }
