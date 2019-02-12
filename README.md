@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/crates/l/typescript-definitions.svg)
 
 
-## Motivation
+## Motivation 🦀
 
 Now that rust 2018 has landed
 there is no question that people should be using rust to write server applications (what are you thinking!).
@@ -76,11 +76,12 @@ you are only using them to extract information about your current types from you
 release builds they become no-ops. This means that there is *no cost* to your release exes/libs
 or to your users by using these macros. Zero cost abstraction indeed. Beautiful.
 
-Also, although you need nightly to run `wasm-bingen` *your* code can remain stable.
+Also, although you might need nightly to run `wasm-bingen` *your* code can remain stable.
 
 See [features](#features) below if you really want them in your release build.
 
-There is a very small example in the repository that [works for me (TM)](https://bitbucket.org/athaliana/typescript-definitions/src/master/example/) if you want to get started
+There is a very small example in the repository that
+[works for me (TM)](https://bitbucket.org/athaliana/typescript-definitions/src/master/example/) if you want to get started
 on your own.
 
 This crate only exports two derive macros: `TypescriptDefinition` and `TypeScriptify`, a simple
@@ -115,6 +116,10 @@ wasm-bindgen target/wasm32-unknown-unknown/debug/mywasm.wasm --typescript --out-
 cat pkg/mywasm.d.ts # here are your definitions
 ```
 
+What just happened? [This.](https://rustwasm.github.io/wasm-bindgen/reference/attributes/on-rust-exports/typescript_custom_section.html)
+
+### Getting the toolchains
+
 If you don't have these tools then [see here](https://rustwasm.github.io/wasm-bindgen/whirlwind-tour/basic-usage.html)
 (You might also need to get [rustup](https://rustup.rs) first):
 
@@ -142,7 +147,6 @@ You can ignore WASM *totally* by deriving using `TypeScriptify`:
 use serde_derive::Serialize;
 use typescript_definitions::TypeScriptify;
 
-}
 #[derive(Serialize, TypeScriptify)]
 pub struct MyStruct {
     v : i32,
@@ -156,21 +160,19 @@ mod interface;
 use typescript_definitions::TypeScriptifyTrait;
 
 fn main() {
-    println!("{}", interface::MyStruct::type_script_ify());
+    if cfg!(any(debug_assertions, feature="export-typescript")) {
+        println!("{}", interface::MyStruct::type_script_ify());
+    };
     // prints "export type MyStruct = { v: number };"
 }
 ```
-Use the cfg macro To protect any use of `type_script_ify()` if you need to
-
-```rust
-if cfg!(any(debug_assertions, feature="export-typescript") {
-    let s = A::type_script_ify();
-}
-```
+Use the cfg macro To protect any use of `type_script_ify()` if you need to.
 
 If you have a generic struct such as:
 
 ```rust
+use serde_derive::Serialize;
+use typescript_definitions::TypeScriptify;
 #[derive(Serialize, TypeScriptify)]
 pub struct Value<T> {
     value: T
@@ -187,7 +189,7 @@ cough up a typescript library file. I guess you have more control here... at the
 your `Cargo.toml` file and your code.
 
 
-### Features
+## Features
 
 As we said before `typescript-descriptions` macros pollute your code with
 static strings and other garbage. Hence, by default, they only *work* in debug mode.
@@ -237,7 +239,7 @@ that field to be a string. (And serde_json will output a `\xdd` encoded
 string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
 
 ```rust
-use serde;
+use serde_derive::*;
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
 
 #[derive(Serialize, TypeScriptify)]
@@ -273,6 +275,8 @@ This might change if use cases show that an error would be better.
 If you reference another type in a struct e.g.
 
 ```rust
+use serde_derive::Serialize;
+use typescript_definitions::{TypescriptDefinition};
 #[derive(Serialize)]
 struct B<T> {q: T}
 
@@ -346,10 +350,13 @@ We are not as clever as serde or the compiler in determining the actual type. Fo
 
 ```rust
 use std::borrow::Cow as Pig;
+use typescript_definitions::{TypeScriptify,TypeScriptifyTrait};
 
 #[derive(TypeScriptify)]
 struct S<'a> {
     pig: Pig<'a, str>,
+}
+println!("{}", S::type_script_ify());
 ```
 
 gives `export type S = { pig : Pig<string> }` instead of `export type S = { pig : string }`

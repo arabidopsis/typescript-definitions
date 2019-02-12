@@ -5,13 +5,12 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
+#![allow(unused_imports)]
 
 //! # Generate Typescript types from Rust source code.
 //!
-//! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
+//! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions) or the [README](README.html).
 //!
-
-#![allow(unused_imports)]
 
 // we add this so `cargo doc` shows re-export.
 #[macro_use]

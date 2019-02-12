@@ -10,5 +10,8 @@ wasm:
 	wasm-pack build --dev
 
 install:
+	curl https://sh.rustup.rs -sSf | sh
+	rustup toolchain install nightly
 	rustup target add wasm32-unknown-unknown --toolchain nightly
 	cargo +nightly install wasm-bindgen-cli
+	curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh

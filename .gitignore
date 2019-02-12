@@ -7,3 +7,4 @@
 /pkg
 **/*.bk
 Cargo.lock
+README.cache
