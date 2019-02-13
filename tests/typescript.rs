@@ -268,6 +268,7 @@ fn tag_clash_in_enum() {
     // since the panic occurs during compiling
     // not during execution
     // #[derive(TypeScriptify)]
+    // #[serde(tag = "kind")]
     enum A {
         Unit,
         B { kind: i32, b: String },
