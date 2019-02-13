@@ -4,11 +4,13 @@ test: readme
 	@cargo test --all --features=test
 
 doc: readme
+	@rm -rf target/doc
 	@cargo doc --no-deps --open
 	# ./scripts/readme.sh
 
 ./src/README.rs : README.md
 	@(echo '/*!'; cat README.md; echo '*/'; ) > src/README.rs
+	#@awk '{ print "//! " $$0}' README.md  > src/README.rs
 
 
 readme: ./src/README.rs

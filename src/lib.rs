@@ -9,9 +9,8 @@
 
 //! # Generate Typescript types from Rust source code.
 //!
-//! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions) or the [README](README.html).
+//! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 //!
-
 // we add this so `cargo doc` shows re-export.
 #[macro_use]
 pub extern crate typescript_definitions_derive;
@@ -23,9 +22,11 @@ pub use typescript_definitions_derive::*;
 // just for doc tests
 #[allow(unused, non_snake_case)]
 mod README;
+
 /// # Trait implemented by `TypeScriptify` derive macro.
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
+///
 ///
 pub trait TypeScriptifyTrait {
     fn type_script_ify() -> String;
