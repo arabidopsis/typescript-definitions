@@ -12,15 +12,10 @@ use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefini
 // see https://github.com/graphql-rust/graphql-client/issues/176
 use serde_derive::*;
 
-use proc_macro2::TokenStream;
-use quote::quote;
 use serde::Serialize;
 // use serde::de::value::Error;
-use std::borrow::Cow;
-
-mod patch;
-use patch::{patch, patcht};
 use wasm_bindgen::prelude::*;
+use insta::assert_debug_snapshot_matches;
 
 // #[test]
 fn type_scriptify_fields() {
@@ -80,10 +75,11 @@ fn as_byte_string() {
     let s = S {
         image: vec![1, 2, 3, 4, 5],
     };
-    assert_eq!(
+    assert_debug_snapshot_matches!(
         serde_json::to_string(&s).unwrap(),
-        "{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\"}"
-    );
+        @r###""{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\"}""###
+      
+    )
 }
 
 #[test]
@@ -97,13 +93,11 @@ fn untagged_enum() {
         V2 { id: i32, attr2: Vec<String> },
     }
 
-    assert_eq!(
-        Untagged::type_script_ify().replace("\n  ", ""),
-        patcht(quote! {
-            export type Untagged = {id: number, attr: string} | {id: number, attr2 : string[] };
+    assert_debug_snapshot_matches!(
+        Untagged::type_script_ify(),
+        @r###""export type Untagged = { id: number , attr: string }\n   | { id: number , attr2: string[] };""###
 
-        })
-    );
+    )
 }
 
 #[test]
@@ -116,11 +110,8 @@ fn external_enum() {
         V2 { id: i32, attr2: Vec<String> },
     }
 
-    assert_eq!(
-        External::type_script_ify().replace("\n  ", ""),
-        patcht(quote! {
-            export type External = { V1: {id: number, attr: string} } | { V2: {id: number, attr2 : string[] }};
-
-        })
-    );
+    assert_debug_snapshot_matches!(
+        External::type_script_ify(),
+        @r###""export type External = { V1: { id: number , attr: string } }\n   | { V2: { id: number , attr2: string[] } };""###
+    )
 }

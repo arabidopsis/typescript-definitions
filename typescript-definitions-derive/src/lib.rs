@@ -30,7 +30,7 @@ extern crate proc_macro;
 use proc_macro2::Ident;
 use quote::quote;
 use serde_derive_internals::{ast, Ctxt, Derive};
-use std::str::FromStr;
+// use std::str::FromStr;
 use syn::DeriveInput;
 
 mod derive_enum;
@@ -76,17 +76,15 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
             pub const #export_ident : &'static str = #export_string;
         };
 
+
+        // just to allow testing... only `--features=test` seems to work
         if cfg!(any(test, feature = "test")) {
             let typescript_ident =
                 ident_from_str(&format!("{}___typescript_definition", &parsed.ident));
-            let ts = proc_macro2::TokenStream::from_str(&export_string)
-                .unwrap()
-                .to_string()
-                .replace("\n", " ");
 
             q.extend(quote!(
                 fn #typescript_ident ( ) -> &'static str {
-                   #ts
+                   #export_string
                 }
 
             ));
