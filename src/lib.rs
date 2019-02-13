@@ -20,6 +20,9 @@ pub extern crate typescript_definitions_derive;
 use serde::ser::Serializer;
 pub use typescript_definitions_derive::*;
 
+// just for doc tests
+#[allow(unused, non_snake_case)]
+mod README;
 /// # Trait implemented by `TypeScriptify` derive macro.
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).

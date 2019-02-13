@@ -1,17 +1,23 @@
+os: linux
 language: rust
-cache: cargo
-rust:
-  - stable
-  - beta
-  - nightly
+cache:
+  cargo: true
+
+git:
+  depth: 1
+
+branches:
+  only:
+    - master
+
+script: make $SUITE
+
 matrix:
-  allow_failures:
-    - rust: nightly
   include:
-    - rust: nightly
-    - rust: stable
-      env: RUN=FMT
-      before_script: rustup component add rustfmt-preview
-      script: cargo fmt -- --check
-script:
-  - cargo test --features=test
+    - env: SUITE=test
+    - env: SUITE=format-check
+    - env: SUITE=lint
+
+  allow_failures:
+    - env: SUITE=format-check
+    - env: SUITE=lint

@@ -6,8 +6,8 @@ use serde_derive::*;
 
 use serde::Serialize;
 // use serde::de::value::Error;
-use wasm_bindgen::prelude::*;
 use insta::assert_debug_snapshot_matches;
+use wasm_bindgen::prelude::*;
 
 // #[test]
 fn type_scriptify_fields() {
@@ -70,7 +70,7 @@ fn as_byte_string() {
     assert_debug_snapshot_matches!(
         serde_json::to_string(&s).unwrap(),
         @r###""{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\\\\xf4\"}""###
-      
+
     )
 }
 

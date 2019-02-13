@@ -76,7 +76,6 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
             pub const #export_ident : &'static str = #export_string;
         };
 
-
         // just to allow testing... only `--features=test` seems to work
         if cfg!(any(test, feature = "test")) {
             let typescript_ident =

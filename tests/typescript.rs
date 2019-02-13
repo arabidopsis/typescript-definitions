@@ -1,6 +1,5 @@
 #![allow(unused)]
 
-
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 // see https://github.com/graphql-rust/graphql-client/issues/176
 use serde_derive::*;
@@ -9,10 +8,8 @@ use serde::Serialize;
 use std::borrow::Cow;
 // use serde::de::value::Error;
 
-
-
-use wasm_bindgen::prelude::*;
 use insta::assert_debug_snapshot_matches;
+use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "test")]
 #[test]
@@ -20,7 +17,7 @@ fn unit_struct() {
     #[derive(Serialize, TypescriptDefinition)]
     struct Unit;
 
-   assert_debug_snapshot_matches!(
+    assert_debug_snapshot_matches!(
         Unit___typescript_definition(),
         @r###""export type Unit = {};""###
     )
@@ -75,7 +72,7 @@ fn struct_point_with_field_rename() {
     assert_debug_snapshot_matches!(
         Point___typescript_definition(),
         @r###""export type Point = { X: number , Y: number };""###
-        
+
     )
 }
 #[cfg(feature = "test")]
@@ -156,11 +153,8 @@ fn enum_with_tuple_variants() {
     #[derive(Serialize, TypescriptDefinition)]
     #[serde(tag = "kind", content = "fields")]
     enum Enum {
-        #[allow(unused)]
         V1(i64, String),
-        #[allow(unused)]
         V2(i64, bool),
-        #[allow(unused)]
         V3(i64, u64),
     }
 
@@ -197,7 +191,7 @@ fn enum_with_struct_variants_and_renamed_fields() {
     assert_debug_snapshot_matches!(
         Enum___typescript_definition(),
         @r###""export type Enum = { kind: \"V1\" , Foo: boolean }\n   | { kind: \"V2\" , Bar: number , Baz: number }\n   | { kind: \"V3\" , Quux: string };""###
-        
+
     )
 }
 #[cfg(feature = "test")]
@@ -229,13 +223,13 @@ fn struct_with_attr_refering_to_other_type() {
     struct A {
         x: f64, /* simple */
         b: B<f64>,
-        #[serde(rename = "xxx")]
+        #[serde(rename = "cnew")]
         c: Result<i32, &'static str>,
         d: Result<Option<i32>, String>,
     }
     assert_debug_snapshot_matches!(
         A___typescript_definition(),
-        @r###""export type A = { x: number , b: B<number>, xxx: { Ok: number } | { Err: string } , d: { Ok: number | null } | { Err: string } };""###
+        @r###""export type A = { x: number , b: B<number>, cnew: { Ok: number } | { Err: string } , d: { Ok: number | null } | { Err: string } };""###
     )
 }
 
@@ -255,7 +249,6 @@ fn struct_typescriptify() {
 
 #[test]
 fn cow_as_pig() {
-
     use std::borrow::Cow as Pig;
 
     #[derive(TypeScriptify)]

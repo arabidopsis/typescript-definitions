@@ -1,8 +1,8 @@
-# typescript-definitions 
+# typescript-definitions
 
 > Exports serde-serializable structs and enums to Typescript definitions.
 
-[![](https://img.shields.io/crates/v/typescript-definitions.svg)](https://crates.io/crates/typescript-definitions) 
+[![](https://img.shields.io/crates/v/typescript-definitions.svg)](https://crates.io/crates/typescript-definitions)
 [![](https://docs.rs/typescript-definitions/badge.svg)](https://docs.rs/typescript-definitions)
 ![License](https://img.shields.io/crates/l/typescript-definitions.svg)
 
@@ -11,7 +11,7 @@
 
 Now that rust 2018 has landed
 there is no question that people should be using rust to write server applications (what are you thinking!).
-But generating wasm from rust code to run in the browser is currently much too bleeding edge. 
+But generating wasm from rust code to run in the browser is currently much too bleeding edge.
 
 Since javascript will be dominant on the client for the forseeable future there remains the
 problem of communicating with your javascript from your rust server.
@@ -28,7 +28,7 @@ Please see [Credits](#credits).
 example:
 
 ```rust
-#[cfg(target_arch="wasm32")]
+// #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
 use serde_derive::Serialize;
@@ -61,7 +61,7 @@ enum Enum {
 Using [wasm-bindgen](https://rustwasm.github.io/wasm-bindgen/) this will output in your `*.d.ts` definition file:
 
 ```typescript
-export type Enum = 
+export type Enum =
       {tag: "V1", fields: { Foo: boolean } }
     | {tag: "V2", fields: { Bar: number, Baz: number } }
     | {tag: "V3", fields: { Quux: string } }
@@ -142,6 +142,7 @@ You can ignore WASM *totally* by deriving using `TypeScriptify`:
 
 ```rust
 // interface.rs
+
 // wasm_bindgen not needed
 // use wasm_bindgen::prelude::*;
 use serde_derive::Serialize;
@@ -151,17 +152,20 @@ use typescript_definitions::TypeScriptify;
 pub struct MyStruct {
     v : i32,
 }
-```
-Then in `main.rs` (say) you can generate your own typescript specification using `MyStruct::type_script_ify()`:
 
-```rust
-mod interface;
+ // Then in `main.rs` (say) you can generate your own typescript
+ // specification using `MyStruct::type_script_ify()`:
+
+
+// main.rs
+
 // need to pull in trait
 use typescript_definitions::TypeScriptifyTrait;
 
 fn main() {
     if cfg!(any(debug_assertions, feature="export-typescript")) {
-        println!("{}", interface::MyStruct::type_script_ify());
+
+        println!("{}", MyStruct::type_script_ify());
     };
     // prints "export type MyStruct = { v: number };"
 }
@@ -266,7 +270,7 @@ Oh yes there are problems...
 
 Currently `typescript-descriptions` will not fail (AFAIK) even for
 structs and enums with function pointers `fn(a:A, b: B) -> C` (generates typescript lambda `(a:A, b:B) => C`)
-and closures `Fn(A,B) -> C` (generates `(A,B) => C`). These make no sense in the current 
+and closures `Fn(A,B) -> C` (generates `(A,B) => C`). These make no sense in the current
 context (data types, json serialization) so this might be considered a bug.
 Watchout!
 
@@ -275,6 +279,8 @@ This might change if use cases show that an error would be better.
 If you reference another type in a struct e.g.
 
 ```rust
+// #[cfg(target_arch="wasm32")]
+use wasm_bindgen::prelude::*;
 use serde_derive::Serialize;
 use typescript_definitions::{TypescriptDefinition};
 #[derive(Serialize)]
@@ -282,13 +288,13 @@ struct B<T> {q: T}
 
 #[derive(Serialize, TypescriptDefinition)]
 struct A {
-    x : f64, /* simple */
+    x : f64,
     b: B<f64>,
 }
 ```
 
 then this will "work" (producing `export type A = { x: number ,b: B<number> })`) but B will be opaque to
-typescript unless B is *also* `#[derive(TypescriptDefinition)]`. 
+typescript unless B is *also* `#[derive(TypescriptDefinition)]`.
 
 Currently there is no check for this omission.
 
