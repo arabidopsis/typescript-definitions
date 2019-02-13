@@ -1,13 +1,5 @@
 #![allow(unused)]
-// #[macro_use]
-// extern crate typescript_definitions;
-// #[macro_use]
-// extern crate serde_derive;
-// #[macro_use]
-// extern crate quote;
-// #[macro_use]
-// extern crate wasm_bindgen;
-// extern crate proc_macro2;
+
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 // see https://github.com/graphql-rust/graphql-client/issues/176
 use serde_derive::*;
@@ -73,11 +65,11 @@ fn as_byte_string() {
     }
 
     let s = S {
-        image: vec![1, 2, 3, 4, 5],
+        image: vec![1, 2, 3, 4, 5, 244],
     };
     assert_debug_snapshot_matches!(
         serde_json::to_string(&s).unwrap(),
-        @r###""{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\"}""###
+        @r###""{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\\\\xf4\"}""###
       
     )
 }

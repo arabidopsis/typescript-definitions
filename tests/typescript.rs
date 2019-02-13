@@ -1,17 +1,5 @@
 #![allow(unused)]
-// #[macro_use]
-// extern crate typescript_definitions;
-// #[macro_use]
-// extern crate serde_derive;
-// #[macro_use]
-// extern crate quote;
-// #[macro_use]
-// extern crate wasm_bindgen;
-// #[macro_use]
-// extern crate serde_bytes;
 
-// extern crate proc_macro2;
-// extern crate serde;
 
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 // see https://github.com/graphql-rust/graphql-client/issues/176
@@ -141,7 +129,7 @@ fn enum_with_renamed_newtype_variants() {
         Internal(i32),
     }
 
-     assert_debug_snapshot_matches!(
+    assert_debug_snapshot_matches!(
         Enum___typescript_definition(),
         @r###""export type Enum = { kind: \"Var1\" , fields: boolean }\n   | { kind: \"Var2\" , fields: number }\n   | { kind: \"Var3\" , fields: string };""###
 
