@@ -184,9 +184,9 @@ impl<'a> ParseContext<'_> {
                     .collect::<HashSet<_>>();
                 if fnames.contains(tag_str) {
                     cx.error(format!(
-                        "tag \"{}\" clashes with field in Enum variant \"{}::{}\". \
+                        "clash with field in \"{}::{}\". \
                          Maybe use a #[serde(content=\"...\")] attribute.",
-                        tag_str, container.ident, variant_name
+                        container.ident, variant_name
                     ));
                 }
             }

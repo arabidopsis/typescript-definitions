@@ -26,10 +26,10 @@ regex = "1.1.0"
 lazy_static = "1.2.0"
 
 
-# [dev-dependencies]
-# serde_derive = "1"
-# wasm-bindgen = "0.2"
-
+[dev-dependencies]
+serde_derive = "1.0.87"
+serde = "1.0.87"
+insta = "0.6.2"
 
 [features]
 export-typescript = []

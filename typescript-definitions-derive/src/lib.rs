@@ -58,6 +58,7 @@ type Bounds = Vec<TSType>;
 #[proc_macro_derive(TypescriptDefinition)]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
+        let input = QuoteT::from(input);
         let parsed = Typescriptify::parse(false, input);
         let export_string = parsed.wasm_string();
 
@@ -102,6 +103,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 #[proc_macro_derive(TypeScriptify)]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
+        let input = QuoteT::from(input);
         let parsed = Typescriptify::parse(true, input);
         let ts_ident = parsed.ts_ident_str();
         let fmt = if parsed.ctxt.is_enum.get() {
@@ -245,8 +247,8 @@ impl Typescriptify {
         }
     }
 
-    fn parse(is_type_script_ify: bool, input: proc_macro::TokenStream) -> Self {
-        let input: DeriveInput = syn::parse(input).unwrap();
+    fn parse(is_type_script_ify: bool, input: QuoteT) -> Self {
+        let input: DeriveInput = syn::parse2(input).unwrap();
 
         let cx = Ctxt::new();
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
@@ -606,4 +608,57 @@ impl<'a> ParseContext<'a> {
         };
         has_flatten
     }
+}
+
+
+#[cfg(test)]
+mod macro_test {
+    use insta::assert_debug_snapshot_matches;
+    use super::Typescriptify;
+    use super::quote;
+    #[test]
+    // #[should_panic]
+    fn tag_clash_in_enum() {
+
+        let tokens = quote!(
+
+            #[derive(Serialize)]
+            #[serde(tag = "kind")]
+            enum A {
+                Unit,
+                B { kind: i32, b: String },
+            }
+        
+        );
+
+        let result = std::panic::catch_unwind(move || Typescriptify::parse(true, tokens));
+        match result {
+
+            Ok(_x) => assert!(false, "expecting panic!"),
+            Err(msg) => assert_debug_snapshot_matches!( *msg.downcast_ref::<String>().unwrap(),
+            @r###""called `Result::unwrap()` on an `Err` value: \"2 errors:\\n\\t# variant field name `kind` conflicts with internal tag\\n\\t# clash with field in \\\"A::B\\\". Maybe use a #[serde(content=\\\"...\\\")] attribute.\"""###
+            )
+        }
+
+    }
+    #[test]
+    fn flatten_is_fail() {
+        let tokens = quote! (
+        #[derive(Serialize)]
+            struct SSS {
+                a: i32,
+                b: f64,
+                #[serde(flatten)]
+                c: DDD,
+            }
+        );
+        let result = std::panic::catch_unwind(move || Typescriptify::parse(true, tokens));
+        match result {
+            Ok(_x) => assert!(false, "expecting panic!"),
+            Err(msg) => assert_debug_snapshot_matches!( *msg.downcast_ref::<String>().unwrap(),
+            @r###""called `Result::unwrap()` on an `Err` value: \"SSS: #[serde(flatten)] does not work for typescript-definitions currently\"""###
+            )
+        }
+    }
+
 }

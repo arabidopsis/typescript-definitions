@@ -261,19 +261,6 @@ fn cow_as_pig() {
         @r###""export type S = { pig: Pig<string>, cow: string };""###
     )
 }
-// #[test]
-// #[should_panic]
-fn tag_clash_in_enum() {
-    // #[should_panic] doesn't work here
-    // since the panic occurs during compiling
-    // not during execution
-    // #[derive(TypeScriptify)]
-    // #[serde(tag = "kind")]
-    enum A {
-        Unit,
-        B { kind: i32, b: String },
-    }
-}
 
 #[test]
 fn unit_enum_is_enum() {
