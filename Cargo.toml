@@ -1,6 +1,6 @@
 [package]
 name = "typescript-definitions"
-version = "0.1.8"
+version = "0.1.9"
 description = "serde support for exporting Typescript definitions"
 readme = "README.md"
 authors = ["Tim Ryan <id@timryan.org>", "Sam Rijs <srijs@airpost.net>" , "Ian Castleden <ian.castleden@gmail.com>"]
@@ -14,7 +14,7 @@ exclude = ['scripts/*', 'templates/*' ]
 
 [dependencies]
 serde = "1.0.87"
-typescript-definitions-derive = { version = "0.1.8",  path = "typescript-definitions-derive" }
+typescript-definitions-derive = { version = "0.1.9",  path = "typescript-definitions-derive" }
 
 
 [dev-dependencies]
