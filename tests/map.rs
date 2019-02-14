@@ -102,7 +102,7 @@ fn external_enum() {
     }
 
     assert_snapshot_matches!(
-        External::type_script_ify(),
+    External::type_script_ify(),
         @r###"export type External = { V1: { id: number , attr: string } }
    | { V2: { id: number , attr2: string[] } };"###
     )

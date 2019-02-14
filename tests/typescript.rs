@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::borrow::Cow;
 // use serde::de::value::Error;
 
-use insta::{assert_snapshot_matches};
+use insta::assert_snapshot_matches;
 use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "test")]
@@ -156,7 +156,7 @@ fn enum_with_tuple_variants() {
     }
 
     assert_snapshot_matches!(
-        Enum___typescript_definition(),
+    Enum___typescript_definition(),
         @r###"export type Enum = { kind: "V1" , fields: [ number , string ] }
    | { kind: "V2" , fields: [ number , boolean ] }
    | { kind: "V3" , fields: [ number , number ] };"###
@@ -343,7 +343,7 @@ fn enum_with_serde_skip() {
         Z,
     }
     assert_snapshot_matches!(
-        S::type_script_ify(),
+    S::type_script_ify(),
         @r###"export type S = { kind: "A" }
    | { kind: "E" , fields: { key: number , a: number } }
    | { kind: "F" , fields: [ number , string ] };"###

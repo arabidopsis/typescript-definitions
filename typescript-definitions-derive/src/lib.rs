@@ -386,19 +386,14 @@ impl<'a> ParseContext<'a> {
         }
     }
     fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {
-       
-        let to_ts = | ty : &syn::Type | {
-            self.type_to_ts(ty, field)
-        };
+        let to_ts = |ty: &syn::Type| self.type_to_ts(ty, field);
 
         match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" => quote! { string },
             "bool" => quote! { boolean },
-            "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => {
-                to_ts(&ts.args[0])
-            }
+            "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => to_ts(&ts.args[0]),
 
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
@@ -486,9 +481,9 @@ impl<'a> ParseContext<'a> {
             TypeParen, TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
         };
         match ty {
-            Slice(TypeSlice { elem, .. }) | 
-            Array(TypeArray { elem, .. }) |
-            Ptr(TypePtr { elem, .. }) => self.type_to_array(elem, field),
+            Slice(TypeSlice { elem, .. })
+            | Array(TypeArray { elem, .. })
+            | Ptr(TypePtr { elem, .. }) => self.type_to_array(elem, field),
             Reference(TypeReference { elem, .. }) => self.type_to_ts(elem, field),
             // fn(a: A,b: B, c:C) -> D
             BareFn(TypeBareFn { output, inputs, .. }) => {
