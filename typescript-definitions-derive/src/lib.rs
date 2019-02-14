@@ -12,21 +12,6 @@
 
 extern crate proc_macro;
 
-// #[macro_use]
-// extern crate quote;
-
-//#[macro_use]
-// #[allow(unused_imports)]
-//extern crate lazy_static;
-
-// extern crate proc_macro2;
-// extern crate regex;
-// extern crate serde_derive_internals;
-// extern crate syn;
-
-// #[cfg(feature = "bytes")]
-// extern crate serde_bytes;
-
 use proc_macro2::Ident;
 use quote::quote;
 use serde_derive_internals::{ast, Ctxt, Derive};

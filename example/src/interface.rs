@@ -1,8 +1,6 @@
 #![allow(unused)]
 
 use serde::Serialize;
-// see https://github.com/graphql-rust/graphql-client/issues/176
-use serde_derive::*;
 use typescript_definitions::{TypeScriptify, TypescriptDefinition};
 
 #[cfg(target_arch="wasm32")]

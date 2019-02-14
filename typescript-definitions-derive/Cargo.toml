@@ -19,16 +19,13 @@ path = "src/lib.rs"
 quote = "0.6.11"
 serde_derive_internals = "0.24.1"
 syn = "0.15.26"
-
-# serde = { version = "1.0.85", features = ["derive"] }
 proc-macro2 = "0.4.27"
 regex = "1.1.0"
 lazy_static = "1.2.0"
 
 
 [dev-dependencies]
-serde_derive = "1.0.87"
-serde = "1.0.87"
+serde = { version = "1.0.87", features = ["derive"] }
 insta = "0.6.2"
 
 [features]

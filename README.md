@@ -31,7 +31,7 @@ example:
 // #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
-use serde_derive::Serialize;
+use serde::Serialize;
 use typescript_definitions::TypescriptDefinition;
 
 #[derive(Serialize, TypescriptDefinition)]
@@ -99,8 +99,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 typescript-definitions = "0.1"
-serde = "1"
-serde_derive = "1"
+serde = { version = "1.0", features = ["derive"] }
 
 [target.wasm32-unknown-unknown.dependencies]
 wasm-bindgen = "0.2"
@@ -145,7 +144,7 @@ You can ignore WASM *totally* by deriving using `TypeScriptify`:
 
 // wasm_bindgen not needed
 // use wasm_bindgen::prelude::*;
-use serde_derive::Serialize;
+use serde::Serialize;
 use typescript_definitions::TypeScriptify;
 
 #[derive(Serialize, TypeScriptify)]
@@ -175,7 +174,7 @@ Use the cfg macro To protect any use of `type_script_ify()` if you need to.
 If you have a generic struct such as:
 
 ```rust
-use serde_derive::Serialize;
+use serde::Serialize;
 use typescript_definitions::TypeScriptify;
 #[derive(Serialize, TypeScriptify)]
 pub struct Value<T> {
@@ -243,7 +242,7 @@ that field to be a string. (And serde_json will output a `\xdd` encoded
 string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
 
 ```rust
-use serde_derive::*;
+use serde::Serialize;
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
 
 #[derive(Serialize, TypeScriptify)]
@@ -281,7 +280,7 @@ If you reference another type in a struct e.g.
 ```rust
 // #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
-use serde_derive::Serialize;
+use serde::Serialize;
 use typescript_definitions::{TypescriptDefinition};
 #[derive(Serialize)]
 struct B<T> {q: T}
@@ -342,6 +341,8 @@ enum Color {
 
 because serde_json will render `Color::Red` as the string `"Red"` instead of `Color.Red`
 (because JSON).
+
+TODO: What about `enum Color {Red = 0, Green = 1 , Blue= 2}`?
 
 Serde always seems to render `Result` (in json) as `{"Ok": T } | {"Err": E}` i.e as "External"
 so we do too.

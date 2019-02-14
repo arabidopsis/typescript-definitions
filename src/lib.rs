@@ -43,8 +43,7 @@ pub trait TypeScriptifyTrait {
 ///
 /// e.g.
 /// ```
-/// # #[macro_use] extern crate serde_derive;
-/// use serde;
+/// use serde::Serialize;
 /// use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
 ///
 /// #[derive(Serialize, TypeScriptify)]

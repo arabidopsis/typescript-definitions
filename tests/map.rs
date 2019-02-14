@@ -1,8 +1,6 @@
 #![allow(unused)]
 
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
-// see https://github.com/graphql-rust/graphql-client/issues/176
-use serde_derive::*;
 
 use serde::Serialize;
 // use serde::de::value::Error;
