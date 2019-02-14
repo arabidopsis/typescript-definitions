@@ -6,7 +6,7 @@ use serde_derive::*;
 
 use serde::Serialize;
 // use serde::de::value::Error;
-use insta::assert_debug_snapshot_matches;
+use insta::assert_snapshot_matches;
 use wasm_bindgen::prelude::*;
 
 // #[test]
@@ -67,9 +67,9 @@ fn as_byte_string() {
     let s = S {
         image: vec![1, 2, 3, 4, 5, 244],
     };
-    assert_debug_snapshot_matches!(
+    assert_snapshot_matches!(
         serde_json::to_string(&s).unwrap(),
-        @r###""{\"image\":\"\\\\x01\\\\x02\\\\x03\\\\x04\\\\x05\\\\xf4\"}""###
+        @r###"{"image":"\\x01\\x02\\x03\\x04\\x05\\xf4"}"###
 
     )
 }
@@ -85,9 +85,10 @@ fn untagged_enum() {
         V2 { id: i32, attr2: Vec<String> },
     }
 
-    assert_debug_snapshot_matches!(
+    assert_snapshot_matches!(
         Untagged::type_script_ify(),
-        @r###""export type Untagged = { id: number , attr: string }\n   | { id: number , attr2: string[] };""###
+        @r###"export type Untagged = { id: number , attr: string }
+   | { id: number , attr2: string[] };"###
 
     )
 }
@@ -102,8 +103,9 @@ fn external_enum() {
         V2 { id: i32, attr2: Vec<String> },
     }
 
-    assert_debug_snapshot_matches!(
+    assert_snapshot_matches!(
         External::type_script_ify(),
-        @r###""export type External = { V1: { id: number , attr: string } }\n   | { V2: { id: number , attr2: string[] } };""###
+        @r###"export type External = { V1: { id: number , attr: string } }
+   | { V2: { id: number , attr2: string[] } };"###
     )
 }

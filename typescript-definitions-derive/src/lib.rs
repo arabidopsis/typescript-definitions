@@ -59,43 +59,11 @@ type Bounds = Vec<TSType>;
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let input = QuoteT::from(input);
-        let parsed = Typescriptify::parse(false, input);
-        let export_string = parsed.wasm_string();
-
-        let export_ident = ident_from_str(&format!(
-            "TS_EXPORT_{}",
-            parsed.ident.to_string().to_uppercase()
-        ));
-
-        // eprintln!(
-        //     "....[typescript] export type {}={};",
-        //     parsed.ident, typescript_string
-        // );
-        let mut q = quote! {
-
-            #[wasm_bindgen(typescript_custom_section)]
-            pub const #export_ident : &'static str = #export_string;
-        };
-
-        // just to allow testing... only `--features=test` seems to work
-        if cfg!(any(test, feature = "test")) {
-            let typescript_ident =
-                ident_from_str(&format!("{}___typescript_definition", &parsed.ident));
-
-            q.extend(quote!(
-                fn #typescript_ident ( ) -> &'static str {
-                   #export_string
-                }
-
-            ));
-        }
-
-        q.into()
+        do_derive_typescript_definition(input).into()
     } else {
         proc_macro::TokenStream::new()
     }
 }
-
 /// derive proc_macro to expose Typescript definitions as a static function.
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
@@ -104,68 +72,106 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let input = QuoteT::from(input);
-        let parsed = Typescriptify::parse(true, input);
-        let ts_ident = parsed.ts_ident_str();
-        let fmt = if parsed.ctxt.is_enum.get() {
-            "export enum {} {};"
-        } else {
-            "export type {} = {};"
-        };
-        let body = match &parsed.body {
-            quotet::QuoteT::Builder(b) => {
-                let b = b.build();
-                quote!( let f = #b; format!(#fmt, #ts_ident, f) )
-            }
-            _ => {
-                let b = parsed.body.to_string();
-                let b = patch(&b);
-                quote!(format!(#fmt, #ts_ident, #b))
-            }
-        };
-
-        // let map = &parsed.map();
-
-        let ident = &parsed.ident;
-
-        let ret = if parsed.ts_generics.is_empty() {
-            quote! {
-
-                impl ::typescript_definitions::TypeScriptifyTrait for #ident {
-                    fn type_script_ify() ->  String {
-                        #body
-                    }
-
-                    // fn type_script_fields() -> Option<Vec<&'static str>> {
-                    //     #map
-                    // }
-                }
-            }
-        } else {
-            let generics = parsed.generic_args_with_lifetimes();
-            let rustg = &parsed.rust_generics;
-            quote! {
-
-                impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
-                    fn type_script_ify() ->  String {
-                        #body
-                    }
-
-                    // fn type_script_fields() -> Option<Vec<&'static str>> {
-                    //     #map
-                    // }
-                }
-            }
-        };
-        if let Some("1") = option_env!("TFY_SHOW_CODE") {
-            eprintln!("{}", patch(&ret.to_string()));
-        }
-
-        ret.into()
+        do_derive_type_script_ify(input).into()
     } else {
         proc_macro::TokenStream::new()
     }
 }
 
+fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
+    let parsed = Typescriptify::parse(false, input);
+    let export_string = parsed.wasm_string();
+
+    let export_ident = ident_from_str(&format!(
+        "TS_EXPORT_{}",
+        parsed.ident.to_string().to_uppercase()
+    ));
+
+    // eprintln!(
+    //     "....[typescript] export type {}={};",
+    //     parsed.ident, typescript_string
+    // );
+    let mut q = quote! {
+
+        #[wasm_bindgen(typescript_custom_section)]
+        pub const #export_ident : &'static str = #export_string;
+    };
+
+    // just to allow testing... only `--features=test` seems to work
+    if cfg!(any(test, feature = "test")) {
+        let typescript_ident =
+            ident_from_str(&format!("{}___typescript_definition", &parsed.ident));
+
+        q.extend(quote!(
+            fn #typescript_ident ( ) -> &'static str {
+                #export_string
+            }
+
+        ));
+    }
+
+    q
+}
+
+fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
+    let parsed = Typescriptify::parse(true, input);
+    let ts_ident = parsed.ts_ident_str();
+    let fmt = if parsed.ctxt.is_enum.get() {
+        "export enum {} {};"
+    } else {
+        "export type {} = {};"
+    };
+    let body = match &parsed.body {
+        quotet::QuoteT::Builder(b) => {
+            let b = b.build();
+            quote!( let f = #b; format!(#fmt, #ts_ident, f) )
+        }
+        _ => {
+            let b = parsed.body.to_string();
+            let b = patch(&b);
+            quote!(format!(#fmt, #ts_ident, #b))
+        }
+    };
+
+    // let map = &parsed.map();
+
+    let ident = &parsed.ident;
+
+    let ret = if parsed.ts_generics.is_empty() {
+        quote! {
+
+            impl ::typescript_definitions::TypeScriptifyTrait for #ident {
+                fn type_script_ify() ->  String {
+                    #body
+                }
+
+                // fn type_script_fields() -> Option<Vec<&'static str>> {
+                //     #map
+                // }
+            }
+        }
+    } else {
+        let generics = parsed.generic_args_with_lifetimes();
+        let rustg = &parsed.rust_generics;
+        quote! {
+
+            impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
+                fn type_script_ify() ->  String {
+                    #body
+                }
+
+                // fn type_script_fields() -> Option<Vec<&'static str>> {
+                //     #map
+                // }
+            }
+        }
+    };
+    if let Some("1") = option_env!("TFY_SHOW_CODE") {
+        eprintln!("{}", patch(&ret.to_string()));
+    }
+
+    ret
+}
 struct Typescriptify {
     ctxt: ParseContext<'static>,
     ident: syn::Ident,                         // name of enum struct
@@ -395,13 +401,18 @@ impl<'a> ParseContext<'a> {
         }
     }
     fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {
+       
+        let to_ts = | ty : &syn::Type | {
+            self.type_to_ts(ty, field)
+        };
+
         match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" => quote! { string },
             "bool" => quote! { boolean },
             "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => {
-                self.type_to_ts(&ts.args[0], field)
+                to_ts(&ts.args[0])
             }
 
             // std::collections
@@ -409,23 +420,23 @@ impl<'a> ParseContext<'a> {
                 self.type_to_array(&ts.args[0], field)
             }
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
-                let k = self.type_to_ts(&ts.args[0], field);
-                let v = self.type_to_ts(&ts.args[1], field);
+                let k = to_ts(&ts.args[0]);
+                let v = to_ts(&ts.args[1]);
                 // quote!(Map<#k,#v>)
                 quote!( { [key: #k]:#v } )
             }
             "HashSet" | "BTreeSet" if ts.args.len() == 1 => {
-                let k = self.type_to_ts(&ts.args[0], field);
+                let k = to_ts(&ts.args[0]);
                 //quote!(Set<#k>)
                 quote! ( #k[] )
             }
             "Option" if ts.args.len() == 1 => {
-                let k = self.type_to_ts(&ts.args[0], field);
+                let k = to_ts(&ts.args[0]);
                 quote!(  #k | null  )
             }
             "Result" if ts.args.len() == 2 => {
-                let k = self.type_to_ts(&ts.args[0], field);
-                let v = self.type_to_ts(&ts.args[1], field);
+                let k = to_ts(&ts.args[0]);
+                let v = to_ts(&ts.args[1]);
                 // ugh!
                 // see patch.rs...
                 let vertical_bar = ident_from_str(patch::PATCH);
@@ -434,7 +445,7 @@ impl<'a> ParseContext<'a> {
             "Fn" | "FnOnce" | "FnMut" => {
                 let args = self.derive_syn_types(&ts.args, field);
                 if let Some(ref rt) = ts.return_type {
-                    let rt = self.type_to_ts(rt, field);
+                    let rt = to_ts(rt);
                     quote! { (#(#args),*) => #rt }
                 } else {
                     quote! { (#(#args),*) => undefined }
@@ -490,8 +501,8 @@ impl<'a> ParseContext<'a> {
             TypeParen, TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
         };
         match ty {
-            Slice(TypeSlice { elem, .. }) => self.type_to_array(elem, field),
-            Array(TypeArray { elem, .. }) => self.type_to_array(elem, field),
+            Slice(TypeSlice { elem, .. }) | 
+            Array(TypeArray { elem, .. }) |
             Ptr(TypePtr { elem, .. }) => self.type_to_array(elem, field),
             Reference(TypeReference { elem, .. }) => self.type_to_ts(elem, field),
             // fn(a: A,b: B, c:C) -> D
@@ -610,41 +621,35 @@ impl<'a> ParseContext<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod macro_test {
-    use insta::assert_debug_snapshot_matches;
-    use super::Typescriptify;
     use super::quote;
+    use super::Typescriptify;
+    use insta::assert_debug_snapshot_matches;
     #[test]
     // #[should_panic]
     fn tag_clash_in_enum() {
-
         let tokens = quote!(
-
             #[derive(Serialize)]
             #[serde(tag = "kind")]
             enum A {
                 Unit,
                 B { kind: i32, b: String },
             }
-        
         );
 
         let result = std::panic::catch_unwind(move || Typescriptify::parse(true, tokens));
         match result {
-
             Ok(_x) => assert!(false, "expecting panic!"),
-            Err(msg) => assert_debug_snapshot_matches!( *msg.downcast_ref::<String>().unwrap(),
+            Err(ref msg) => assert_debug_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
             @r###""called `Result::unwrap()` on an `Err` value: \"2 errors:\\n\\t# variant field name `kind` conflicts with internal tag\\n\\t# clash with field in \\\"A::B\\\". Maybe use a #[serde(content=\\\"...\\\")] attribute.\"""###
-            )
+            ),
         }
-
     }
     #[test]
     fn flatten_is_fail() {
-        let tokens = quote! (
-        #[derive(Serialize)]
+        let tokens = quote!(
+            #[derive(Serialize)]
             struct SSS {
                 a: i32,
                 b: f64,
@@ -655,9 +660,9 @@ mod macro_test {
         let result = std::panic::catch_unwind(move || Typescriptify::parse(true, tokens));
         match result {
             Ok(_x) => assert!(false, "expecting panic!"),
-            Err(msg) => assert_debug_snapshot_matches!( *msg.downcast_ref::<String>().unwrap(),
+            Err(ref msg) => assert_debug_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
             @r###""called `Result::unwrap()` on an `Err` value: \"SSS: #[serde(flatten)] does not work for typescript-definitions currently\"""###
-            )
+            ),
         }
     }
 

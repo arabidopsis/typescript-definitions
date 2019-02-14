@@ -84,3 +84,18 @@ pub struct MyBytes {
     #[serde(serialize_with = "typescript_definitions::as_byte_string")]
     pub buffer: Vec<u8>,
 }
+#[derive(Serialize, TypescriptDefinition)]
+#[serde(tag = "kind", content = "fields")]
+enum S {
+    A,
+    E2 {
+        key: i32,
+        a: i32,
+        #[serde(skip)]
+
+        b: f64,
+    },
+    F(i32, #[serde(skip)] f64, String),
+    #[serde(skip)]
+    Z,
+}

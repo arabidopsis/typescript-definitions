@@ -25,6 +25,7 @@ proc-macro2 = "0.4.27"
 regex = "1.1.0"
 serde_json = "1.0.38"
 insta = "0.6.2"
+# insta = { version="0.6.2", path="../insta" }
 
 [features]
 export-typescript = ["typescript-definitions-derive/export-typescript"]
