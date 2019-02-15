@@ -1,26 +1,28 @@
 
 
-test: readme
+test: update-readme
 	@cargo test --all --features=test
 
-doc: readme
+doc: update-readme
 	@rm -rf target/doc
 	@cargo doc --no-deps --open
 	# ./scripts/readme.sh
 
-format:
+format: update-readme
 	@rustup component add rustfmt 2> /dev/null
 	@cargo fmt
 
-format-check: readme
+format-check: update-readme
 	@rustup component add rustfmt 2> /dev/null
 	@cargo fmt -- --check
 
-lint:
+lint: update-readme
 	@rustup component add clippy 2> /dev/null
 	@cargo clippy
 
-update-readme:
+update-readme: README.md
+
+README.md: src/lib.rs
 	@cargo readme > README.md
 
 pre-publish: update-readme test format-check lint
