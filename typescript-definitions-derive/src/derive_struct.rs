@@ -90,7 +90,7 @@ impl<'a> ParseContext<'_> {
         };
         self.check_flatten(&fields, ast_container);
         let content = self.derive_fields(&fields);
-        quote!({#(#content),*}).into()
+        quote!({#(#content);*}).into()
         /*
               if self.is_type_script_ify {
                    let mut flatten = Vec::new();

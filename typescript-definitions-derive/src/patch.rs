@@ -21,16 +21,17 @@ use std::borrow::Cow;
 pub const PATCH: &str = "__XYZZ__patch_me__XYZZ__";
 
 // type N = [(&'static str, &'static str); 10];
-const NAMES: [(&str, &str); 10] = [
+const NAMES: [(&str, &str); 11] = [
     ("brack", r"\s*\[\s+\]"),
     ("brace", r"\{\s+\}"),
     ("colon", r"\s+[:]\s"),
-    ("bar", r"\s\|\s+\{"),
+    ("bar", r"(^|\s)\|\s+\{"),
     ("enl", r"\n+\}"),
     ("fnl", r"\{\n+"),
     ("result", PATCH), // for Result...
     ("lt", r"\s<\s"),
     ("gt", r"\s>(\s|$)"),
+    ("semi", r"\s+;"),
     ("nl", r"\n+"), // last!
 ];
 lazy_static! {
@@ -88,12 +89,13 @@ pub fn patch(s: &str) -> Cow<'_, str> {
             "brack" => "[]",
             "colon" => ": ",
             "fnl" => "{ ",
-            "bar" => "\n   | {",
+            "bar" => "\n  | {",
             "enl" => " }",
             "nl" => " ",
             "result" => "|",
             "lt" => "<",
             "gt" => ">",
+            "semi" => ";",
             _ => return Cow::Owned(c.get(0).unwrap().as_str().to_owned()), // maybe should just panic?
         };
         Cow::Borrowed(m)

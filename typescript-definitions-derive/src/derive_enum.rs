@@ -88,7 +88,7 @@ impl<'a> ParseContext<'_> {
             ast::Style::Unit => self.derive_unit_variant(&taginfo, variant),
         });
         // OK generate A | B | C etc
-        quote! ( #(#content)|* ).into()
+        quote! ( #(|#content)* ).into()
     }
 
     fn derive_unit_variant(&self, taginfo: &TagInfo, variant: &Variant) -> QuoteMaker {
@@ -133,7 +133,7 @@ impl<'a> ParseContext<'_> {
         };
 
         quote! (
-            { #tag: #variant_name, #content: #ty }
+            { #tag: #variant_name; #content: #ty }
         )
         .into()
     }
@@ -158,13 +158,13 @@ impl<'a> ParseContext<'_> {
         if taginfo.tag.is_none() {
             if taginfo.untagged {
                 return quote! (
-                    { #(#contents),* }
+                    { #(#contents);* }
                 )
                 .into();
             };
             let tag = ident_from_str(&variant_name);
             return quote! (
-                { #tag : { #(#contents),* }  }
+                { #tag : { #(#contents);* }  }
             )
             .into();
         }
@@ -173,7 +173,7 @@ impl<'a> ParseContext<'_> {
         if let Some(content) = taginfo.content {
             let content = ident_from_str(&content);
             quote! (
-                { #tag: #variant_name, #content: { #(#contents),* } }
+                { #tag: #variant_name; #content: { #(#contents);* } }
             )
             .into()
         } else {
@@ -191,7 +191,7 @@ impl<'a> ParseContext<'_> {
                 }
             }
             quote! (
-                { #tag: #variant_name, #(#contents),* }
+                { #tag: #variant_name; #(#contents);* }
             )
             .into()
         }
@@ -233,7 +233,7 @@ impl<'a> ParseContext<'_> {
         };
 
         quote! (
-        { #tag: #variant_name, #content : [ #(#contents),* ] }
+        { #tag: #variant_name; #content : [ #(#contents),* ] }
         )
         .into()
     }

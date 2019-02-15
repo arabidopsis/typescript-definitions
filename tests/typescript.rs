@@ -50,7 +50,7 @@ fn struct_with_borrowed_fields() {
 
     assert_snapshot_matches!(
         Borrow___typescript_definition(),
-        @"export type Borrow = { raw: string , cow: string };"
+        @"export type Borrow = { raw: string; cow: string };"
     )
 }
 #[cfg(feature = "test")]
@@ -66,7 +66,7 @@ fn struct_point_with_field_rename() {
 
     assert_snapshot_matches!(
         Point___typescript_definition(),
-        @"export type Point = { X: number , Y: number };"
+        @"export type Point = { X: number; Y: number };"
 
     )
 }
@@ -82,7 +82,7 @@ fn struct_with_array() {
 
     assert_snapshot_matches!(
         Point___typescript_definition(),
-        @"export type Point = { x: number[] , y: number , z: number | null };"
+        @"export type Point = { x: number[]; y: number; z: number | null };"
 
     )
 }
@@ -101,7 +101,7 @@ fn struct_with_tuple() {
 
     assert_snapshot_matches!(
         Point2___typescript_definition(),
-        @"export type Point2 = { x: [ number , string , number[] ] , y: number , v: number[] , z: { [ key: string ]: number } };"
+        @"export type Point2 = { x: [ number , string , number[] ]; y: number; v: number[]; z: { [ key: string ]: number } };"
 
     )
 }
@@ -123,9 +123,10 @@ fn enum_with_renamed_newtype_variants() {
 
     assert_snapshot_matches!(
         Enum___typescript_definition(),
-        @r###"export type Enum = { kind: "Var1" , fields: boolean }
-   | { kind: "Var2" , fields: number }
-   | { kind: "Var3" , fields: string };"###
+        @r###"export type Enum = 
+  | { kind: "Var1"; fields: boolean }
+  | { kind: "Var2"; fields: number }
+  | { kind: "Var3"; fields: string };"###
 
     )
 }
@@ -157,9 +158,10 @@ fn enum_with_tuple_variants() {
 
     assert_snapshot_matches!(
     Enum___typescript_definition(),
-        @r###"export type Enum = { kind: "V1" , fields: [ number , string ] }
-   | { kind: "V2" , fields: [ number , boolean ] }
-   | { kind: "V3" , fields: [ number , number ] };"###
+        @r###"export type Enum = 
+  | { kind: "V1"; fields: [ number , string ] }
+  | { kind: "V2"; fields: [ number , boolean ] }
+  | { kind: "V3"; fields: [ number , number ] };"###
     )
 }
 #[cfg(feature = "test")]
@@ -189,9 +191,10 @@ fn enum_with_struct_variants_and_renamed_fields() {
 
     assert_snapshot_matches!(
         Enum___typescript_definition(),
-        @r###"export type Enum = { kind: "V1" , Foo: boolean }
-   | { kind: "V2" , Bar: number , Baz: number }
-   | { kind: "V3" , Quux: string };"###
+        @r###"export type Enum = 
+  | { kind: "V1"; Foo: boolean }
+  | { kind: "V2"; Bar: number; Baz: number }
+  | { kind: "V3"; Quux: string };"###
 
     )
 }
@@ -208,9 +211,10 @@ fn enum_with_struct_and_tags() {
 
     assert_snapshot_matches!(
         Enum___typescript_definition(),
-        @r###"export type Enum = { id: "V1" , content: { foo: boolean } }
-   | { id: "V2" , content: { bar: number , baz: number } }
-   | { id: "V3" , content: { quux: string } };"###
+        @r###"export type Enum = 
+  | { id: "V1"; content: { foo: boolean } }
+  | { id: "V2"; content: { bar: number; baz: number } }
+  | { id: "V3"; content: { quux: string } };"###
 
     )
 }
@@ -232,7 +236,7 @@ fn struct_with_attr_refering_to_other_type() {
     }
     assert_snapshot_matches!(
         A___typescript_definition(),
-        @"export type A = { x: number , b: B<number>, cnew: { Ok: number } | { Err: string } , d: { Ok: number | null } | { Err: string } };"
+        @"export type A = { x: number; b: B<number>; cnew: { Ok: number } | { Err: string }; d: { Ok: number | null } | { Err: string } };"
     )
 }
 
@@ -246,7 +250,7 @@ fn struct_typescriptify() {
     }
     assert_snapshot_matches!(
         A::type_script_ify(),
-        @"export type A = { x: number , c: { Ok: number } | { Err: string } , d: { Ok: number | null } | { Err: string } };"
+        @"export type A = { x: number; c: { Ok: number } | { Err: string }; d: { Ok: number | null } | { Err: string } };"
     )
 }
 
@@ -261,7 +265,7 @@ fn cow_as_pig() {
     }
     assert_snapshot_matches!(
         S::type_script_ify(),
-        @"export type S = { pig: Pig<string>, cow: string };"
+        @"export type S = { pig: Pig<string>; cow: string };"
     )
 }
 
@@ -291,7 +295,7 @@ fn struct_has_function() {
     }
     assert_snapshot_matches!(
         API::<i32>::type_script_ify(),
-        @"export type API<T> = { key: number , a: T , get: ( arg: number ) => string , get2: ( T , number ) => number | null };"
+        @"export type API<T> = { key: number; a: T; get: ( arg: number ) => string; get2: ( T , number ) => number | null };"
     )
 }
 
@@ -306,7 +310,7 @@ fn struct_with_traitbounds() {
     }
     assert_snapshot_matches!(
         API::<i32>::type_script_ify(),
-        @"export type API<T> = { key: number , a: T };"
+        @"export type API<T> = { key: number; a: T };"
 
     )
 }
@@ -321,7 +325,7 @@ fn struct_with_serde_skip() {
     }
     assert_snapshot_matches!(
         S::type_script_ify(),
-        @"export type S = { key: number , aa: number };"
+        @"export type S = { key: number; aa: number };"
 
 
     )
@@ -344,9 +348,10 @@ fn enum_with_serde_skip() {
     }
     assert_snapshot_matches!(
     S::type_script_ify(),
-        @r###"export type S = { kind: "A" }
-   | { kind: "E" , fields: { key: number , a: number } }
-   | { kind: "F" , fields: [ number , string ] };"###
+        @r###"export type S = 
+  | { kind: "A" }
+  | { kind: "E"; fields: { key: number; a: number } }
+  | { kind: "F"; fields: [ number , string ] };"###
     )
 }
 
@@ -362,13 +367,15 @@ fn struct_with_phantom_data_skip() {
     }
     assert_snapshot_matches!(
         S::type_script_ify(),
-        @"export type S = { key: number , a: number };"
+        @"export type S = { key: number; a: number };"
     )
 }
 #[cfg(feature = "test")]
 #[test]
 fn struct_with_pointers_and_slices() {
     #[derive(Serialize, TypescriptDefinition)]
+    /// This is a doc comment
+    /// on multiple lines.
     struct Pointers<'a> {
         keys: &'a [String],
         // a_ptr: * const i32,
@@ -379,7 +386,9 @@ fn struct_with_pointers_and_slices() {
 
     assert_snapshot_matches!(
         Pointers___typescript_definition(),
-        @"export type Pointers = { keys: string[] , buffer: number[] , buffer2: number[] };"
+        @r###"// This is a doc comment
+// on multiple lines.
+export type Pointers = { keys: string[]; buffer: number[]; buffer2: number[] };"###
 
     )
 }
