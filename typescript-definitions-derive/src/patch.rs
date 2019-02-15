@@ -94,8 +94,8 @@ pub fn patch(s: &str) -> Cow<'_, str> {
             "result" => "|",
             "lt" => "<",
             "gt" => ">",
-            _ => c.get(0).unwrap().as_str(), // maybe should just panic?
+            _ => return Cow::Owned(c.get(0).unwrap().as_str().to_owned()), // maybe should just panic?
         };
-        m.to_owned()
+       Cow::Borrowed(m)
     })
 }
