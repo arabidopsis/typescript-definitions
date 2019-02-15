@@ -18,6 +18,7 @@ use serde_derive_internals::{ast, Ctxt, Derive};
 // use std::str::FromStr;
 use syn::DeriveInput;
 
+mod attrs;
 mod derive_enum;
 mod derive_struct;
 mod patch;
@@ -101,20 +102,21 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     let parsed = Typescriptify::parse(true, input);
     let ts_ident = parsed.ts_ident_str();
+    let docs = parsed.docs();
     let fmt = if parsed.ctxt.is_enum.get() {
-        "export enum {} {};"
+        "{}export enum {} {};"
     } else {
-        "export type {} = {};"
+        "{}export type {} = {};"
     };
     let body = match &parsed.body {
         quotet::QuoteT::Builder(b) => {
             let b = b.build();
-            quote!( let f = #b; format!(#fmt, #ts_ident, f) )
+            quote!( let f = #b; format!(#fmt, #docs, #ts_ident, f) )
         }
         _ => {
             let b = parsed.body.to_string();
             let b = patch(&b);
-            quote!(format!(#fmt, #ts_ident, #b))
+            quote!(format!(#fmt, #docs, #ts_ident, #b))
         }
     };
 
@@ -163,21 +165,32 @@ struct Typescriptify {
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     body: QuoteMaker,
     rust_generics: syn::Generics, // original rust generics
+    docs: Vec<String>,
 }
 impl Typescriptify {
     fn wasm_string(&self) -> String {
         if self.ctxt.is_enum.get() {
             format!(
-                "export enum {} {};",
+                "{}export enum {} {};",
+                self.docs(),
                 self.ts_ident_str(),
                 self.ts_body_str()
             )
         } else {
             format!(
-                "export type {} = {};",
+                "{}export type {} = {};",
+                self.docs(),
                 self.ts_ident_str(),
                 self.ts_body_str()
             )
+        }
+    }
+
+    fn docs(&self) -> String {
+        if !self.docs.is_empty() {
+            self.docs.join("\n") + "\n"
+        } else {
+            "".into()
         }
     }
 
@@ -187,7 +200,8 @@ impl Typescriptify {
     }
     fn ts_body_str(&self) -> String {
         let ts = self.body.to_string();
-        patch(&ts).into()
+        let ts = patch(&ts);
+        return ts.into();
     }
     /// type name suitable for typescript i.e. *no* 'a lifetimes
     fn ts_ident(&self) -> QuoteT {
@@ -241,6 +255,9 @@ impl Typescriptify {
     fn parse(is_type_script_ify: bool, input: QuoteT) -> Self {
         let input: DeriveInput = syn::parse2(input).unwrap();
 
+        let mut attrs = attrs::Attrs::new();
+        attrs.push_doc_comment(&input.attrs);
+
         let cx = Ctxt::new();
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
@@ -273,6 +290,7 @@ impl Typescriptify {
             ts_generics,
             body: typescript,
             rust_generics: container.generics.clone(), // keep original type generics around for type_script_ify
+            docs: attrs.comments.into_iter().map(|s| s.text).collect(),
         }
     }
 }

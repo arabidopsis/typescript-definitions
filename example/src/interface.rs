@@ -48,6 +48,7 @@ pub struct Value<T> {
 
 #[derive(TypescriptDefinition, Serialize, TypeScriptify)]
 #[serde(tag = "tag", content = "fields")]
+/// This is some API Event.
 pub enum FrontendMessage {
     Init {
         id: String,
