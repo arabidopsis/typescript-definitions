@@ -23,5 +23,9 @@ typescript-definitions = { version="0.1",  path = ".."  }
 # version = "0.1"
 # path = ".."
 # features = ["export-typescript"]
-[target.wasm32-unknown-unknown.dependencies]
+
+
+# if you only want to generate ts then you 
+# can uncomment this line.
+# [target.wasm32-unknown-unknown.dependencies]
 wasm-bindgen = "0.2"

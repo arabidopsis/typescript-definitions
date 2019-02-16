@@ -264,6 +264,26 @@ Serde attributes understood but rejected
 
 All others are just ignored.
 
+## Examples
+
+Top level doc (`///` or `//!` ) comments are converted to javascript (line) comments:
+
+```rust
+use serde::Serialize;
+use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+#[derive(Serialize, TypeScriptify)]
+/// This is some API Event.
+struct Event {
+    what : String,
+    pos : Vec<(i32,i32)>
+}
+
+assert_eq!(Event::type_script_ify(), "\
+// This is some API Event.
+export type Event = { what: string; pos: [ number , number ][] };"
+)
+```
+
 ## Problems
 
 Oh yes there are problems...

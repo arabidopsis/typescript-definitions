@@ -6,9 +6,8 @@ use serde_json;
 use serde_json::Error;
 mod interface;
 
-#[cfg(any(debug_assertions, feature="export-typescript"))]
+#[cfg(any(debug_assertions, feature = "export-typescript"))]
 fn main() -> Result<(), Error> {
-
     use self::interface::*;
     // need the trait
     use typescript_definitions::TypeScriptifyTrait;
@@ -49,5 +48,5 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(not(any(debug_assertions, feature="export-typescript")))]
+#[cfg(not(any(debug_assertions, feature = "export-typescript")))]
 fn main() {}

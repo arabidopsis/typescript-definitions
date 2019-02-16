@@ -3,10 +3,11 @@
 use serde::Serialize;
 use typescript_definitions::{TypeScriptify, TypescriptDefinition};
 
-#[cfg(target_arch="wasm32")]
+// if you only want to generate ts then you
+// can uncomment the next line.
+
+// #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
-
-
 
 #[derive(Serialize, TypescriptDefinition)]
 pub struct Newtype(i64);
@@ -48,6 +49,7 @@ pub struct Value<T> {
 
 #[derive(TypescriptDefinition, Serialize, TypeScriptify)]
 #[serde(tag = "tag", content = "fields")]
+#[typescript(verify = "true")]
 /// This is some API Event.
 pub enum FrontendMessage {
     Init {
@@ -72,6 +74,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
+#[typescript(verify)]
 pub struct Borrow<'a> {
     raw: &'a str,
     cow: Cow<'a, str>,
@@ -91,7 +94,6 @@ enum S {
         key: i32,
         a: i32,
         #[serde(skip)]
-
         b: f64,
     },
     F(i32, #[serde(skip)] f64, String),

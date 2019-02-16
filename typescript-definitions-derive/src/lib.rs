@@ -25,6 +25,7 @@ mod patch;
 mod quotet;
 mod utils;
 
+use attrs::Attrs;
 use std::cell::Cell;
 use utils::*;
 
@@ -41,7 +42,7 @@ type Bounds = Vec<TSType>;
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
-#[proc_macro_derive(TypescriptDefinition)]
+#[proc_macro_derive(TypescriptDefinition, attributes(typescript))]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let input = QuoteT::from(input);
@@ -54,7 +55,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
-#[proc_macro_derive(TypeScriptify)]
+#[proc_macro_derive(TypeScriptify, attributes(typescript))]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let input = QuoteT::from(input);
@@ -102,7 +103,7 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     let parsed = Typescriptify::parse(true, input);
     let ts_ident = parsed.ts_ident_str();
-    let docs = parsed.docs();
+    let docs = &parsed.docs;
     let fmt = if parsed.ctxt.is_enum.get() {
         "{}export enum {} {};"
     } else {
@@ -165,32 +166,25 @@ struct Typescriptify {
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     body: QuoteMaker,
     rust_generics: syn::Generics, // original rust generics
-    docs: Vec<String>,
+    docs: String,
+    attrs: Attrs,
 }
 impl Typescriptify {
     fn wasm_string(&self) -> String {
         if self.ctxt.is_enum.get() {
             format!(
                 "{}export enum {} {};",
-                self.docs(),
+                self.docs,
                 self.ts_ident_str(),
                 self.ts_body_str()
             )
         } else {
             format!(
                 "{}export type {} = {};",
-                self.docs(),
+                self.docs,
                 self.ts_ident_str(),
                 self.ts_body_str()
             )
-        }
-    }
-
-    fn docs(&self) -> String {
-        if !self.docs.is_empty() {
-            self.docs.join("\n") + "\n"
-        } else {
-            "".into()
         }
     }
 
@@ -255,10 +249,11 @@ impl Typescriptify {
     fn parse(is_type_script_ify: bool, input: QuoteT) -> Self {
         let input: DeriveInput = syn::parse2(input).unwrap();
 
+        let cx = Ctxt::new();
         let mut attrs = attrs::Attrs::new();
         attrs.push_doc_comment(&input.attrs);
+        attrs.push_attrs(&input.ident, &input.attrs, &cx);
 
-        let cx = Ctxt::new();
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
         let (typescript, ctxt) = {
@@ -290,7 +285,8 @@ impl Typescriptify {
             ts_generics,
             body: typescript,
             rust_generics: container.generics.clone(), // keep original type generics around for type_script_ify
-            docs: attrs.comments.into_iter().map(|s| s.text).collect(),
+            docs: attrs.to_comment_str(),
+            attrs: attrs,
         }
     }
 }
@@ -318,7 +314,14 @@ fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
 
                 Some((ident.clone(), bounds))
             },
-            GenericParam::Const(ConstParam { ident, ..}) => Some((ident.clone(), vec![])),
+            GenericParam::Const(ConstParam { ident, ty, ..}) => {
+                let ty = TSType {
+                    ident: ident.clone(),
+                    args: vec![ty.clone()],
+                    return_type: None,
+                };
+                Some((ident.clone(), vec![ty]))
+            },
 
         })
         .collect()
@@ -611,57 +614,10 @@ impl<'a> ParseContext<'a> {
             if let Some(ref ct) = self.ctxt {
                 ct.error(format!(
                     "{}: #[serde(flatten)] does not work for typescript-definitions currently",
-                    ast_container.ident.to_string()
+                    ast_container.ident
                 ));
             }
         };
         has_flatten
     }
-}
-
-#[cfg(test)]
-mod macro_test {
-    use super::quote;
-    use super::Typescriptify;
-    use insta::assert_debug_snapshot_matches;
-    #[test]
-    // #[should_panic]
-    fn tag_clash_in_enum() {
-        let tokens = quote!(
-            #[derive(Serialize)]
-            #[serde(tag = "kind")]
-            enum A {
-                Unit,
-                B { kind: i32, b: String },
-            }
-        );
-
-        let result = std::panic::catch_unwind(move || Typescriptify::parse(true, tokens));
-        match result {
-            Ok(_x) => assert!(false, "expecting panic!"),
-            Err(ref msg) => assert_debug_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
-            @r###""called `Result::unwrap()` on an `Err` value: \"2 errors:\\n\\t# variant field name `kind` conflicts with internal tag\\n\\t# clash with field in \\\"A::B\\\". Maybe use a #[serde(content=\\\"...\\\")] attribute.\"""###
-            ),
-        }
-    }
-    #[test]
-    fn flatten_is_fail() {
-        let tokens = quote!(
-            #[derive(Serialize)]
-            struct SSS {
-                a: i32,
-                b: f64,
-                #[serde(flatten)]
-                c: DDD,
-            }
-        );
-        let result = std::panic::catch_unwind(move || Typescriptify::parse(true, tokens));
-        match result {
-            Ok(_x) => assert!(false, "expecting panic!"),
-            Err(ref msg) => assert_debug_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
-            @r###""called `Result::unwrap()` on an `Err` value: \"SSS: #[serde(flatten)] does not work for typescript-definitions currently\"""###
-            ),
-        }
-    }
-
 }

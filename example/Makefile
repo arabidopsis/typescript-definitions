@@ -15,3 +15,11 @@ install:
 	rustup target add wasm32-unknown-unknown --toolchain nightly
 	cargo +nightly install wasm-bindgen-cli
 	curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+
+# npm install -g prettier
+pretty:
+	@prettier pkg/mywasm.d.ts | diff -w pkg/mywasm.d.ts - | colordiff
+
+
+.PHONY: pretty install wasm bindgen
