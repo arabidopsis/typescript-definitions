@@ -25,12 +25,12 @@ fn path_to_str(path: &syn::Path) -> String {
     quote!(#path).to_string()
 }
 
-pub fn turbo_fish_check(v: &str, i: &Ident) -> Result<TokenStream, String> {
+pub fn turbo_fish_check(v: &str) -> Result<TokenStream, String> {
     match v.parse::<proc_macro2::TokenStream>() {
-        // just get LexError as error message
-        Err(_) => Err(format!("{}: can't lex turbo_fish \"{}\"", i, v)),
+        // just get LexError as error message... so make our own.
+        Err(_) => Err(format!("Can't lex turbo_fish \"{}\"", v)),
         Ok(tokens) => match syn::parse2::<syn::DeriveInput>(quote!( struct S{ a:v#tokens} )) {
-            Err(_) => Err(format!("{}: can't parse turbo_fish \"{}\"", i, v)),
+            Err(_) => Err(format!("Can't parse turbo_fish \"{}\"", v)),
             Ok(_) => Ok(tokens),
         },
     }
@@ -180,29 +180,13 @@ impl Attrs {
                     }
                 }
                 Word(ref w) if w == "verify" => self.verify = true,
-                // List(MetaList {
-                //     ref ident,
-                //     ref nested,
-                //     ..
-                // }) if ident == "instance" => {
-                //     for method in nested {
-                //         match *method {
-                //             Meta(NameValue(MetaNameValue {
-                //                 ref ident,
-                //                 ref lit,
-                //                 ..
-                //             })) => self.push_generic_value(ident, lit),
-                //             ref mi @ _ => self.err_msg(format!("unsupported raw entry: {}", quote!(#mi))),
-                //         }
-                //     }
-                // }
                 NameValue(MetaNameValue {
                     ref ident,
                     lit: Str(ref value),
                     ..
                 }) if ident == "turbo_fish" => {
                     let v = value.value();
-                    match turbo_fish_check(&v, ident) {
+                    match turbo_fish_check(&v) {
                         Err(msg) => self.err_msg(msg),
                         Ok(tokens) => self.turbo_fish = Some(tokens),
                     }

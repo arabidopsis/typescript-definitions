@@ -6,44 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use super::{patch, Ident};
 use quote::quote;
 use serde_derive_internals::ast;
 
-#[allow(unused)]
-struct Fields {
-    fields: Vec<String>,
-    body: Vec<QuoteT>,
-    flatten: Vec<Ident>,
-}
-impl Tbuild for Fields {
-    fn build(&self) -> QuoteT {
-        let content = &self.body;
-        let fields = &self.fields;
-
-        let flatten = self
-            .flatten
-            .iter()
-            .map(|i| quote!(let _ = <#i>::type_script_ify()));
-        let s = quote!({#(#content),*}).to_string();
-        let s = patch(&s);
-        quote!( {
-                let f = vec![#(#fields),*];
-                #(#flatten);*;
-                #s
-            }
-
-        )
-    }
-    fn map(&self) -> Option<QuoteT> {
-        let fields = &self.fields;
-        Some(quote! {
-            Some(vec![#(#fields),*])
-        })
-    }
-}
-
-use super::{filter_visible, quotet::Tbuild, ParseContext, QuoteMaker, QuoteT};
+use super::{filter_visible, ParseContext, QuoteMaker};
 impl<'a> ParseContext<'_> {
     pub(crate) fn derive_struct(
         &self,
@@ -68,11 +34,13 @@ impl<'a> ParseContext<'_> {
             return self.derive_struct_unit();
         }
         self.check_flatten(&[field], ast_container);
-        self.field_to_ts(field).into()
+        QuoteMaker {
+            body: self.field_to_ts(field),
+        }
     }
 
     fn derive_struct_unit(&self) -> QuoteMaker {
-        quote!({}).into()
+        QuoteMaker { body: quote!({}) }
     }
 
     fn derive_struct_named_fields(
@@ -90,7 +58,9 @@ impl<'a> ParseContext<'_> {
         };
         self.check_flatten(&fields, ast_container);
         let content = self.derive_fields(&fields);
-        quote!({#(#content);*}).into()
+        QuoteMaker {
+            body: quote!({#(#content);*}),
+        }
         /*
               if self.is_type_script_ify {
                    let mut flatten = Vec::new();
@@ -121,8 +91,10 @@ impl<'a> ParseContext<'_> {
             return self.derive_struct_unit();
         }
         self.check_flatten(&fields, ast_container);
-        let content = self.derive_field_types(&fields);
+        let content = self.derive_field_tuple(&fields);
 
-        quote!([#(#content),*]).into()
+        QuoteMaker {
+            body: quote!([#(#content),*]),
+        }
     }
 }

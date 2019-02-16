@@ -74,7 +74,9 @@ impl<'a> ParseContext<'_> {
                 .collect::<Vec<_>>();
             let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
 
-            return quote! ( { #(#k = #v),* } ).into();
+            return QuoteMaker {
+                body: quote! ( { #(#k = #v),* } ),
+            };
         }
 
         let content = skip_variants.iter().map(|variant| match variant.style {
@@ -88,19 +90,24 @@ impl<'a> ParseContext<'_> {
             ast::Style::Unit => self.derive_unit_variant(&taginfo, variant),
         });
         // OK generate A | B | C etc
-        quote! ( #(|#content)* ).into()
+        let body = content.map(|q| q.body);
+        QuoteMaker {
+            body: quote! ( #(|#body)* ),
+        }
     }
-
     fn derive_unit_variant(&self, taginfo: &TagInfo, variant: &Variant) -> QuoteMaker {
         let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
         if taginfo.tag.is_none() {
-            return quote!(#variant_name).into();
+            return QuoteMaker {
+                body: quote!(#variant_name),
+            };
         }
         let tag = ident_from_str(taginfo.tag.unwrap());
-        quote! (
-            { #tag: #variant_name }
-        )
-        .into()
+        QuoteMaker {
+            body: quote! (
+                { #tag: #variant_name }
+            ),
+        }
     }
 
     fn derive_newtype_variant(
@@ -116,13 +123,16 @@ impl<'a> ParseContext<'_> {
         let variant_name = self.variant_name(variant);
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-                return quote! ( #ty ).into();
+                return QuoteMaker {
+                    body: quote! ( #ty ),
+                };
             };
             let tag = ident_from_str(&variant_name);
-            return quote! (
-                { #tag : #ty }
-            )
-            .into();
+            return QuoteMaker {
+                body: quote! (
+                    { #tag : #ty }
+                ),
+            };
         };
         let tag = ident_from_str(taginfo.tag.unwrap());
 
@@ -132,10 +142,11 @@ impl<'a> ParseContext<'_> {
             ident_from_str(CONTENT) // should not get here...
         };
 
-        quote! (
-            { #tag: #variant_name; #content: #ty }
-        )
-        .into()
+        QuoteMaker {
+            body: quote! (
+                { #tag: #variant_name; #content: #ty }
+            ),
+        }
     }
 
     fn derive_struct_variant(
@@ -157,25 +168,28 @@ impl<'a> ParseContext<'_> {
         let variant_name = self.variant_name(variant);
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-                return quote! (
-                    { #(#contents);* }
-                )
-                .into();
+                return QuoteMaker {
+                    body: quote! (
+                        { #(#contents);* }
+                    ),
+                };
             };
             let tag = ident_from_str(&variant_name);
-            return quote! (
-                { #tag : { #(#contents);* }  }
-            )
-            .into();
+            return QuoteMaker {
+                body: quote! (
+                    { #tag : { #(#contents);* }  }
+                ),
+            };
         }
         let tag_str = taginfo.tag.unwrap();
         let tag = ident_from_str(tag_str);
         if let Some(content) = taginfo.content {
             let content = ident_from_str(&content);
-            quote! (
-                { #tag: #variant_name; #content: { #(#contents);* } }
-            )
-            .into()
+            QuoteMaker {
+                body: quote! (
+                    { #tag: #variant_name; #content: { #(#contents);* } }
+                ),
+            }
         } else {
             if let Some(ref cx) = self.ctxt {
                 let fnames = fields
@@ -190,10 +204,11 @@ impl<'a> ParseContext<'_> {
                     ));
                 }
             }
-            quote! (
-                { #tag: #variant_name; #(#contents);* }
-            )
-            .into()
+            QuoteMaker {
+                body: quote! (
+                    { #tag: #variant_name; #(#contents);* }
+                ),
+            }
         }
     }
 
@@ -210,19 +225,21 @@ impl<'a> ParseContext<'_> {
     ) -> QuoteMaker {
         let variant_name = self.variant_name(variant);
         let fields = filter_visible(fields);
-        let contents = self.derive_field_types(&fields);
+        let contents = self.derive_field_tuple(&fields);
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-                return quote! (
-                 [ #(#contents),* ]
-                )
-                .into();
+                return QuoteMaker {
+                    body: quote! (
+                     [ #(#contents),* ]
+                    ),
+                };
             }
             let tag = ident_from_str(&variant_name);
-            return quote! (
-             { #tag : [ #(#contents),* ] }
-            )
-            .into();
+            return QuoteMaker {
+                body: quote! (
+                 { #tag : [ #(#contents),* ] }
+                ),
+            };
         };
 
         let tag = ident_from_str(taginfo.tag.unwrap());
@@ -232,9 +249,10 @@ impl<'a> ParseContext<'_> {
             ident_from_str(CONTENT)
         };
 
-        quote! (
-        { #tag: #variant_name; #content : [ #(#contents),* ] }
-        )
-        .into()
+        QuoteMaker {
+            body: quote! (
+            { #tag: #variant_name; #content : [ #(#contents),* ] }
+            ),
+        }
     }
 }

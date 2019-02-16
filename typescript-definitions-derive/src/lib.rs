@@ -22,9 +22,10 @@ mod attrs;
 mod derive_enum;
 mod derive_struct;
 mod patch;
-mod quotet;
+// mod quotet;
 mod tests;
 mod utils;
+mod verify;
 
 use attrs::Attrs;
 use std::cell::Cell;
@@ -35,10 +36,13 @@ use patch::patch;
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
 
-type QuoteMaker = quotet::QuoteT<'static>;
+//type QuoteMaker = quotet::QuoteT<'static>;
 
 type Bounds = Vec<TSType>;
 
+struct QuoteMaker {
+    pub body: QuoteT,
+}
 /// derive proc_macro to expose Typescript definitions to `wasm-bindgen`.
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
@@ -103,24 +107,8 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     let parsed = Typescriptify::parse(true, input);
-    let ts_ident = parsed.ts_ident_str();
-    let docs = &parsed.attrs.to_comment_str();
-    let fmt = if parsed.ctxt.is_enum.get() {
-        "{}export enum {} {};"
-    } else {
-        "{}export type {} = {};"
-    };
-    let body = match &parsed.body {
-        quotet::QuoteT::Builder(b) => {
-            let b = b.build();
-            quote!( let f = #b; format!(#fmt, #docs, #ts_ident, f) )
-        }
-        _ => {
-            let b = parsed.body.to_string();
-            let b = patch(&b);
-            quote!(format!(#fmt, #docs, #ts_ident, #b))
-        }
-    };
+
+    let export_string = parsed.wasm_string();
 
     // let map = &parsed.map();
 
@@ -131,7 +119,7 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
 
             impl ::typescript_definitions::TypeScriptifyTrait for #ident {
                 fn type_script_ify() ->  String {
-                    #body
+                    #export_string.into()
                 }
 
                 // fn type_script_fields() -> Option<Vec<&'static str>> {
@@ -146,7 +134,7 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
 
             impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
                 fn type_script_ify() ->  String {
-                    #body
+                    #export_string.into()
                 }
 
                 // fn type_script_fields() -> Option<Vec<&'static str>> {
@@ -193,7 +181,7 @@ impl Typescriptify {
         patch(&ts_ident).into()
     }
     fn ts_body_str(&self) -> String {
-        let ts = self.body.to_string();
+        let ts = self.body.body.to_string();
         let ts = patch(&ts);
         return ts.into();
     }
@@ -233,17 +221,6 @@ impl Typescriptify {
             Some((ref i, ref _bounds)) => quote!(#i),
             None => quote!('_), // only need '_
         })
-    }
-
-    #[allow(unused)]
-    fn map(&self) -> QuoteT {
-        match &self.body {
-            quotet::QuoteT::Builder(b) => match b.map() {
-                Some(t) => t,
-                _ => quote!(None),
-            },
-            _ => quote!(None),
-        }
     }
 
     fn parse(is_type_script_ify: bool, input: QuoteT) -> Self {
@@ -600,7 +577,7 @@ impl<'a> ParseContext<'a> {
     ) -> impl Iterator<Item = QuoteT> + 'a {
         fields.iter().map(move |f| self.derive_field(f))
     }
-    fn derive_field_types(
+    fn derive_field_tuple(
         &'a self,
         fields: &'a [&'a ast::Field<'a>],
     ) -> impl Iterator<Item = QuoteT> + 'a {

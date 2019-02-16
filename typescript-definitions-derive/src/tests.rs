@@ -98,7 +98,7 @@ mod macro_test {
         match result {
             Ok(_x) => assert!(false, "expecting panic!"),
             Err(ref msg) => assert_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
-            @r###"turbo_fish: can't lex turbo_fish "😀i32>""###
+            @r###"Can't lex turbo_fish "😀i32>""###
             ),
         }
     }
