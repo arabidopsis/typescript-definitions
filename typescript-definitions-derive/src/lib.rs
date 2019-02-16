@@ -23,6 +23,7 @@ mod derive_enum;
 mod derive_struct;
 mod patch;
 mod quotet;
+mod tests;
 mod utils;
 
 use attrs::Attrs;
@@ -103,7 +104,7 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     let parsed = Typescriptify::parse(true, input);
     let ts_ident = parsed.ts_ident_str();
-    let docs = &parsed.docs;
+    let docs = &parsed.attrs.to_comment_str();
     let fmt = if parsed.ctxt.is_enum.get() {
         "{}export enum {} {};"
     } else {
@@ -166,7 +167,6 @@ struct Typescriptify {
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     body: QuoteMaker,
     rust_generics: syn::Generics, // original rust generics
-    docs: String,
     attrs: Attrs,
 }
 impl Typescriptify {
@@ -174,14 +174,14 @@ impl Typescriptify {
         if self.ctxt.is_enum.get() {
             format!(
                 "{}export enum {} {};",
-                self.docs,
+                self.attrs.to_comment_str(),
                 self.ts_ident_str(),
                 self.ts_body_str()
             )
         } else {
             format!(
                 "{}export type {} = {};",
-                self.docs,
+                self.attrs.to_comment_str(),
                 self.ts_ident_str(),
                 self.ts_body_str()
             )
@@ -277,15 +277,28 @@ impl Typescriptify {
 
         let ts_generics = ts_generics(container.generics);
 
+        if false
+            && is_type_script_ify
+            && attrs.turbo_fish.is_none()
+            && ts_generics.len() > 0
+            && ts_generics.iter().any(|f| f.is_some())
+        {
+            cx.error(format!(
+                "Generic item \"{}\" requires #[typescript(turbo_fish= \"...\")] attribute",
+                container.ident
+            ))
+        }
+
         // consumes context panics with errors
-        cx.check().unwrap();
+        if let Err(m) = cx.check() {
+            panic!(m);
+        }
         Self {
             ctxt,
             ident: container.ident,
             ts_generics,
             body: typescript,
             rust_generics: container.generics.clone(), // keep original type generics around for type_script_ify
-            docs: attrs.to_comment_str(),
             attrs: attrs,
         }
     }
@@ -613,7 +626,7 @@ impl<'a> ParseContext<'a> {
         if has_flatten {
             if let Some(ref ct) = self.ctxt {
                 ct.error(format!(
-                    "{}: #[serde(flatten)] does not work for typescript-definitions currently",
+                    "{}: #[serde(flatten)] does not work for typescript-definitions.",
                     ast_container.ident
                 ));
             }

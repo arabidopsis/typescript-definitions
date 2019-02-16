@@ -1,8 +1,12 @@
+#[allow(unused)]
+use super::Typescriptify;
+
 #[cfg(test)]
 mod macro_test {
-    use super::quote;
+    // use proc_macro2::Ident;
     use super::Typescriptify;
     use insta::assert_snapshot_matches;
+    use quote::quote;
     #[test]
     // #[should_panic]
     fn tag_clash_in_enum() {
@@ -19,7 +23,9 @@ mod macro_test {
         match result {
             Ok(_x) => assert!(false, "expecting panic!"),
             Err(ref msg) => assert_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
-            @r###"called `Result::unwrap()` on an `Err` value: "2 errors:\n\t# variant field name `kind` conflicts with internal tag\n\t# clash with field in \"A::B\". Maybe use a #[serde(content=\"...\")] attribute.""###
+            @r###"2 errors:
+	# variant field name `kind` conflicts with internal tag
+	# clash with field in "A::B". Maybe use a #[serde(content="...")] attribute."###
             ),
         }
     }
@@ -38,7 +44,7 @@ mod macro_test {
         match result {
             Ok(_x) => assert!(false, "expecting panic!"),
             Err(ref msg) => assert_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
-            @r###"called `Result::unwrap()` on an `Err` value: "SSS: #[serde(flatten)] does not work for typescript-definitions currently""###
+            @"SSS: #[serde(flatten)] does not work for typescript-definitions."
             ),
         }
     }
@@ -65,7 +71,7 @@ mod macro_test {
     fn turbo_fish() {
         let tokens = quote!(
             #[derive(TypeScriptify)]
-            #[typescript(turbo_fish="<i32>")]
+            #[typescript(turbo_fish = "<i32>")]
             struct S<T> {
                 a: i32,
                 b: Vec<T>,
@@ -73,12 +79,27 @@ mod macro_test {
         );
         let ty = Typescriptify::parse(true, tokens);
         let i = &ty.ident;
-        let g = ty.attrs.turbo_fish
-                .map_or_else(|| quote!(), |s| s.parse::<proc_macro2::TokenStream>().unwrap());
-        let res  = quote!(#i#g::type_scriptify()).to_string();
-        assert_snapshot_matches!(res, 
-        @"S < i32 > :: type_scriptify ( )" );
-
+        let g = ty.attrs.turbo_fish.unwrap_or_else(|| quote!());
+        let res = quote!(#i#g::type_script_ify()).to_string();
+        assert_snapshot_matches!(res,
+        @"S < i32 > :: type_script_ify ( )" );
     }
-
+    #[test]
+    fn bad_turbo_fish() {
+        let tokens = quote!(
+            #[derive(TypeScriptify)]
+            #[typescript(turbo_fish = "😀i32>")]
+            struct S<T> {
+                a: i32,
+                b: Vec<T>,
+            }
+        );
+        let result = std::panic::catch_unwind(move || Typescriptify::parse(true, tokens));
+        match result {
+            Ok(_x) => assert!(false, "expecting panic!"),
+            Err(ref msg) => assert_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
+            @r###"turbo_fish: can't lex turbo_fish "😀i32>""###
+            ),
+        }
+    }
 }

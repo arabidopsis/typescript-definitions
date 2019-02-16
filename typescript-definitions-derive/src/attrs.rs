@@ -10,14 +10,14 @@ use super::Ctxt;
 use quote::quote;
 // use std::str::FromStr;
 // use syn::Type::Path;
-// use proc_macro2::TokenStream;
+use proc_macro2::TokenStream;
 use syn::{Attribute, Ident, Lit, Meta, /* MetaList ,*/ MetaNameValue, NestedMeta};
 
 #[derive(Debug)]
 pub struct Attrs {
     pub comments: Vec<String>,
     pub verify: bool,
-    pub turbo_fish: Option<String>,
+    pub turbo_fish: Option<TokenStream>,
 }
 
 #[inline]
@@ -25,6 +25,16 @@ fn path_to_str(path: &syn::Path) -> String {
     quote!(#path).to_string()
 }
 
+pub fn turbo_fish_check(v: &str, i: &Ident) -> Result<TokenStream, String> {
+    match v.parse::<proc_macro2::TokenStream>() {
+        // just get LexError as error message
+        Err(_) => Err(format!("{}: can't lex turbo_fish \"{}\"", i, v)),
+        Ok(tokens) => match syn::parse2::<syn::DeriveInput>(quote!( struct S{ a:v#tokens} )) {
+            Err(_) => Err(format!("{}: can't parse turbo_fish \"{}\"", i, v)),
+            Ok(_) => Ok(tokens),
+        },
+    }
+}
 impl Attrs {
     pub fn new() -> Attrs {
         Attrs {
@@ -91,7 +101,7 @@ impl Attrs {
                 .map(|s| s.clone())
                 .collect::<Vec<_>>()
                 .join("\n")
-                + "\n" // <-- need better way
+                + "\n" // <-- need better way!
         }
     }
     fn err_msg(&self, msg: String) {
@@ -106,18 +116,15 @@ impl Attrs {
 
         attrs
             .iter()
-            .filter_map(move |attr| {
-                let path = &attr.path;
-                match quote!(#path).to_string().as_ref() {
-                    "typescript" => match attr.parse_meta() {
-                        Ok(v) => Some(v),
-                        Err(msg) => {
-                            ctxt.error(format!("invalid typescript syntax: {}", msg));
-                            None
-                        }
-                    },
-                    _ => None,
-                }
+            .filter_map(move |attr| match path_to_str(&attr.path).as_ref() {
+                "typescript" => match attr.parse_meta() {
+                    Ok(v) => Some(v),
+                    Err(msg) => {
+                        ctxt.error(format!("invalid typescript syntax: {}", msg));
+                        None
+                    }
+                },
+                _ => None,
             })
             .filter_map(move |m| match m {
                 List(l) => Some(l.nested),
@@ -193,7 +200,13 @@ impl Attrs {
                     ref ident,
                     lit: Str(ref value),
                     ..
-                }) if ident == "turbo_fish" => self.turbo_fish = Some(value.value()),
+                }) if ident == "turbo_fish" => {
+                    let v = value.value();
+                    match turbo_fish_check(&v, ident) {
+                        Err(msg) => self.err_msg(msg),
+                        Ok(tokens) => self.turbo_fish = Some(tokens),
+                    }
+                }
                 ref i @ NameValue(..) | ref i @ List(..) | ref i @ Word(..) => {
                     self.err_msg(format!("unsupported option: {}", quote!(#i)));
                 }
