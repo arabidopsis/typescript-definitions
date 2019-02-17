@@ -6,11 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use proc_macro2::Literal;
+
 use quote::quote;
 use serde_derive_internals::ast;
 
-use super::{filter_visible, patch::NL_PATCH, ParseContext, QuoteMaker};
+use super::{filter_visible, patch::nl, ParseContext, QuoteMaker};
 
 impl<'a> ParseContext<'_> {
     pub(crate) fn derive_struct(
@@ -85,7 +85,7 @@ impl<'a> ParseContext<'_> {
             let obj = &self.arg_name;
             let v = self.verify_fields(&obj, &fields);
             let n = fields.len();
-            let l = Literal::string(NL_PATCH);
+            let l = nl();
             let nl = (0..n).map(|_| quote!(#l));
             Some(quote!( { if (#obj == undefined) return false; #( #nl #v;)* #l return true; } ))
         } else {

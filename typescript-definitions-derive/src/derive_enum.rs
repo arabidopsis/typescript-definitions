@@ -5,7 +5,7 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
-use super::patch::{NL_PATCH, TRIPPLE_EQ};
+use super::patch::{eq, nl};
 use super::{filter_visible, ident_from_str, ParseContext, QuoteMaker};
 use proc_macro2::Literal;
 use quote::quote;
@@ -109,7 +109,7 @@ impl<'a> ParseContext<'_> {
         let body = content.iter().map(|q| q.body.clone());
         let verify = if self.gen_verifier {
             let v = content.iter().map(|q| q.verify.clone().unwrap());
-            let l = Literal::string(NL_PATCH);
+            let l = nl();
             let nl = content.iter().map(|_| quote!(#l));
             let obj = &self.arg_name;
             Some(quote!(
@@ -131,7 +131,7 @@ impl<'a> ParseContext<'_> {
     }
     fn derive_unit_variant(&self, taginfo: &TagInfo, variant: &Variant) -> QuoteMaker {
         let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
-        let eq = ident_from_str(TRIPPLE_EQ);
+        let eq = eq();
 
         if taginfo.tag.is_none() {
             let verify = if self.gen_verifier {
@@ -230,7 +230,7 @@ impl<'a> ParseContext<'_> {
         };
 
         let verify = if self.gen_verifier {
-            let eq = ident_from_str(TRIPPLE_EQ);
+            let eq = eq();
             let verify = self.verify_type(&quote!(v), field);
             Some(quote!(
             {
@@ -270,7 +270,7 @@ impl<'a> ParseContext<'_> {
         let contents = self.derive_fields(&fields).collect::<Vec<_>>();
         let variant_name = self.variant_name(variant);
 
-        let last = Literal::string(NL_PATCH);
+        let last = nl();
         let nl = contents.iter().map(|_| quote!(#last));
         if taginfo.tag.is_none() {
             if taginfo.untagged {
@@ -328,7 +328,7 @@ impl<'a> ParseContext<'_> {
                 let obj = &self.arg_name;
                 let v = quote!(v);
                 let v = self.verify_fields(&v, &fields);
-                let eq = ident_from_str(TRIPPLE_EQ);
+                let eq = eq();
                 Some(quote!(
                 {
                     if (!(#obj.#tag #eq #variant_name)) return false;
@@ -366,7 +366,7 @@ impl<'a> ParseContext<'_> {
             let verify = if self.gen_verifier {
                 let obj = &self.arg_name;
                 let v = self.verify_fields(&obj, &fields);
-                let eq = ident_from_str(TRIPPLE_EQ);
+                let eq = eq();
                 Some(quote!(
                 {
                     if (!(#obj.#tag #eq #variant_name)) return false;
@@ -426,7 +426,7 @@ impl<'a> ParseContext<'_> {
                 let obj = &self.arg_name;
                 let v = self.verify_field_tuple(&obj, &fields);
                 let len = Literal::usize_unsuffixed(fields.len());
-                let eq = ident_from_str(TRIPPLE_EQ);
+                let eq = eq();
                 Some(quote!({
                     const v = #obj.#tag;
                     if (v == undefined) return true;
@@ -455,7 +455,7 @@ impl<'a> ParseContext<'_> {
         };
 
         let verify = if self.gen_verifier {
-            let eq = ident_from_str(TRIPPLE_EQ);
+            let eq = eq();
             let obj = &self.arg_name;
             let v = self.verify_field_tuple(&obj, &fields);
             let len = Literal::usize_unsuffixed(fields.len());

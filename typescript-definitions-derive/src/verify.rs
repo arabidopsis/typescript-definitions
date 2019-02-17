@@ -1,7 +1,8 @@
 #![allow(unused)]
-use super::patch::TRIPPLE_EQ;
+
 use super::{
     ast, ident_from_str, is_bytes, last_path_element, Attrs, ParseContext, QuoteT, TSType,
+    patch::eq,
 };
 use proc_macro2::Literal;
 use proc_macro2::TokenStream;
@@ -20,7 +21,7 @@ impl<'a> Verify<'a> {
         // which generates a "simplified" TSType struct which
         // is handed to `generic_to_ts` which possibly "bottoms out"
         // by generating tokens for typescript types.
-        let eq = ident_from_str(TRIPPLE_EQ);
+        let eq = eq();
         use syn::Type::*;
         use syn::{
             BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound,
@@ -75,23 +76,29 @@ impl<'a> Verify<'a> {
     fn verify_array(&self, obj: &'a TokenStream, elem: &syn::Type) -> QuoteT {
         if let Some(ty) = self.ctxt.get_path(elem) {
             if ty.ident == "u8" && is_bytes(&self.field) {
-                let eq = ident_from_str(TRIPPLE_EQ);
+                let eq = eq();
                 return quote!(if (! typeof #obj #eq "string") return false);
             };
         };
         let verify = self.verify_type(&quote!(x), elem);
-        // TODO: verify first only
-        let eq = ident_from_str(TRIPPLE_EQ);
+        let brk = if self.attrs.only_first {
+            quote!(break;)        
+        } else {
+            quote!()
+        };
+        
         quote! {
             if (!Array.isArray(#obj)) return false;
             if (#obj.length > 0)
                 for (let x of #obj) {
                     #verify;
+                    #brk
                 }
         }
+
     }
     fn verify_generic(&self, obj: &'a TokenStream, ts: TSType) -> QuoteT {
-        let eq = ident_from_str(TRIPPLE_EQ);
+        let eq = eq();
         match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => {
@@ -196,7 +203,7 @@ impl<'a> ParseContext<'a> {
         obj: &'a TokenStream,
         fields: &'a [&'a ast::Field<'a>],
     ) -> impl Iterator<Item = QuoteT> + 'a {
-        let eq = ident_from_str(TRIPPLE_EQ);
+        let eq = eq();
         fields.iter().enumerate().map(move |(i, f)| {
             let i = Literal::usize_unsuffixed(i);
             let n = quote!(#obj[#i]);

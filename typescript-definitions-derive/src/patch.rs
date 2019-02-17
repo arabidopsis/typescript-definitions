@@ -17,6 +17,8 @@
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::borrow::Cow;
+use proc_macro2::Literal;
+use super::{ident_from_str, Ident};
 
 pub const RESULT_BAR: &str = "__XYZZ__patch_me__XYZZ__";
 
@@ -30,8 +32,8 @@ pub const RESULT_BAR: &str = "__XYZZ__patch_me__XYZZ__";
 //
 // This is also the reason we prefer !(x === y) to x !== y ..
 // too much patching.
-pub const TRIPPLE_EQ: &str = "__eeeeEEEeeee__";
-pub const NL_PATCH: &str = "__nlnlnlnlnln__";
+const TRIPPLE_EQ: &str = "__eeeeEEEeeee__";
+const NL_PATCH: &str = "__nlnlnlnlnln__";
 const _NL_PATCHQ: &str = "\"__nlnlnlnlnln__\"";
 // type N = [(&'static str, &'static str); 10];
 const NAMES: [(&str, &str); 15] = [
@@ -122,3 +124,10 @@ pub fn patch(s: &str) -> Cow<'_, str> {
         Cow::Borrowed(m)
     })
 }
+
+#[inline]
+pub fn eq() -> Ident {ident_from_str(TRIPPLE_EQ)}
+
+#[inline]
+pub fn nl() -> Literal { Literal::string(NL_PATCH)}
+
