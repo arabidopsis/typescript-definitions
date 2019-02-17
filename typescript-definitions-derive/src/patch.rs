@@ -32,9 +32,9 @@ pub const RESULT_BAR: &str = "__XYZZ__patch_me__XYZZ__";
 // too much patching.
 pub const TRIPPLE_EQ: &str = "__eeeeEEEeeee__";
 pub const NL_PATCH: &str = "__nlnlnlnlnln__";
-pub const NL_PATCHQ: &str = "\"__nlnlnlnlnln__\"";
+const _NL_PATCHQ: &str = "\"__nlnlnlnlnln__\"";
 // type N = [(&'static str, &'static str); 10];
-const NAMES: [(&str, &str); 13] = [
+const NAMES: [(&str, &str); 15] = [
     ("brack", r"\s*\[\s+\]"),
     ("brace", r"\{\s+\}"),
     ("colon", r"\s+[:]\s"),
@@ -46,7 +46,9 @@ const NAMES: [(&str, &str); 13] = [
     ("lt", r"\s<\s"),
     ("gt", r"\s>(\s|$)"),
     ("semi", r"\s+;"),
-    ("nlpatch", NL_PATCHQ),
+    ("call", r"\s\(\s+\)\s"),
+    ("dot", r"\s\.\s"),
+    ("nlpatch", _NL_PATCHQ),
     ("nl", r"\n+"), // last!
 ];
 lazy_static! {
@@ -112,6 +114,8 @@ pub fn patch(s: &str) -> Cow<'_, str> {
             "lt" => "<",
             "gt" => ">",
             "semi" => ";",
+            "dot" => ".",
+            "call" => " () ",
             "nlpatch" => "\n",
             _ => return Cow::Owned(c.get(0).unwrap().as_str().to_owned()), // maybe should just panic?
         };
