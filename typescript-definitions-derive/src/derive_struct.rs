@@ -8,8 +8,9 @@
 
 use quote::quote;
 use serde_derive_internals::ast;
+use proc_macro2::Literal;
 
-use super::{filter_visible, ParseContext, QuoteMaker};
+use super::{filter_visible, ParseContext, QuoteMaker, patch::NL_PATCH};
 
 impl<'a> ParseContext<'_> {
     pub(crate) fn derive_struct(
@@ -83,10 +84,14 @@ impl<'a> ParseContext<'_> {
         let verify = if self.gen_verifier {
             let obj = &self.arg_name;
             let v = self.verify_fields(&obj, &fields);
-            Some(quote!( { if (#obj == undefined) return false; #(#v;)* return true; } ))
+            let n = fields.len();
+            let l = Literal::string(NL_PATCH);
+            let nl = (0..n).map(|_| quote!(#l));
+            Some(quote!( { if (#obj == undefined) return false; #( #nl #v;)* #l return true; } ))
         } else {
             None
         };
+       
         QuoteMaker {
             body: quote!({#(#content);*}),
             verify,

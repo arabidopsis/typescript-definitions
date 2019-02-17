@@ -109,14 +109,15 @@ impl<'a> ParseContext<'_> {
         let body = content.iter().map(|q| q.body.clone());
         let verify = if self.gen_verifier {
             let v = content.iter().map(|q| q.verify.clone().unwrap());
-            let p = content.iter().map(|_| Literal::string(NL_PATCH));
+            let l = Literal::string(NL_PATCH);
+            let nl = content.iter().map(|_| quote!(#l));
             let obj = &self.arg_name;
             Some(quote!(
                 {
                     if (#obj == undefined) return false;
 
-                    #( #p if ( ( () => #v )() ) return true; )*
-                    return false;
+                    #( #nl if ( ( () => #v )() ) return true; )*
+                    #l return false;
                 }
             ))
         } else {
@@ -266,8 +267,11 @@ impl<'a> ParseContext<'_> {
 
         self.check_flatten(&fields, ast_container);
 
-        let contents = self.derive_fields(&fields);
+        let contents = self.derive_fields(&fields).collect::<Vec<_>>();
         let variant_name = self.variant_name(variant);
+
+        let last = Literal::string(NL_PATCH);
+        let nl = contents.iter().map(|_| quote!(#last));
         if taginfo.tag.is_none() {
             if taginfo.untagged {
                 let verify = if self.gen_verifier {
@@ -275,8 +279,8 @@ impl<'a> ParseContext<'_> {
 
                     Some(quote!(
                         {
-                            #(#v;)*
-                            return true;
+                            #( #nl #v;)*
+                            #last return true;
                         }
                     ))
                 } else {
@@ -299,8 +303,8 @@ impl<'a> ParseContext<'_> {
                     {
                         const v = #obj.#tag;
                         if (v == undefined) return false;
-                        #(#v;)*
-                        return true;
+                        #(#nl #v;)*
+                        #last return true;
                     }
                 ))
             } else {
@@ -322,7 +326,7 @@ impl<'a> ParseContext<'_> {
 
             let verify = if self.gen_verifier {
                 let obj = &self.arg_name;
-                let v = &quote!(v);
+                let v = quote!(v);
                 let v = self.verify_fields(&v, &fields);
                 let eq = ident_from_str(TRIPPLE_EQ);
                 Some(quote!(
@@ -330,8 +334,8 @@ impl<'a> ParseContext<'_> {
                     if (!(#obj.#tag #eq #variant_name)) return false;
                     const v = #obj.#content;
                     if (v == undefined) return false;
-                    #(#v;)*
-                    return true;
+                    #(#nl #v;)*
+                    #last return true;
                 }
                 ))
             } else {
@@ -366,8 +370,8 @@ impl<'a> ParseContext<'_> {
                 Some(quote!(
                 {
                     if (!(#obj.#tag #eq #variant_name)) return false;
-                    #(#v;)*
-                    return true;
+                    #(#nl #v;)*
+                    #last return true;
                 }
                 ))
             } else {
