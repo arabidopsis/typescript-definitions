@@ -30,7 +30,7 @@ mod README;
 ///
 pub trait TypeScriptifyTrait {
     fn type_script_ify() -> String;
-    // fn type_script_fields() -> Option<Vec<&'static str>>;
+    fn type_script_verify() -> Option<String>;
 }
 /// # String serializer for `u8` byte buffers.
 ///

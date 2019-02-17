@@ -48,9 +48,12 @@ impl Attrs {
     pub fn push_doc_comment(&mut self, attrs: &[Attribute]) {
         let doc_comments = attrs
             .iter()
-            .filter_map(|attr| match path_to_str(&attr.path) == "doc" {
-                true => attr.parse_meta().ok(),
-                false => None,
+            .filter_map(|attr| {
+                if path_to_str(&attr.path) == "doc" {
+                    attr.parse_meta().ok()
+                } else {
+                    None
+                }
             })
             .filter_map(|attr| {
                 use Lit::*;
@@ -95,15 +98,10 @@ impl Attrs {
     }
 
     pub fn to_comment_str(&self) -> String {
-        if self.comments.len() == 0 {
+        if self.comments.is_empty() {
             String::default()
         } else {
-            self.comments
-                .iter()
-                .map(|s| s.clone())
-                .collect::<Vec<_>>()
-                .join("\n")
-                + "\n" // <-- need better way!
+            self.comments.join("\n") + "\n" // <-- need better way!
         }
     }
     fn err_msg(&self, msg: String) {

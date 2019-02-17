@@ -1,4 +1,4 @@
-#[allow(unused)]
+#[allow(unused_imports)]
 use super::Typescriptify;
 
 #[cfg(test)]

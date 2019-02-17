@@ -27,7 +27,7 @@ pub const RESULT_BAR: &str = "__XYZZ__patch_me__XYZZ__";
 // it back *after* we generate the string.
 // The problem is that someone, somewhere might have
 // an identifer that is this... We hope and pray.
-// 
+//
 // This is also the reason we prefer !(x === y) to x !== y ..
 // too much patching.
 pub const TRIPPLE_EQ: &str = "__eeeeEEEeeee__";
@@ -41,8 +41,8 @@ const NAMES: [(&str, &str); 13] = [
     ("bar", r"(^|\s)\|\s+\{"),
     ("enl", r"\n+\}"),
     ("fnl", r"\{\n+"),
-    ("result", RESULT_BAR),  // for Result...
-    ("te", TRIPPLE_EQ), // for ===
+    ("result", RESULT_BAR), // for Result...
+    ("te", TRIPPLE_EQ),     // for ===
     ("lt", r"\s<\s"),
     ("gt", r"\s>(\s|$)"),
     ("semi", r"\s+;"),

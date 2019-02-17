@@ -33,7 +33,7 @@ impl<'a> Verify<'a> {
             Reference(TypeReference { elem, .. }) => self.verify_type(obj, elem),
             // fn(a: A,b: B, c:C) -> D
             BareFn(TypeBareFn { output, inputs, .. }) => {
-                return quote!();
+                return quote!(); // can you type check functions?
             }
             Never(..) => quote! { false },
             Tuple(TypeTuple { elems, .. }) => {
@@ -121,7 +121,7 @@ impl<'a> Verify<'a> {
             "HashSet" | "BTreeSet" if ts.args.len() == 1 => self.verify_array(obj, &ts.args[0]),
             "Option" if ts.args.len() == 1 => {
                 let verify = self.verify_type(obj, &ts.args[0]);
-                quote!(  if (!(#obj #eq null)) { // sic!
+                quote!(  if (!(#obj #eq null)) { // sic! === to null.
                             #verify;
                         }
                 )
@@ -135,7 +135,6 @@ impl<'a> Verify<'a> {
                             ((v => {if(v == undefined) return false; #k; return true; })(#obj.Ok)) ||
                             ((v => {if(v == undefined) return false; #v; return true; })(#obj.Err))
                           ) return true;
-                        
                         return false;
                  } )
             }
@@ -156,19 +155,27 @@ impl<'a> Verify<'a> {
     pub fn verify_field(&self, obj: &TokenStream) -> QuoteT {
         let n = self.field.attrs.name().serialize_name(); // use serde name instead of field.member
         let n = ident_from_str(&n);
-        let eq = ident_from_str(TRIPPLE_EQ);
-        let verify = self.verify_type(&quote!(v), &self.field.ty);
+        let verify = self.verify_type(&quote!(val), &self.field.ty);
 
         quote! {
            if (#obj.#n == undefined) return false;
            {
-            const v = #obj.#n;
+            const val = #obj.#n;
             #verify;
            }
         }
     }
 }
 impl<'a> ParseContext<'a> {
+    pub fn verify_type(&'a self, obj: &'a TokenStream, field: &'a ast::Field<'a>) -> QuoteT {
+        let attrs = Attrs::from_field(field, self.ctxt);
+        let verify = Verify {
+            attrs,
+            ctxt: self,
+            field,
+        };
+        verify.verify_type(&obj, &field.ty)
+    }
     pub fn verify_fields(
         &'a self,
         obj: &'a TokenStream,
@@ -177,7 +184,7 @@ impl<'a> ParseContext<'a> {
         fields.iter().map(move |f| {
             let attrs = Attrs::from_field(f, self.ctxt);
             let verify = Verify {
-                attrs: attrs,
+                attrs,
                 field: f,
                 ctxt: &self,
             };
@@ -196,7 +203,7 @@ impl<'a> ParseContext<'a> {
             let attrs = Attrs::from_field(f, self.ctxt);
 
             let v = Verify {
-                attrs: attrs,
+                attrs,
                 field: f,
                 ctxt: &self,
             };

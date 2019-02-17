@@ -122,6 +122,11 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
 
     let ident = &parsed.ident;
 
+    let verifier = match parsed.wasm_verify() {
+        Some(ref txt) => quote!(Some(#txt.into())),
+        None => quote!(None)
+    };
+
     let ret = if parsed.ts_generics.is_empty() {
         quote! {
 
@@ -130,9 +135,9 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
                     #export_string.into()
                 }
 
-                // fn type_script_fields() -> Option<Vec<&'static str>> {
-                //     #map
-                // }
+                fn type_script_verify() -> Option<String> {
+                     #verifier
+                }
             }
         }
     } else {
@@ -144,10 +149,9 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
                 fn type_script_ify() ->  String {
                     #export_string.into()
                 }
-
-                // fn type_script_fields() -> Option<Vec<&'static str>> {
-                //     #map
-                // }
+                fn type_script_verify() -> Option<String> {
+                     #verifier
+                }
             }
         }
     };
@@ -187,7 +191,7 @@ impl Typescriptify {
             None => None,
             Some(ref body) => {
                 let ident = &self.ident;
-                let obj = &self.ctxt.verify;
+                let obj = &self.ctxt.arg_name;
                 let body = body.to_string();
                 let body = patch(&body);
                 let generics = self.ts_generics();
@@ -204,7 +208,7 @@ impl Typescriptify {
     fn ts_body_str(&self) -> String {
         let ts = self.body.body.to_string();
         let ts = patch(&ts);
-        return ts.into();
+        ts.into()
     }
     fn ts_generics(&self) -> QuoteT {
         let args_wo_lt: Vec<_> = self.ts_generic_args_wo_lifetimes(false).collect();
@@ -280,7 +284,7 @@ impl Typescriptify {
         if false
             && is_type_script_ify
             && ctxt.global_attrs.turbo_fish.is_none()
-            && ts_generics.len() > 0
+            && !ts_generics.is_empty()
             && ts_generics.iter().any(|f| f.is_some())
         {
             cx.error(format!(
@@ -408,17 +412,18 @@ pub(crate) struct ParseContext<'a> {
 
     #[allow(unused)]
     is_type_script_ify: bool,
-    #[allow(unused)]
-    verify: QuoteT,
+    arg_name: QuoteT, // top level "name" of argument for verifier
     global_attrs: Attrs,
+    gen_verifier: bool,
 }
 impl<'a> ParseContext<'a> {
     fn new(is_type_script_ify: bool, global_attrs: Attrs, ctxt: &'a Ctxt) -> ParseContext<'a> {
         ParseContext {
             ctxt: Some(ctxt),
             is_type_script_ify,
-            verify: quote!(obj),
+            arg_name: quote!(obj),
             global_attrs,
+            gen_verifier: true,
         }
     }
     fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {

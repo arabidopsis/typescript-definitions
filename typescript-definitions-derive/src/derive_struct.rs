@@ -9,7 +9,7 @@
 use quote::quote;
 use serde_derive_internals::ast;
 
-use super::{filter_visible, verify::Verify, Attrs, ParseContext, QuoteMaker};
+use super::{filter_visible, ParseContext, QuoteMaker};
 
 impl<'a> ParseContext<'_> {
     pub(crate) fn derive_struct(
@@ -36,31 +36,30 @@ impl<'a> ParseContext<'_> {
         }
         self.check_flatten(&[field], ast_container);
 
-        let verify = if true || self.global_attrs.verify {
-            let attrs = Attrs::from_field(field, self.ctxt);
-            let verify = Verify {
-                attrs,
-                ctxt: self,
-                field: field,
-            };
-            let v = verify.verify_type(&self.verify, &field.ty);
-            Some(quote!({ #v; return true; }))
+        let verify = if self.gen_verifier {
+            let v = self.verify_type(&self.arg_name, field);
+            Some(quote!( { #v; return true; } ))
         } else {
             None
         };
 
         QuoteMaker {
             body: self.field_to_ts(field),
-            verify: verify,
+            verify,
             is_enum: false,
         }
     }
 
     fn derive_struct_unit(&self) -> QuoteMaker {
-        let obj = &self.verify;
+        let verify = if self.gen_verifier {
+            let obj = &self.arg_name;
+            Some(quote!({ if (#obj == undefined) return false; return true; }))
+        } else {
+            None
+        };
         QuoteMaker {
             body: quote!({}),
-            verify: Some(quote!({ if (#obj == undefined) return false; return true; })),
+            verify,
             is_enum: false,
         }
     }
@@ -81,11 +80,16 @@ impl<'a> ParseContext<'_> {
         self.check_flatten(&fields, ast_container);
         let content = self.derive_fields(&fields);
 
-        let verify = self.verify_fields(&self.verify, &fields);
-        let obj = &self.verify;
+        let verify = if self.gen_verifier {
+            let obj = &self.arg_name;
+            let v = self.verify_fields(&obj, &fields);
+            Some(quote!( { if (#obj == undefined) return false; #(#v;)* return true; } ))
+        } else {
+            None
+        };
         QuoteMaker {
             body: quote!({#(#content);*}),
-            verify: Some(quote!({ if (#obj == undefined) return false; #(#verify;)* return true; })),
+            verify,
             is_enum: false,
         }
     }
@@ -101,11 +105,17 @@ impl<'a> ParseContext<'_> {
         }
         self.check_flatten(&fields, ast_container);
         let content = self.derive_field_tuple(&fields);
-        let verify = self.verify_field_tuple(&self.verify, &fields);
-        let obj = &self.verify;
+        let verify = if self.gen_verifier {
+            let obj = &self.arg_name;
+            let v = self.verify_field_tuple(&obj, &fields);
+            Some(quote!({ if (#obj == undefined) return false; #(#v;)* return true; }))
+        } else {
+            None
+        };
+
         QuoteMaker {
             body: quote!([#(#content),*]),
-            verify: Some(quote!({ if (#obj == undefined) return false; #(#verify;)* return true; })),
+            verify,
             is_enum: false,
         }
     }

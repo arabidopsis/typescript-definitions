@@ -5,11 +5,11 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
+use super::patch::{NL_PATCH, TRIPPLE_EQ};
+use super::{filter_visible, ident_from_str, ParseContext, QuoteMaker};
+use proc_macro2::Literal;
 use quote::quote;
 use serde_derive_internals::{ast, ast::Variant, attr::EnumTag};
-use super::patch::{TRIPPLE_EQ, NL_PATCH};
-use super::{filter_visible, ident_from_str, ParseContext, QuoteMaker, Attrs, verify::Verify};
-use proc_macro2::Literal;
 const CONTENT: &str = "fields"; // default content tag
                                 // const TAG: &'static str = "kind"; // default tag tag
 
@@ -72,81 +72,99 @@ impl<'a> ParseContext<'_> {
                 .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
                 .collect::<Vec<_>>();
             let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
-            let obj = &self.verify;
+            let verify = if self.gen_verifier {
+                let obj = &self.arg_name;
 
-            let verify = quote!(
-                {
-                    if (#obj == undefined) return false; 
-                    if (![#(#v),*].includes(#obj)) return false; 
-                    return true;
-                }
-            );
-
+                Some(quote!(
+                    {
+                        if (#obj == undefined) return false;
+                        if (![#(#v),*].includes(#obj)) return false;
+                        return true;
+                    }
+                ))
+            } else {
+                None
+            };
             return QuoteMaker {
                 body: quote! ( { #(#k = #v),* } ),
-                verify: Some(verify),
+                verify,
                 is_enum: true,
             };
         }
 
-        let content = skip_variants.iter().map(|variant| match variant.style {
-            ast::Style::Struct => {
-                self.derive_struct_variant(&taginfo, variant, &variant.fields, ast_container)
-            }
-            ast::Style::Newtype => {
-                self.derive_newtype_variant(&taginfo, variant, &variant.fields[0])
-            }
-            ast::Style::Tuple => self.derive_tuple_variant(&taginfo, variant, &variant.fields),
-            ast::Style::Unit => self.derive_unit_variant(&taginfo, variant),
-        }).collect::<Vec<_>>();
+        let content = skip_variants
+            .iter()
+            .map(|variant| match variant.style {
+                ast::Style::Struct => {
+                    self.derive_struct_variant(&taginfo, variant, &variant.fields, ast_container)
+                }
+                ast::Style::Newtype => {
+                    self.derive_newtype_variant(&taginfo, variant, &variant.fields[0])
+                }
+                ast::Style::Tuple => self.derive_tuple_variant(&taginfo, variant, &variant.fields),
+                ast::Style::Unit => self.derive_unit_variant(&taginfo, variant),
+            })
+            .collect::<Vec<_>>();
         // OK generate A | B | C etc
         let body = content.iter().map(|q| q.body.clone());
-        let verify = content.iter().map(|q| q.verify.clone().unwrap());
-        let obj = & self.verify;
-        let p = content.iter().map(|_| Literal::string(NL_PATCH));
-        let verify = quote!(
-            {
-                if (#obj == undefined) return false;
+        let verify = if self.gen_verifier {
+            let v = content.iter().map(|q| q.verify.clone().unwrap());
+            let p = content.iter().map(|_| Literal::string(NL_PATCH));
+            let obj = &self.arg_name;
+            Some(quote!(
+                {
+                    if (#obj == undefined) return false;
 
-                #( #p if ( ( () => #verify )() ) return true; )*
-                return false;
-            }
-        ); 
+                    #( #p if ( ( () => #v )() ) return true; )*
+                    return false;
+                }
+            ))
+        } else {
+            None
+        };
         QuoteMaker {
             body: quote! ( #(|#body)* ),
-            verify: Some(verify),
+            verify,
             is_enum: false,
         }
     }
     fn derive_unit_variant(&self, taginfo: &TagInfo, variant: &Variant) -> QuoteMaker {
         let variant_name = variant.attrs.name().serialize_name(); // use serde name instead of variant.ident
-        let eq = ident_from_str(TRIPPLE_EQ);       
-        
+        let eq = ident_from_str(TRIPPLE_EQ);
+
         if taginfo.tag.is_none() {
-            let obj = &self.verify;
-            let verify = quote!(
-                {
-                    return #obj #eq #variant_name;
-                }
-            );
+            let verify = if self.gen_verifier {
+                let obj = &self.arg_name;
+                Some(quote!(
+                    {
+                        return #obj #eq #variant_name;
+                    }
+                ))
+            } else {
+                None
+            };
             return QuoteMaker {
                 body: quote!(#variant_name),
-                verify: Some(verify),
+                verify,
                 is_enum: false,
             };
         }
         let tag = ident_from_str(taginfo.tag.unwrap());
-        let obj = &self.verify;
-        let verify = quote!(
-            {
-                return #obj.#tag #eq #variant_name;
-            }
-        );
+        let verify = if self.gen_verifier {
+            let obj = &self.arg_name;
+            Some(quote!(
+                {
+                    return #obj.#tag #eq #variant_name;
+                }
+            ))
+        } else {
+            None
+        };
         QuoteMaker {
             body: quote! (
                 { #tag: #variant_name }
             ),
-            verify: Some(verify),
+            verify,
             is_enum: false,
         }
     }
@@ -159,44 +177,46 @@ impl<'a> ParseContext<'_> {
     ) -> QuoteMaker {
         if field.attrs.skip_serializing() {
             return self.derive_unit_variant(taginfo, variant);
-        }
+        };
         let ty = self.field_to_ts(field);
         let variant_name = self.variant_name(variant);
-        let attrs = Attrs::from_field(field, self.ctxt);
-        let verify = Verify {
-            attrs,
-            ctxt: self,
-            field: field,
-        };
-        let obj = &self.verify;
+        let obj = &self.arg_name;
 
         if taginfo.tag.is_none() {
-            
             if taginfo.untagged {
-                let verify = verify.verify_type(&obj, &field.ty);
+                let verify = if self.gen_verifier {
+                    Some(self.verify_type(&obj, field))
+                } else {
+                    None
+                };
                 return QuoteMaker {
                     body: quote! ( #ty ),
-                    verify: Some(quote!( { #verify; return true; } )),
+                    verify,
                     is_enum: false,
                 };
             };
             let tag = ident_from_str(&variant_name);
-            let v = quote!(v);
-            let verify = verify.verify_type(&v, &field.ty);
-            let verify = quote!(
-                {
-                    let v = #obj.#tag;
-                    if (v == undefined) return false;
-                    #verify;
-                    return true;
-                }
-            );
+
+            let verify = if self.gen_verifier {
+                let v = quote!(v);
+                let verify = self.verify_type(&v, field);
+                Some(quote!(
+                    {
+                        const v = #obj.#tag;
+                        if (v == undefined) return false;
+                        #verify;
+                        return true;
+                    }
+                ))
+            } else {
+                None
+            };
             return QuoteMaker {
                 body: quote! (
                     { #tag : #ty }
 
                 ),
-                verify: Some(verify),
+                verify,
                 is_enum: false,
             };
         };
@@ -208,22 +228,25 @@ impl<'a> ParseContext<'_> {
             ident_from_str(CONTENT) // should not get here...
         };
 
-        let eq = ident_from_str(TRIPPLE_EQ);
-        let verify = verify.verify_type(&quote!(v), &field.ty);
-        let verify = quote!(
+        let verify = if self.gen_verifier {
+            let eq = ident_from_str(TRIPPLE_EQ);
+            let verify = self.verify_type(&quote!(v), field);
+            Some(quote!(
             {
                 if (!(#obj.#tag #eq #variant_name)) return false;
-                let v = #obj.#content;
+                const v = #obj.#content;
                 if (v == undefined) return false;
                 #verify;
                 return true;
-            }
-        );
+            }))
+        } else {
+            None
+        };
         QuoteMaker {
             body: quote! (
                 { #tag: #variant_name; #content: #ty }
             ),
-            verify: Some(verify),
+            verify,
             is_enum: false,
         }
     }
@@ -247,66 +270,79 @@ impl<'a> ParseContext<'_> {
         let variant_name = self.variant_name(variant);
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-                let v = self.verify_fields(&self.verify, &fields);
+                let verify = if self.gen_verifier {
+                    let v = self.verify_fields(&self.arg_name, &fields);
 
-                let verify = quote!(
-                    {
-                        #(#v;)*
-                        return true;
-                    }
-                );
+                    Some(quote!(
+                        {
+                            #(#v;)*
+                            return true;
+                        }
+                    ))
+                } else {
+                    None
+                };
                 return QuoteMaker {
                     body: quote! (
                         { #(#contents);* }
                     ),
-                    verify: Some(verify),
+                    verify,
                     is_enum: false,
                 };
             };
             let v = &quote!(v);
             let tag = ident_from_str(&variant_name);
-            let obj = &self.verify;
-            let v = self.verify_fields(&v, &fields);
-            let verify = quote!(
-                {
-                    let v = #obj.#tag;
-                    if (v == undefined) return false;
-                    #(#v;)*
-                    return true;
-                }
-                );
+            let verify = if self.gen_verifier {
+                let obj = &self.arg_name;
+                let v = self.verify_fields(&v, &fields);
+                Some(quote!(
+                    {
+                        const v = #obj.#tag;
+                        if (v == undefined) return false;
+                        #(#v;)*
+                        return true;
+                    }
+                ))
+            } else {
+                None
+            };
             return QuoteMaker {
                 body: quote! (
                     { #tag : { #(#contents);* }  }
                 ),
-                verify: Some(verify),
+                verify,
                 is_enum: false,
             };
         }
         let tag_str = taginfo.tag.unwrap();
         let tag = ident_from_str(tag_str);
-        let obj = &self.verify;
-        let v = &quote!(v);
-        let v = self.verify_fields(&v, &fields);
-        let eq = ident_from_str(TRIPPLE_EQ);
 
         if let Some(content) = taginfo.content {
             let content = ident_from_str(&content);
-            let verify = quote!(
-            {
-                if (!(#obj.#tag #eq #variant_name)) return false;
-                let v = #obj.#content;
-                if (v == undefined) return false;
-                #(#v;)*
-                return true;
-            }
-            );
+
+            let verify = if self.gen_verifier {
+                let obj = &self.arg_name;
+                let v = &quote!(v);
+                let v = self.verify_fields(&v, &fields);
+                let eq = ident_from_str(TRIPPLE_EQ);
+                Some(quote!(
+                {
+                    if (!(#obj.#tag #eq #variant_name)) return false;
+                    const v = #obj.#content;
+                    if (v == undefined) return false;
+                    #(#v;)*
+                    return true;
+                }
+                ))
+            } else {
+                None
+            };
             QuoteMaker {
                 body: quote! (
                     { #tag: #variant_name; #content: { #(#contents);* } }
 
                 ),
-                verify: Some(verify),
+                verify,
                 is_enum: false,
             }
         } else {
@@ -323,19 +359,25 @@ impl<'a> ParseContext<'_> {
                     ));
                 }
             };
-            let verify = quote!(
-            {
-                if (!(#obj.#tag #eq #variant_name)) return false;
-                let v = #obj;
-                #(#v;)*
-                return true;
-            }
-            );
+            let verify = if self.gen_verifier {
+                let obj = &self.arg_name;
+                let v = self.verify_fields(&obj, &fields);
+                let eq = ident_from_str(TRIPPLE_EQ);
+                Some(quote!(
+                {
+                    if (!(#obj.#tag #eq #variant_name)) return false;
+                    #(#v;)*
+                    return true;
+                }
+                ))
+            } else {
+                None
+            };
             QuoteMaker {
                 body: quote! (
                     { #tag: #variant_name; #(#contents);* }
                 ),
-                verify: Some(verify),
+                verify,
                 is_enum: false,
             }
         }
@@ -355,38 +397,48 @@ impl<'a> ParseContext<'_> {
         let variant_name = self.variant_name(variant);
         let fields = filter_visible(fields);
         let contents = self.derive_field_tuple(&fields);
-        let obj = &self.verify;
-        let v = &quote!(v);
-        let v = self.verify_field_tuple(&v, &fields);
-        
+
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-                let verify = quote!({
-                    const v = #obj;
-                    #(#v;)*
-                    return true;
-                });
+                let verify = if self.gen_verifier {
+                    let v = self.verify_field_tuple(&self.arg_name, &fields);
+                    Some(quote!({
+                        #(#v;)*
+                        return true;
+                    }))
+                } else {
+                    None
+                };
                 return QuoteMaker {
                     body: quote! (
                      [ #(#contents),* ]
                     ),
-                    verify: Some(verify),
+                    verify,
                     is_enum: false,
                 };
             }
             let tag = ident_from_str(&variant_name);
-            let verify = quote!({
-                const v = #obj.#tag;
-                if (v == undefined) return true;
-                #(#v;)*
-                return true;
-            });
+            let verify = if self.gen_verifier {
+                let obj = &self.arg_name;
+                let v = self.verify_field_tuple(&obj, &fields);
+                let len = Literal::usize_unsuffixed(fields.len());
+                let eq = ident_from_str(TRIPPLE_EQ);
+                Some(quote!({
+                    const v = #obj.#tag;
+                    if (v == undefined) return true;
+                    if (!Array.isArray(v) || !(v.length #eq #len)) return false;
+                    #(#v;)*
+                    return true;
+                }))
+            } else {
+                None
+            };
             return QuoteMaker {
                 body: quote! (
                  { #tag : [ #(#contents),* ] }
 
                 ),
-                verify: Some(verify),
+                verify,
                 is_enum: false,
             };
         };
@@ -397,19 +449,28 @@ impl<'a> ParseContext<'_> {
         } else {
             ident_from_str(CONTENT)
         };
-        let eq = ident_from_str(TRIPPLE_EQ);
-        let verify = quote!({
-            if (!(#obj.tag #eq #variant_name)) return false;
-            const v = #obj.#content;
-            if (v == undefined) return true;
-            #(#v;)*
-            return true;
-        });
+
+        let verify = if self.gen_verifier {
+            let eq = ident_from_str(TRIPPLE_EQ);
+            let obj = &self.arg_name;
+            let v = self.verify_field_tuple(&obj, &fields);
+            let len = Literal::usize_unsuffixed(fields.len());
+            Some(quote!({
+                if (!(#obj.tag #eq #variant_name)) return false;
+                const v = #obj.#content;
+                if (!Array.isArray(v) || !(v.length #eq #len)) return false;
+                if (v == undefined) return true;
+                #(#v;)*
+                return true;
+            }))
+        } else {
+            None
+        };
         QuoteMaker {
             body: quote! (
             { #tag: #variant_name; #content : [ #(#contents),* ] }
             ),
-            verify: Some(verify),
+            verify,
             is_enum: false,
         }
     }
