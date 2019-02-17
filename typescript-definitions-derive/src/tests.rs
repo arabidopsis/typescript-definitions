@@ -68,10 +68,10 @@ mod macro_test {
         }
     }
     #[test]
-    fn turbo_fish() {
+    fn turbofish() {
         let tokens = quote!(
             #[derive(TypeScriptify)]
-            #[typescript(turbo_fish = "<i32>")]
+            #[typescript(turbofish = "<i32>")]
             struct S<T> {
                 a: i32,
                 b: Vec<T>,
@@ -79,16 +79,16 @@ mod macro_test {
         );
         let ty = Typescriptify::parse(true, tokens);
         let i = &ty.ident;
-        let g = ty.ctxt.global_attrs.turbo_fish.unwrap_or_else(|| quote!());
+        let g = ty.ctxt.global_attrs.turbofish.unwrap_or_else(|| quote!());
         let res = quote!(#i#g::type_script_ify()).to_string();
         assert_snapshot_matches!(res,
         @"S < i32 > :: type_script_ify ( )" );
     }
     #[test]
-    fn bad_turbo_fish() {
+    fn bad_turbofish() {
         let tokens = quote!(
             #[derive(TypeScriptify)]
-            #[typescript(turbo_fish = "😀i32>")]
+            #[typescript(turbofish = "😀i32>")]
             struct S<T> {
                 a: i32,
                 b: Vec<T>,
@@ -98,7 +98,7 @@ mod macro_test {
         match result {
             Ok(_x) => assert!(false, "expecting panic!"),
             Err(ref msg) => assert_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
-            @r###"Can't lex turbo_fish "😀i32>""###
+            @r###"Can't lex turbofish "😀i32>""###
             ),
         }
     }

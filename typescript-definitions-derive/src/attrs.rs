@@ -17,7 +17,7 @@ use syn::{Attribute, Ident, Lit, Meta, /* MetaList ,*/ MetaNameValue, NestedMeta
 pub struct Attrs {
     pub comments: Vec<String>,
     pub verify: bool,
-    pub turbo_fish: Option<TokenStream>,
+    pub turbofish: Option<TokenStream>,
     pub only_first: bool,
 }
 
@@ -26,12 +26,12 @@ fn path_to_str(path: &syn::Path) -> String {
     quote!(#path).to_string()
 }
 
-pub fn turbo_fish_check(v: &str) -> Result<TokenStream, String> {
+pub fn turbofish_check(v: &str) -> Result<TokenStream, String> {
     match v.parse::<proc_macro2::TokenStream>() {
         // just get LexError as error message... so make our own.
-        Err(_) => Err(format!("Can't lex turbo_fish \"{}\"", v)),
+        Err(_) => Err(format!("Can't lex turbofish \"{}\"", v)),
         Ok(tokens) => match syn::parse2::<syn::DeriveInput>(quote!( struct S{ a:v#tokens} )) {
-            Err(_) => Err(format!("Can't parse turbo_fish \"{}\"", v)),
+            Err(_) => Err(format!("Can't parse turbofish \"{}\"", v)),
             Ok(_) => Ok(tokens),
         },
     }
@@ -40,7 +40,7 @@ impl Attrs {
     pub fn new() -> Attrs {
         Attrs {
             comments: vec![],
-            turbo_fish: None,
+            turbofish: None,
             verify: false,
             only_first: false,
         }
@@ -190,11 +190,11 @@ impl Attrs {
                     ref ident,
                     lit: Str(ref value),
                     ..
-                }) if ident == "turbo_fish" => {
+                }) if ident == "turbofish" => {
                     let v = value.value();
-                    match turbo_fish_check(&v) {
+                    match turbofish_check(&v) {
                         Err(msg) => self.err_msg(msg),
-                        Ok(tokens) => self.turbo_fish = Some(tokens),
+                        Ok(tokens) => self.turbofish = Some(tokens),
                     }
                 }
                 ref i @ NameValue(..) | ref i @ List(..) | ref i @ Word(..) => {
