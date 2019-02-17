@@ -203,13 +203,43 @@ impl Attrs {
             }
         }
     }
+    pub fn push_field_attrs(&mut self, struct_ident: &Ident, attrs: &[Attribute], ctxt: Option<&Ctxt>) {
+        use syn::Meta::*;
+        use Lit::*;
+        // use NestedMeta::*;
+
+        for attr in Self::find_typescript(&attrs, ctxt) {
+            match attr {
+                NameValue(MetaNameValue {
+                    ref ident,
+                    lit: Str(ref value),
+                    ..
+                }) if ident == "array" => {
+                    self.only_first = match value.value().as_ref() {
+                        "first" => true,
+                        _ => {
+                            self.err_msg(format!(
+                                "{}: array must be \"first\" not {}",
+                                struct_ident,
+                                quote!(#value)
+                            ));
+                            false
+                        }
+                    }
+                }
+                ref i @ NameValue(..) | ref i @ List(..) | ref i @ Word(..) => {
+                    self.err_msg(format!("unsupported option: {}", quote!(#i)));
+                }
+            }
+        }
+    }
     pub fn from_field(field: &ast::Field, ctxt: Option<&Ctxt>) -> Attrs {
         let mut res = Self::new();
         if let Some(ref ident) = field.original.ident {
-            res.push_attrs(ident, &field.original.attrs, ctxt);
+            res.push_field_attrs(ident, &field.original.attrs, ctxt);
         } else {
             let id = ident_from_str("unnamed");
-            res.push_attrs(&id, &field.original.attrs, ctxt);
+            res.push_field_attrs(&id, &field.original.attrs, ctxt);
         }
         res
     }
