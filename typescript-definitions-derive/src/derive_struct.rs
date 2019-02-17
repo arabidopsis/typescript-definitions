@@ -9,7 +9,8 @@
 use quote::quote;
 use serde_derive_internals::ast;
 
-use super::{filter_visible, ParseContext, QuoteMaker};
+use super::{filter_visible, verify::Verify, Attrs, ParseContext, QuoteMaker};
+
 impl<'a> ParseContext<'_> {
     pub(crate) fn derive_struct(
         &self,
@@ -34,13 +35,34 @@ impl<'a> ParseContext<'_> {
             return self.derive_struct_unit();
         }
         self.check_flatten(&[field], ast_container);
+
+        let verify = if true || self.global_attrs.verify {
+            let attrs = Attrs::from_field(field, self.ctxt);
+            let verify = Verify {
+                attrs,
+                ctxt: self,
+                field: field,
+            };
+            let v = verify.verify_type(&self.verify, &field.ty);
+            Some(quote!({ #v; return true; }))
+        } else {
+            None
+        };
+
         QuoteMaker {
             body: self.field_to_ts(field),
+            verify: verify,
+            is_enum: false,
         }
     }
 
     fn derive_struct_unit(&self) -> QuoteMaker {
-        QuoteMaker { body: quote!({}) }
+        let obj = &self.verify;
+        QuoteMaker {
+            body: quote!({}),
+            verify: Some(quote!({ if (#obj == null) return false; return true; })),
+            is_enum: false,
+        }
     }
 
     fn derive_struct_named_fields(
@@ -58,27 +80,14 @@ impl<'a> ParseContext<'_> {
         };
         self.check_flatten(&fields, ast_container);
         let content = self.derive_fields(&fields);
+
+        let verify = self.verify_fields(&self.verify, &fields);
+        let obj = &self.verify;
         QuoteMaker {
             body: quote!({#(#content);*}),
+            verify: Some(quote!({ if (#obj == null) return false; #(#verify;)* return true; })),
+            is_enum: false,
         }
-        /*
-              if self.is_type_script_ify {
-                   let mut flatten = Vec::new();
-                   for field in &fields {
-                       if field.attrs.flatten() {
-                           if let Some(ts) = self.get_path(&field.ty) {
-                               flatten.push(ts.ident.clone());
-
-                           }
-                       }
-                   };
-                   let names = fields.iter().map(|f| f.attrs.name().serialize_name()).collect::<Vec<_>>();
-                   let content = content.collect::<Vec<_>>();
-                   QuoteMaker::from_builder(Fields { fields: names, body: content, flatten })
-               } else {
-                   quote!({#(#content),*}).into()
-               }
-        */
     }
 
     fn derive_struct_tuple(
@@ -92,9 +101,12 @@ impl<'a> ParseContext<'_> {
         }
         self.check_flatten(&fields, ast_container);
         let content = self.derive_field_tuple(&fields);
-
+        let verify = self.verify_field_tuple(&self.verify, &fields);
+        let obj = &self.verify;
         QuoteMaker {
             body: quote!([#(#content),*]),
+            verify: Some(quote!({ if (#obj == null) return false; #(#verify;)* return true; })),
+            is_enum: false,
         }
     }
 }

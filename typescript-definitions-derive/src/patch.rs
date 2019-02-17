@@ -19,19 +19,22 @@ use regex::{Captures, Regex};
 use std::borrow::Cow;
 
 pub const PATCH: &str = "__XYZZ__patch_me__XYZZ__";
+pub const TRIPPLE_EQ: &str = "__eeeeEEEeeee__";
 
 // type N = [(&'static str, &'static str); 10];
-const NAMES: [(&str, &str); 11] = [
+const NAMES: [(&str, &str); 12] = [
     ("brack", r"\s*\[\s+\]"),
     ("brace", r"\{\s+\}"),
     ("colon", r"\s+[:]\s"),
     ("bar", r"(^|\s)\|\s+\{"),
     ("enl", r"\n+\}"),
     ("fnl", r"\{\n+"),
-    ("result", PATCH), // for Result...
+    ("result", PATCH),  // for Result...
+    ("te", TRIPPLE_EQ), // ===
     ("lt", r"\s<\s"),
     ("gt", r"\s>(\s|$)"),
     ("semi", r"\s+;"),
+    // ("number", r"\s[0-9]+usize\s"),
     ("nl", r"\n+"), // last!
 ];
 lazy_static! {
@@ -93,8 +96,10 @@ pub fn patch(s: &str) -> Cow<'_, str> {
             "enl" => " }",
             "nl" => " ",
             "result" => "|",
+            "te" => "===",
             "lt" => "<",
             "gt" => ">",
+            // "number" => return Cow::Owned(c.name("number").unwrap().as_str().replace("usize", "")),
             "semi" => ";",
             _ => return Cow::Owned(c.get(0).unwrap().as_str().to_owned()), // maybe should just panic?
         };

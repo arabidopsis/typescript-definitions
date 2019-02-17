@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use super::Ctxt;
+use super::{ast, ident_from_str, Ctxt};
 use quote::quote;
 // use std::str::FromStr;
 // use syn::Type::Path;
@@ -18,6 +18,7 @@ pub struct Attrs {
     pub comments: Vec<String>,
     pub verify: bool,
     pub turbo_fish: Option<TokenStream>,
+    pub only_first: bool,
 }
 
 #[inline]
@@ -41,6 +42,7 @@ impl Attrs {
             comments: vec![],
             turbo_fish: None,
             verify: false,
+            only_first: false,
         }
     }
     pub fn push_doc_comment(&mut self, attrs: &[Attribute]) {
@@ -109,7 +111,7 @@ impl Attrs {
     }
     pub fn find_typescript<'a>(
         attrs: &'a [Attribute],
-        ctxt: &'a Ctxt,
+        ctxt: Option<&'a Ctxt>,
     ) -> impl Iterator<Item = Meta> + 'a {
         use syn::Meta::*;
         use NestedMeta::*;
@@ -120,7 +122,9 @@ impl Attrs {
                 "typescript" => match attr.parse_meta() {
                     Ok(v) => Some(v),
                     Err(msg) => {
-                        ctxt.error(format!("invalid typescript syntax: {}", msg));
+                        if let Some(ctxt) = ctxt {
+                            ctxt.error(format!("invalid typescript syntax: {}", msg));
+                        };
                         None
                     }
                 },
@@ -129,10 +133,12 @@ impl Attrs {
             .filter_map(move |m| match m {
                 List(l) => Some(l.nested),
                 ref tokens => {
-                    ctxt.error(format!(
-                        "unsupported syntax: {}",
-                        quote!(#tokens).to_string()
-                    ));
+                    if let Some(ctxt) = ctxt {
+                        ctxt.error(format!(
+                            "unsupported syntax: {}",
+                            quote!(#tokens).to_string()
+                        ));
+                    };
                     None
                 }
             })
@@ -140,20 +146,22 @@ impl Attrs {
             .filter_map(move |m| match m {
                 Meta(m) => Some(m),
                 ref tokens => {
-                    ctxt.error(format!(
-                        "unsupported syntax: {}",
-                        quote!(#tokens).to_string()
-                    ));
+                    if let Some(ctxt) = ctxt {
+                        ctxt.error(format!(
+                            "unsupported syntax: {}",
+                            quote!(#tokens).to_string()
+                        ));
+                    };
                     None
                 }
             })
     }
-    pub fn push_attrs(&mut self, struct_ident: &Ident, attrs: &[Attribute], ctxt: &Ctxt) {
+    pub fn push_attrs(&mut self, struct_ident: &Ident, attrs: &[Attribute], ctxt: Option<&Ctxt>) {
         use syn::Meta::*;
         use Lit::*;
         // use NestedMeta::*;
 
-        for attr in Self::find_typescript(&attrs, &ctxt) {
+        for attr in Self::find_typescript(&attrs, ctxt) {
             match attr {
                 NameValue(MetaNameValue {
                     ref ident,
@@ -196,6 +204,16 @@ impl Attrs {
                 }
             }
         }
+    }
+    pub fn from_field(field: &ast::Field, ctxt: Option<&Ctxt>) -> Attrs {
+        let mut res = Self::new();
+        if let Some(ref ident) = field.original.ident {
+            res.push_attrs(ident, &field.original.attrs, ctxt);
+        } else {
+            let id = ident_from_str("unnamed");
+            res.push_attrs(&id, &field.original.attrs, ctxt);
+        }
+        res
     }
     /*
     fn push_generic_value(&mut self, ident: &Ident, lit: &Lit) {

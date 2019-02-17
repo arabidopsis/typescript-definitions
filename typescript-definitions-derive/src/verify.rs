@@ -1,21 +1,26 @@
 #![allow(unused)]
-use super::{ast, ident_from_str, is_bytes, last_path_element, ParseContext, QuoteT, TSType};
+use super::patch::TRIPPLE_EQ;
+use super::{
+    ast, ident_from_str, is_bytes, last_path_element, Attrs, ParseContext, QuoteT, TSType,
+};
+use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-impl<'a> ParseContext<'a> {
-    fn verify_type(
-        &self,
-        obj: &'a TokenStream,
-        ty: &syn::Type,
-        field: &'a ast::Field<'a>,
-    ) -> QuoteT {
+pub(crate) struct Verify<'a> {
+    pub ctxt: &'a ParseContext<'a>,
+    pub field: &'a ast::Field<'a>,
+    pub attrs: Attrs,
+}
+
+impl<'a> Verify<'a> {
+    pub fn verify_type(&self, obj: &'a TokenStream, ty: &syn::Type) -> QuoteT {
         // `type_to_ts` recursively calls itself occationally
         // finding a Path which it hands to last_path_element
         // which generates a "simplified" TSType struct which
         // is handed to `generic_to_ts` which possibly "bottoms out"
         // by generating tokens for typescript types.
-
+        let eq = ident_from_str(TRIPPLE_EQ);
         use syn::Type::*;
         use syn::{
             BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound,
@@ -24,8 +29,8 @@ impl<'a> ParseContext<'a> {
         match ty {
             Slice(TypeSlice { elem, .. })
             | Array(TypeArray { elem, .. })
-            | Ptr(TypePtr { elem, .. }) => self.verify_array(obj, elem, field),
-            Reference(TypeReference { elem, .. }) => self.verify_type(obj, elem, field),
+            | Ptr(TypePtr { elem, .. }) => self.verify_array(obj, elem),
+            Reference(TypeReference { elem, .. }) => self.verify_type(obj, elem),
             // fn(a: A,b: B, c:C) -> D
             BareFn(TypeBareFn { output, inputs, .. }) => {
                 return quote!();
@@ -33,11 +38,21 @@ impl<'a> ParseContext<'a> {
             Never(..) => quote! { false },
             Tuple(TypeTuple { elems, .. }) => {
                 let elems = elems.iter().enumerate().map(|(i, t)| {
+                    let i = Literal::usize_unsuffixed(i);
                     let x = quote!(#obj[#i]);
-                    self.verify_type(&x, t, field)
+                    let verify = self.verify_type(&quote!(x), t);
+                    quote! {
+                        {
+                            const x = #x;
+                            if (x #eq undefined) return false;
+                            #verify;
+                        }
+                    }
                 });
+                let len = elems.len();
+                let len = Literal::usize_unsuffixed(len);
                 quote!(
-                    if (! Array.isArray(#obj)) return false;
+                    if (! Array.isArray(#obj) || ! #obj.length #eq #len ) return false;
                     {
                         #(#elems;)*;
                     }
@@ -45,60 +60,56 @@ impl<'a> ParseContext<'a> {
             }
 
             Path(TypePath { path, .. }) => match last_path_element(&path) {
-                Some(ts) => self.verify_generic(obj, ts, field),
+                Some(ts) => self.verify_generic(obj, ts),
                 _ => quote! {},
             },
             TraitObject(TypeTraitObject { bounds, .. })
             | ImplTrait(TypeImplTrait { bounds, .. }) => quote!(),
             Paren(TypeParen { elem, .. }) | Group(TypeGroup { elem, .. }) => {
-                let verify = self.verify_type(obj, elem, field);
-                quote! {  #verify;  }
+                let verify = self.verify_type(obj, elem);
+                quote! {  ( #verify; )  }
             }
             Infer(..) | Macro(..) | Verbatim(..) => quote! {},
         }
     }
-    fn verify_array(
-        &self,
-        obj: &'a TokenStream,
-        elem: &syn::Type,
-        field: &'a ast::Field<'a>,
-    ) -> QuoteT {
-        if let Some(ty) = self.get_path(elem) {
-            if ty.ident == "u8" && is_bytes(field) {
-                return quote!(if (! typeof #obj is "string") return false);
+    fn verify_array(&self, obj: &'a TokenStream, elem: &syn::Type) -> QuoteT {
+        if let Some(ty) = self.ctxt.get_path(elem) {
+            if ty.ident == "u8" && is_bytes(&self.field) {
+                let eq = ident_from_str(TRIPPLE_EQ);
+                return quote!(if (! typeof #obj #eq "string") return false);
             };
         };
-        let verify = self.verify_type(&quote!(x), elem, field);
+        let verify = self.verify_type(&quote!(x), elem);
+        // TODO: verify first only
+        let eq = ident_from_str(TRIPPLE_EQ);
         quote! {
-            for (let x of #obj) {
-                #verify;
-             }
+            if (!Array.isArray(#obj)) return false;
+            if (#obj.length > 0)
+                for (let x of #obj) {
+                    #verify;
+                }
         }
     }
-    fn verify_generic(
-        &self,
-        obj: &'a TokenStream,
-        ts: TSType,
-        field: &'a ast::Field<'a>,
-    ) -> QuoteT {
+    fn verify_generic(&self, obj: &'a TokenStream, ts: TSType) -> QuoteT {
+        let eq = ident_from_str(TRIPPLE_EQ);
         match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => {
-                quote! { if (! typeof #obj === "number") return false }
+                quote! { if (! typeof #obj #eq "number") return false }
             }
-            "String" | "str" => quote! { if (! typeof #obj === "string") return false },
-            "bool" => quote! { if (! typeof #obj === "boolean") return false },
+            "String" | "str" => quote! { if (! typeof #obj #eq "string") return false },
+            "bool" => quote! { if (! typeof #obj #eq "boolean") return false },
             "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => {
-                self.verify_type(obj, &ts.args[0], field)
+                self.verify_type(obj, &ts.args[0])
             }
 
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
-                self.verify_array(obj, &ts.args[0], field)
+                self.verify_array(obj, &ts.args[0])
             }
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
-                let k = self.verify_type(&quote!(k), &ts.args[0], field);
-                let v = self.verify_type(&quote!(v), &ts.args[0], field);
+                let k = self.verify_type(&quote!(k), &ts.args[0]);
+                let v = self.verify_type(&quote!(v), &ts.args[1]);
                 quote!(
                     for (let e of #obj) {
                         let [k, v] = e;
@@ -107,25 +118,23 @@ impl<'a> ParseContext<'a> {
                     }
                 )
             }
-            "HashSet" | "BTreeSet" if ts.args.len() == 1 => {
-                self.verify_array(obj, &ts.args[0], field)
-            }
+            "HashSet" | "BTreeSet" if ts.args.len() == 1 => self.verify_array(obj, &ts.args[0]),
             "Option" if ts.args.len() == 1 => {
-                let verify = self.verify_type(obj, &ts.args[0], field);
-                quote!(  if (#obj !== null) {
+                let verify = self.verify_type(obj, &ts.args[0]);
+                quote!(  if (!(#obj #eq null)) {
                             #verify;
                         }
                 )
             }
             "Result" if ts.args.len() == 2 => {
                 let v = quote!(v);
-                let k = self.verify_type(&v, &ts.args[0], field);
-                let v = self.verify_type(&v, &ts.args[0], field);
+                let k = self.verify_type(&v, &ts.args[0]);
+                let v = self.verify_type(&v, &ts.args[0]);
                 quote! (
                     if( !(v =>
                         if(
-                            (v => {if(v  === undefined) return false; #k; return true; })(v.Ok) ||
-                            (v => {if(v === undefined) return false; #v; return true; })(v.Err)
+                            (v => {if(v #eq undefined) return false; #k; return true; })(v.Ok) ||
+                            (v => {if(v #eq undefined) return false; #v; return true; })(v.Err)
                           ) return true;
                         return false;
                         )(#obj)
@@ -136,45 +145,72 @@ impl<'a> ParseContext<'a> {
             "Fn" | "FnOnce" | "FnMut" => quote!(),
             _ => {
                 let i = ts.ident;
+                let func = ident_from_str(&format!("verify_{}", i));
                 if !ts.args.is_empty() {
                     // TODO: get type args from to
-                    let args = self.derive_syn_types(&ts.args, field);
-                    quote! { if (!verify_#i<#(#args),*>(#obj)) return false; }
+                    let args = self.ctxt.derive_syn_types(&ts.args, &self.field);
+                    quote! { if (!#func<#(#args),*>(#obj)) return false; }
                 } else {
-                    quote!( if (!verify_#i(#obj)) return false; )
+                    quote!( if (!#func(#obj)) return false; )
                 }
             }
         }
     }
-    fn verify_field(&self, obj: &TokenStream, field: &ast::Field<'a>) -> QuoteT {
-        let n = field.attrs.name().serialize_name(); // use serde name instead of field.member
+    pub fn verify_field(&self, obj: &TokenStream) -> QuoteT {
+        let n = self.field.attrs.name().serialize_name(); // use serde name instead of field.member
         let n = ident_from_str(&n);
-
-        let verify = self.verify_type(&quote!(v), &field.ty, &field);
+        let eq = ident_from_str(TRIPPLE_EQ);
+        let verify = self.verify_type(&quote!(v), &self.field.ty);
 
         quote! {
-           if (#obj.#n === undefined) return false;
+           if (#obj.#n #eq undefined) return false;
            {
-            let v = #obj.#n;
+            const v = #obj.#n;
             #verify;
            }
         }
     }
-    fn verify_fields(
+}
+impl<'a> ParseContext<'a> {
+    pub fn verify_fields(
         &'a self,
-        obj: &TokenStream,
+        obj: &'a TokenStream,
         fields: &'a [&'a ast::Field<'a>],
     ) -> impl Iterator<Item = QuoteT> + 'a {
-        fields.iter().map(move |f| self.derive_field(f))
+        fields.iter().map(move |f| {
+            let attrs = Attrs::from_field(f, self.ctxt);
+            let verify = Verify {
+                attrs: attrs,
+                field: f,
+                ctxt: &self,
+            };
+            verify.verify_field(obj)
+        })
     }
-    fn verify_field_tuple(
+    pub fn verify_field_tuple(
         &'a self,
-        obj: TokenStream,
+        obj: &'a TokenStream,
         fields: &'a [&'a ast::Field<'a>],
     ) -> impl Iterator<Item = QuoteT> + 'a {
+        let eq = ident_from_str(TRIPPLE_EQ);
         fields.iter().enumerate().map(move |(i, f)| {
-            let n = quote!(#obj[i]);
-            self.verify_type(&n, &f.ty, f)
+            let i = Literal::usize_unsuffixed(i);
+            let n = quote!(#obj[#i]);
+            let attrs = Attrs::from_field(f, self.ctxt);
+
+            let v = Verify {
+                attrs: attrs,
+                field: f,
+                ctxt: &self,
+            };
+            let verify = v.verify_type(&quote!(v), &f.ty);
+            quote! {
+                if (#n #eq undefined) return false;
+                {
+                    const v = #n;
+                    #verify;
+                }
+            }
         })
     }
 }

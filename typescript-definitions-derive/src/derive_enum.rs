@@ -22,9 +22,9 @@ impl<'a> ParseContext<'_> {
     pub(crate) fn derive_enum(
         &self,
         variants: &[ast::Variant<'a>],
-        container: &ast::Container,
+        ast_container: &ast::Container,
     ) -> QuoteMaker {
-        let taginfo = match container.attrs.tag() {
+        let taginfo = match ast_container.attrs.tag() {
             EnumTag::Internal { tag, .. } => TagInfo {
                 tag: Some(tag),
                 content: None,
@@ -67,7 +67,6 @@ impl<'a> ParseContext<'_> {
             }
         }
         if is_enum {
-            self.is_enum.set(is_enum); // tell parser context
             let v = &skip_variants
                 .iter()
                 .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
@@ -76,12 +75,14 @@ impl<'a> ParseContext<'_> {
 
             return QuoteMaker {
                 body: quote! ( { #(#k = #v),* } ),
+                verify: None,
+                is_enum: true,
             };
         }
 
         let content = skip_variants.iter().map(|variant| match variant.style {
             ast::Style::Struct => {
-                self.derive_struct_variant(&taginfo, variant, &variant.fields, container)
+                self.derive_struct_variant(&taginfo, variant, &variant.fields, ast_container)
             }
             ast::Style::Newtype => {
                 self.derive_newtype_variant(&taginfo, variant, &variant.fields[0])
@@ -93,6 +94,8 @@ impl<'a> ParseContext<'_> {
         let body = content.map(|q| q.body);
         QuoteMaker {
             body: quote! ( #(|#body)* ),
+            verify: None,
+            is_enum: false,
         }
     }
     fn derive_unit_variant(&self, taginfo: &TagInfo, variant: &Variant) -> QuoteMaker {
@@ -100,6 +103,8 @@ impl<'a> ParseContext<'_> {
         if taginfo.tag.is_none() {
             return QuoteMaker {
                 body: quote!(#variant_name),
+                verify: None,
+                is_enum: false,
             };
         }
         let tag = ident_from_str(taginfo.tag.unwrap());
@@ -107,6 +112,8 @@ impl<'a> ParseContext<'_> {
             body: quote! (
                 { #tag: #variant_name }
             ),
+            verify: None,
+            is_enum: false,
         }
     }
 
@@ -125,13 +132,18 @@ impl<'a> ParseContext<'_> {
             if taginfo.untagged {
                 return QuoteMaker {
                     body: quote! ( #ty ),
+                    verify: None,
+                    is_enum: false,
                 };
             };
             let tag = ident_from_str(&variant_name);
             return QuoteMaker {
                 body: quote! (
                     { #tag : #ty }
+
                 ),
+                verify: None,
+                is_enum: false,
             };
         };
         let tag = ident_from_str(taginfo.tag.unwrap());
@@ -146,6 +158,8 @@ impl<'a> ParseContext<'_> {
             body: quote! (
                 { #tag: #variant_name; #content: #ty }
             ),
+            verify: None,
+            is_enum: false,
         }
     }
 
@@ -154,7 +168,7 @@ impl<'a> ParseContext<'_> {
         taginfo: &TagInfo,
         variant: &Variant,
         fields: &[ast::Field<'a>],
-        container: &ast::Container,
+        ast_container: &ast::Container,
     ) -> QuoteMaker {
         use std::collections::HashSet;
         let fields = filter_visible(fields);
@@ -162,7 +176,7 @@ impl<'a> ParseContext<'_> {
             return self.derive_unit_variant(taginfo, variant);
         }
 
-        self.check_flatten(&fields, container);
+        self.check_flatten(&fields, ast_container);
 
         let contents = self.derive_fields(&fields);
         let variant_name = self.variant_name(variant);
@@ -172,6 +186,8 @@ impl<'a> ParseContext<'_> {
                     body: quote! (
                         { #(#contents);* }
                     ),
+                    verify: None,
+                    is_enum: false,
                 };
             };
             let tag = ident_from_str(&variant_name);
@@ -179,6 +195,8 @@ impl<'a> ParseContext<'_> {
                 body: quote! (
                     { #tag : { #(#contents);* }  }
                 ),
+                verify: None,
+                is_enum: false,
             };
         }
         let tag_str = taginfo.tag.unwrap();
@@ -188,7 +206,10 @@ impl<'a> ParseContext<'_> {
             QuoteMaker {
                 body: quote! (
                     { #tag: #variant_name; #content: { #(#contents);* } }
+
                 ),
+                verify: None,
+                is_enum: false,
             }
         } else {
             if let Some(ref cx) = self.ctxt {
@@ -200,7 +221,7 @@ impl<'a> ParseContext<'_> {
                     cx.error(format!(
                         "clash with field in \"{}::{}\". \
                          Maybe use a #[serde(content=\"...\")] attribute.",
-                        container.ident, variant_name
+                        ast_container.ident, variant_name
                     ));
                 }
             }
@@ -208,6 +229,8 @@ impl<'a> ParseContext<'_> {
                 body: quote! (
                     { #tag: #variant_name; #(#contents);* }
                 ),
+                verify: None,
+                is_enum: false,
             }
         }
     }
@@ -232,13 +255,18 @@ impl<'a> ParseContext<'_> {
                     body: quote! (
                      [ #(#contents),* ]
                     ),
+                    verify: None,
+                    is_enum: false,
                 };
             }
             let tag = ident_from_str(&variant_name);
             return QuoteMaker {
                 body: quote! (
                  { #tag : [ #(#contents),* ] }
+
                 ),
+                verify: None,
+                is_enum: false,
             };
         };
 
@@ -253,6 +281,8 @@ impl<'a> ParseContext<'_> {
             body: quote! (
             { #tag: #variant_name; #content : [ #(#contents),* ] }
             ),
+            verify: None,
+            is_enum: false,
         }
     }
 }

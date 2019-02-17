@@ -79,7 +79,7 @@ mod macro_test {
         );
         let ty = Typescriptify::parse(true, tokens);
         let i = &ty.ident;
-        let g = ty.attrs.turbo_fish.unwrap_or_else(|| quote!());
+        let g = ty.ctxt.global_attrs.turbo_fish.unwrap_or_else(|| quote!());
         let res = quote!(#i#g::type_script_ify()).to_string();
         assert_snapshot_matches!(res,
         @"S < i32 > :: type_script_ify ( )" );

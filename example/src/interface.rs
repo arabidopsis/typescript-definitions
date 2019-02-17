@@ -79,12 +79,14 @@ pub struct Borrow<'a> {
     raw: &'a str,
     cow: Cow<'a, str>,
     map: HashMap<String, i32>,
+    pub array: Vec<String>,
 }
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
 pub struct MyBytes {
     #[serde(serialize_with = "typescript_definitions::as_byte_string")]
     pub buffer: Vec<u8>,
+
 }
 #[derive(Serialize, TypescriptDefinition)]
 #[serde(tag = "kind", content = "fields")]

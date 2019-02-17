@@ -19,7 +19,10 @@ install:
 
 # npm install -g prettier
 pretty:
-	@prettier pkg/mywasm.d.ts | diff -w pkg/mywasm.d.ts - | colordiff
+	@prettier pkg/mywasm.d.ts --parser typescript | diff -w pkg/mywasm.d.ts - | colordiff
 
+# cargo install bat
+view:
+	@prettier pkg/mywasm.d.ts --parser typescript | bat -l typescript
 
 .PHONY: pretty install wasm bindgen
