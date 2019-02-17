@@ -63,7 +63,7 @@ pub enum FrontendMessage {
     Render {
         html: String,
         time: u32,
-        other: Result<&'static str, i32>,
+        other_result: Result<&'static str, i32>,
     },
     Stuff {
         borrow: Value<i32>,

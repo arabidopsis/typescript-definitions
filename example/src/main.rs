@@ -21,7 +21,7 @@ fn main() -> Result<(), Error> {
     let f = FrontendMessage::Render {
         html: "stuff".into(),
         time: 33,
-        other: Err(32),
+        other_result: Err(32),
     };
     let f2 = FrontendMessage::ButtonState {
         selected: vec!["a".into(), "b".into()],
