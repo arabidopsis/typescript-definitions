@@ -6,11 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use proc_macro2::Literal;
 use quote::quote;
 use serde_derive_internals::ast;
-use proc_macro2::Literal;
 
-use super::{filter_visible, ParseContext, QuoteMaker, patch::NL_PATCH};
+use super::{filter_visible, patch::NL_PATCH, ParseContext, QuoteMaker};
 
 impl<'a> ParseContext<'_> {
     pub(crate) fn derive_struct(
@@ -91,7 +91,7 @@ impl<'a> ParseContext<'_> {
         } else {
             None
         };
-       
+
         QuoteMaker {
             body: quote!({#(#content);*}),
             verify,

@@ -1,7 +1,6 @@
 #![allow(unused)]
 use std::process;
 
-
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefinition};
 
 use serde::Serialize;
@@ -9,10 +8,9 @@ use serde::Serialize;
 use insta::assert_snapshot_matches;
 use wasm_bindgen::prelude::*;
 
-
-use std::process::{Command, Stdio};
 use std::io::Write;
-pub fn prettier(s : &str) -> String {
+use std::process::{Command, Stdio};
+pub fn prettier(s: &str) -> String {
     let mut child = Command::new("prettier")
         .arg("--parser")
         .arg("typescript")
@@ -25,19 +23,17 @@ pub fn prettier(s : &str) -> String {
     {
         // limited borrow of stdin
         let stdin = child.stdin.as_mut().expect("failed to get stdin");
-        stdin.write_all(s.as_bytes()).expect("failed to write to stdin");
+        stdin
+            .write_all(s.as_bytes())
+            .expect("failed to write to stdin");
     }
 
     let output = child
         .wait_with_output()
         .expect("failed to wait on prettier");
 
-
-
     String::from_utf8_lossy(&output.stdout).to_string()
-
 }
-
 
 #[test]
 fn verify_untagged_enum() {
@@ -51,7 +47,7 @@ fn verify_untagged_enum() {
     }
 
     assert_snapshot_matches!(
-        prettier(&Untagged::type_script_verify().unwrap()),
+    prettier(&Untagged::type_script_verify().unwrap()),
         @r###"export const isa_Untagged = (obj: any): obj is Untagged => {
   if (obj == undefined) return false;
   if (

@@ -73,7 +73,11 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
-    let verify = if cfg!(feature="verifier") { true } else { false };
+    let verify = if cfg!(feature = "verifier") {
+        true
+    } else {
+        false
+    };
     let parsed = Typescriptify::parse(verify, input);
     let export_string = parsed.wasm_string();
     let name = parsed.ident.to_string().to_uppercase();
@@ -111,7 +115,11 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 }
 
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
-    let verify = if cfg!(feature="verifier") { true } else { false };
+    let verify = if cfg!(feature = "verifier") {
+        true
+    } else {
+        false
+    };
 
     let parsed = Typescriptify::parse(verify, input);
 
@@ -123,7 +131,7 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
 
     let verifier = match parsed.wasm_verify() {
         Some(ref txt) => quote!(Some(#txt.into())),
-        None => quote!(None)
+        None => quote!(None),
     };
 
     let ret = if parsed.ts_generics.is_empty() {
@@ -408,7 +416,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
 
 pub(crate) struct ParseContext<'a> {
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
-    arg_name: QuoteT, // top level "name" of argument for verifier
+    arg_name: QuoteT,       // top level "name" of argument for verifier
     global_attrs: Attrs,
     gen_verifier: bool,
 }
