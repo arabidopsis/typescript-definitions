@@ -73,16 +73,13 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
-    let parsed = Typescriptify::parse(false, input);
+    let verify = if cfg!(feature="verifier") { true } else { false };
+    let parsed = Typescriptify::parse(verify, input);
     let export_string = parsed.wasm_string();
     let name = parsed.ident.to_string().to_uppercase();
 
     let export_ident = ident_from_str(&format!("TS_EXPORT_{}", name));
 
-    // eprintln!(
-    //     "....[typescript] export type {}={};",
-    //     parsed.ident, typescript_string
-    // );
     let mut q = quote! {
 
         #[wasm_bindgen(typescript_custom_section)]
@@ -114,7 +111,9 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 }
 
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
-    let parsed = Typescriptify::parse(true, input);
+    let verify = if cfg!(feature="verifier") { true } else { false };
+
+    let parsed = Typescriptify::parse(verify, input);
 
     let export_string = parsed.wasm_string();
 
@@ -195,7 +194,7 @@ impl Typescriptify {
                 let body = body.to_string();
                 let body = patch(&body);
                 let generics = self.ts_generics();
-                Some(format!("export const verify_{ident} = {generics}({obj}: any): {obj} is {ident}{generics} => {body}", 
+                Some(format!("export const isa_{ident} = {generics}({obj}: any): {obj} is {ident}{generics} => {body}", 
                     ident=ident, obj=obj, body=body, generics=generics ))
             }
         }
@@ -250,7 +249,7 @@ impl Typescriptify {
         })
     }
 
-    fn parse(is_type_script_ify: bool, input: QuoteT) -> Self {
+    fn parse(gen_verifier: bool, input: QuoteT) -> Self {
         let input: DeriveInput = syn::parse2(input).unwrap();
 
         let cx = Ctxt::new();
@@ -261,7 +260,7 @@ impl Typescriptify {
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
 
         let (typescript, ctxt) = {
-            let pctxt = ParseContext::new(is_type_script_ify, attrs, &cx);
+            let pctxt = ParseContext::new(gen_verifier, attrs, &cx);
 
             let typescript = match container.data {
                 ast::Data::Enum(ref variants) => pctxt.derive_enum(variants, &container),
@@ -281,17 +280,17 @@ impl Typescriptify {
 
         let ts_generics = ts_generics(container.generics);
 
-        if false
-            && is_type_script_ify
-            && ctxt.global_attrs.turbo_fish.is_none()
-            && !ts_generics.is_empty()
-            && ts_generics.iter().any(|f| f.is_some())
-        {
-            cx.error(format!(
-                "Generic item \"{}\" requires #[typescript(turbo_fish= \"...\")] attribute",
-                container.ident
-            ))
-        }
+        // if false
+        //     && is_type_script_ify
+        //     && ctxt.global_attrs.turbofish.is_none()
+        //     && !ts_generics.is_empty()
+        //     && ts_generics.iter().any(|f| f.is_some())
+        // {
+        //     cx.error(format!(
+        //         "Generic item \"{}\" requires #[typescript(turbofish= \"...\")] attribute",
+        //         container.ident
+        //     ))
+        // }
 
         // consumes context panics with errors
         if let Err(m) = cx.check() {
@@ -409,21 +408,17 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
 
 pub(crate) struct ParseContext<'a> {
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
-
-    #[allow(unused)]
-    is_type_script_ify: bool,
     arg_name: QuoteT, // top level "name" of argument for verifier
     global_attrs: Attrs,
     gen_verifier: bool,
 }
 impl<'a> ParseContext<'a> {
-    fn new(is_type_script_ify: bool, global_attrs: Attrs, ctxt: &'a Ctxt) -> ParseContext<'a> {
+    fn new(gen_verifier: bool, global_attrs: Attrs, ctxt: &'a Ctxt) -> ParseContext<'a> {
         ParseContext {
             ctxt: Some(ctxt),
-            is_type_script_ify,
+            gen_verifier,
             arg_name: quote!(obj),
             global_attrs,
-            gen_verifier: true,
         }
     }
     fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {
