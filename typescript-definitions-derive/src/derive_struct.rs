@@ -60,7 +60,7 @@ impl<'a> ParseContext<'_> {
         let obj = &self.verify;
         QuoteMaker {
             body: quote!({}),
-            verify: Some(quote!({ if (#obj == null) return false; return true; })),
+            verify: Some(quote!({ if (#obj == undefined) return false; return true; })),
             is_enum: false,
         }
     }
@@ -85,7 +85,7 @@ impl<'a> ParseContext<'_> {
         let obj = &self.verify;
         QuoteMaker {
             body: quote!({#(#content);*}),
-            verify: Some(quote!({ if (#obj == null) return false; #(#verify;)* return true; })),
+            verify: Some(quote!({ if (#obj == undefined) return false; #(#verify;)* return true; })),
             is_enum: false,
         }
     }
@@ -105,7 +105,7 @@ impl<'a> ParseContext<'_> {
         let obj = &self.verify;
         QuoteMaker {
             body: quote!([#(#content),*]),
-            verify: Some(quote!({ if (#obj == null) return false; #(#verify;)* return true; })),
+            verify: Some(quote!({ if (#obj == undefined) return false; #(#verify;)* return true; })),
             is_enum: false,
         }
     }

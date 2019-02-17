@@ -455,7 +455,7 @@ impl<'a> ParseContext<'a> {
                 let v = to_ts(&ts.args[1]);
                 // ugh!
                 // see patch.rs...
-                let vertical_bar = ident_from_str(patch::PATCH);
+                let vertical_bar = ident_from_str(patch::RESULT_BAR);
                 quote!(  { Ok : #k } #vertical_bar { Err : #v }  )
             }
             "Fn" | "FnOnce" | "FnMut" => {

@@ -44,7 +44,7 @@ impl<'a> Verify<'a> {
                     quote! {
                         {
                             const x = #x;
-                            if (x #eq undefined) return false;
+                            if (x == undefined) return false;
                             #verify;
                         }
                     }
@@ -121,7 +121,7 @@ impl<'a> Verify<'a> {
             "HashSet" | "BTreeSet" if ts.args.len() == 1 => self.verify_array(obj, &ts.args[0]),
             "Option" if ts.args.len() == 1 => {
                 let verify = self.verify_type(obj, &ts.args[0]);
-                quote!(  if (!(#obj #eq null)) {
+                quote!(  if (!(#obj #eq null)) { // sic!
                             #verify;
                         }
                 )
@@ -130,17 +130,14 @@ impl<'a> Verify<'a> {
                 let v = quote!(v);
                 let k = self.verify_type(&v, &ts.args[0]);
                 let v = self.verify_type(&v, &ts.args[0]);
-                quote! (
-                    if( !(v =>
+                quote! ({
                         if(
-                            (v => {if(v #eq undefined) return false; #k; return true; })(v.Ok) ||
-                            (v => {if(v #eq undefined) return false; #v; return true; })(v.Err)
+                            ((v => {if(v == undefined) return false; #k; return true; })(#obj.Ok)) ||
+                            ((v => {if(v == undefined) return false; #v; return true; })(#obj.Err))
                           ) return true;
+                        
                         return false;
-                        )(#obj)
-
-                        ) return false
-                )
+                 } )
             }
             "Fn" | "FnOnce" | "FnMut" => quote!(),
             _ => {
@@ -163,7 +160,7 @@ impl<'a> Verify<'a> {
         let verify = self.verify_type(&quote!(v), &self.field.ty);
 
         quote! {
-           if (#obj.#n #eq undefined) return false;
+           if (#obj.#n == undefined) return false;
            {
             const v = #obj.#n;
             #verify;
@@ -205,7 +202,7 @@ impl<'a> ParseContext<'a> {
             };
             let verify = v.verify_type(&quote!(v), &f.ty);
             quote! {
-                if (#n #eq undefined) return false;
+                if (#n == undefined) return false;
                 {
                     const v = #n;
                     #verify;

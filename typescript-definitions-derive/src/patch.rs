@@ -18,23 +18,35 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::borrow::Cow;
 
-pub const PATCH: &str = "__XYZZ__patch_me__XYZZ__";
-pub const TRIPPLE_EQ: &str = "__eeeeEEEeeee__";
+pub const RESULT_BAR: &str = "__XYZZ__patch_me__XYZZ__";
 
+// In typescript '===' is a single token whereas
+// for rust this would be two tokens '==' and '=',
+// and fails to generate correct typescript/javascript.
+// So we subsitute the operator with this identifier and then patch
+// it back *after* we generate the string.
+// The problem is that someone, somewhere might have
+// an identifer that is this... We hope and pray.
+// 
+// This is also the reason we prefer !(x === y) to x !== y ..
+// too much patching.
+pub const TRIPPLE_EQ: &str = "__eeeeEEEeeee__";
+pub const NL_PATCH: &str = "__nlnlnlnlnln__";
+pub const NL_PATCHQ: &str = "\"__nlnlnlnlnln__\"";
 // type N = [(&'static str, &'static str); 10];
-const NAMES: [(&str, &str); 12] = [
+const NAMES: [(&str, &str); 13] = [
     ("brack", r"\s*\[\s+\]"),
     ("brace", r"\{\s+\}"),
     ("colon", r"\s+[:]\s"),
     ("bar", r"(^|\s)\|\s+\{"),
     ("enl", r"\n+\}"),
     ("fnl", r"\{\n+"),
-    ("result", PATCH),  // for Result...
-    ("te", TRIPPLE_EQ), // ===
+    ("result", RESULT_BAR),  // for Result...
+    ("te", TRIPPLE_EQ), // for ===
     ("lt", r"\s<\s"),
     ("gt", r"\s>(\s|$)"),
     ("semi", r"\s+;"),
-    // ("number", r"\s[0-9]+usize\s"),
+    ("nlpatch", NL_PATCHQ),
     ("nl", r"\n+"), // last!
 ];
 lazy_static! {
@@ -99,8 +111,8 @@ pub fn patch(s: &str) -> Cow<'_, str> {
             "te" => "===",
             "lt" => "<",
             "gt" => ">",
-            // "number" => return Cow::Owned(c.name("number").unwrap().as_str().replace("usize", "")),
             "semi" => ";",
+            "nlpatch" => "\n",
             _ => return Cow::Owned(c.get(0).unwrap().as_str().to_owned()), // maybe should just panic?
         };
         Cow::Borrowed(m)
