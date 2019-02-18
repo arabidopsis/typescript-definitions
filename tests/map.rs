@@ -86,8 +86,8 @@ fn untagged_enum() {
     assert_snapshot_matches!(
         Untagged::type_script_ify(),
         @r###"export type Untagged = 
-  | { id: number; attr: string }
-  | { id: number; attr2: string[] };"###
+ | { id: number; attr: string } 
+ | { id: number; attr2: string[] };"###
 
     )
 }
@@ -107,7 +107,7 @@ fn external_enum() {
     External::type_script_ify(),
         @r###"// Has documentation.
 export type External = 
-  | { V1: { id: number; attr: string } }
-  | { V2: { id: number; attr2: string[] } };"###
+ | { V1: { id: number; attr: string } } 
+ | { V2: { id: number; attr2: string[] } };"###
     )
 }

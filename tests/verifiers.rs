@@ -32,7 +32,7 @@ pub fn prettier(s: &str) -> String {
         .wait_with_output()
         .expect("failed to wait on prettier");
 
-    String::from_utf8_lossy(&output.stdout).to_string()
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
 #[test]
@@ -45,22 +45,21 @@ fn verify_untagged_enum() {
         V1 { id: i32, attr: String },
         V2 { id: i32, attr2: Vec<String> },
     }
-
-    assert_snapshot_matches!(
-    prettier(&Untagged::type_script_verify().unwrap()),
+    let verify_untagged_enum = prettier(&Untagged::type_script_verify().unwrap());
+    assert_snapshot_matches!(verify_untagged_enum,
         @r###"export const isa_Untagged = (obj: any): obj is Untagged => {
   if (obj == undefined) return false;
   if (
     (() => {
-      if (obj.id == undefined) return false;
+      if (obj.id === undefined) return false;
       {
         const val = obj.id;
-        if (!typeof val === "number") return false;
+        if (!(typeof val === "number")) return false;
       }
-      if (obj.attr == undefined) return false;
+      if (obj.attr === undefined) return false;
       {
         const val = obj.attr;
-        if (!typeof val === "string") return false;
+        if (!(typeof val === "string")) return false;
       }
       return true;
     })()
@@ -68,19 +67,18 @@ fn verify_untagged_enum() {
     return true;
   if (
     (() => {
-      if (obj.id == undefined) return false;
+      if (obj.id === undefined) return false;
       {
         const val = obj.id;
-        if (!typeof val === "number") return false;
+        if (!(typeof val === "number")) return false;
       }
-      if (obj.attr2 == undefined) return false;
+      if (obj.attr2 === undefined) return false;
       {
         const val = obj.attr2;
         if (!Array.isArray(val)) return false;
-        if (val.length > 0)
-          for (let x of val) {
-            if (!typeof x === "string") return false;
-          }
+        for (let x of val) {
+          if (!(typeof x === "string")) return false;
+        }
       }
       return true;
     })()
@@ -89,4 +87,30 @@ fn verify_untagged_enum() {
   return false;
 };"###
     )
+}
+
+#[test]
+fn verify_first_only() {
+    use serde_json;
+
+    #[derive(Serialize, TypeScriptify)]
+    struct S {
+        #[typescript(check = "first")]
+        vals: Vec<String>,
+    }
+    let verify_first_only = prettier(&S::type_script_verify().unwrap());
+    assert_snapshot_matches!(verify_first_only,
+    @r###"export const isa_S = (obj: any): obj is S => {
+  if (obj == undefined) return false;
+  if (obj.vals === undefined) return false;
+  {
+    const val = obj.vals;
+    if (!Array.isArray(val)) return false;
+    for (let x of val) {
+      if (!(typeof x === "string")) return false;
+      break;
+    }
+  }
+  return true;
+};"###)
 }
