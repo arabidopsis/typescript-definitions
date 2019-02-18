@@ -7,7 +7,7 @@ use serde_json::Error;
 mod interface;
 
 #[cfg(any(debug_assertions, feature = "export-typescript"))]
-fn main() -> Result<(), Error> {
+fn run() -> Result<(), Error> {
     use self::interface::*;
     // need the trait
     use typescript_definitions::TypeScriptifyTrait;
