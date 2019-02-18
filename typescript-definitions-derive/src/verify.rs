@@ -1,8 +1,15 @@
+// Copyright 2019 Ian Castleden
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
 #![allow(unused)]
 
 use super::{
-    ast, ident_from_str, is_bytes, last_path_element, Attrs, ParseContext, QuoteT, TSType,
-    patch::eq,
+    ast, ident_from_str, is_bytes, last_path_element, patch::eq, Attrs, ParseContext, QuoteT,
+    TSType,
 };
 use proc_macro2::Literal;
 use proc_macro2::TokenStream;
@@ -16,11 +23,8 @@ pub(crate) struct Verify<'a> {
 
 impl<'a> Verify<'a> {
     pub fn verify_type(&self, obj: &'a TokenStream, ty: &syn::Type) -> QuoteT {
-        // `type_to_ts` recursively calls itself occationally
-        // finding a Path which it hands to last_path_element
-        // which generates a "simplified" TSType struct which
-        // is handed to `generic_to_ts` which possibly "bottoms out"
-        // by generating tokens for typescript types.
+        // remeber obj is definitely *not* undefined... but because
+        // of the option type it *could* be null....
         let eq = eq();
         use syn::Type::*;
         use syn::{
@@ -40,18 +44,18 @@ impl<'a> Verify<'a> {
             Tuple(TypeTuple { elems, .. }) => {
                 let elems = elems.iter().enumerate().map(|(i, t)| {
                     let i = Literal::usize_unsuffixed(i);
-                    let x = quote!(#obj[#i]);
-                    let verify = self.verify_type(&quote!(x), t);
+                    let v = quote!(#obj[#i]);
+                    let verify = self.verify_type(&quote!(val), t);
                     quote! {
                         {
-                            const x = #x;
-                            if (x == undefined) return false;
+                            const val = #v;
+                            if (val #eq undefined) return false;
                             #verify;
                         }
                     }
                 });
-                let len = elems.len();
-                let len = Literal::usize_unsuffixed(len);
+
+                let len = Literal::usize_unsuffixed(elems.len());
                 quote!(
                     if (! Array.isArray(#obj) || ! #obj.length #eq #len ) return false;
                     {
@@ -77,35 +81,33 @@ impl<'a> Verify<'a> {
         if let Some(ty) = self.ctxt.get_path(elem) {
             if ty.ident == "u8" && is_bytes(&self.field) {
                 let eq = eq();
-                return quote!(if (! typeof #obj #eq "string") return false);
+                return quote!(if (! (typeof #obj #eq "string")) return false);
             };
         };
         let verify = self.verify_type(&quote!(x), elem);
         let brk = if self.attrs.only_first {
-            quote!(break;)        
+            quote!(break;)
         } else {
             quote!()
         };
-        
+
         quote! {
             if (!Array.isArray(#obj)) return false;
-            if (#obj.length > 0)
                 for (let x of #obj) {
                     #verify;
                     #brk
                 }
         }
-
     }
     fn verify_generic(&self, obj: &'a TokenStream, ts: TSType) -> QuoteT {
         let eq = eq();
         match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => {
-                quote! { if (! typeof #obj #eq "number") return false }
+                quote! { if (! (typeof #obj #eq "number")) return false }
             }
-            "String" | "str" => quote! { if (! typeof #obj #eq "string") return false },
-            "bool" => quote! { if (! typeof #obj #eq "boolean") return false },
+            "String" | "str" => quote! { if (! (typeof #obj #eq "string")) return false },
+            "bool" => quote! { if (! (typeof #obj #eq "boolean")) return false },
             "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => {
                 self.verify_type(obj, &ts.args[0])
             }
@@ -117,11 +119,19 @@ impl<'a> Verify<'a> {
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
                 let k = self.verify_type(&quote!(k), &ts.args[0]);
                 let v = self.verify_type(&quote!(v), &ts.args[1]);
+                let brk = if self.attrs.only_first {
+                    quote!(break;)
+                } else {
+                    quote!()
+                };
+                // obj is definitely not undefined... but it might be null...
                 quote!(
+                    if (!(#obj #eq null))
                     for (let e of #obj) {
                         let [k, v] = e;
                         #k;
                         #v;
+                        #brk
                     }
                 )
             }
@@ -138,6 +148,7 @@ impl<'a> Verify<'a> {
                 let k = self.verify_type(&v, &ts.args[0]);
                 let v = self.verify_type(&v, &ts.args[0]);
                 quote! ({
+                        if (#obj #eq null) return false;
                         if(
                             ((v => {if(v == undefined) return false; #k; return true; })(#obj.Ok)) ||
                             ((v => {if(v == undefined) return false; #v; return true; })(#obj.Err))
@@ -148,9 +159,28 @@ impl<'a> Verify<'a> {
             "Fn" | "FnOnce" | "FnMut" => quote!(),
             _ => {
                 let i = ts.ident;
-                let func = ident_from_str(&format!("verify_{}", i));
+                let func = ident_from_str(&format!("isa_{}", i));
+                let is_generic = self.ctxt.ts_generics.iter().any(|v| match v {
+                    Some((t, _)) => *t == i,
+                    None => false,
+                });
+                let func: TokenStream = if is_generic {
+                    if let Some(q) = self.ctxt.global_attrs.isa.get(&i.to_string()) {
+                        quote!(#q<#i>)
+                    } else {
+                        quote!(#func<#i>) // fixme need typescript(isa(T=isa_V<T>(a)))
+                    }
+                } else {
+                    quote!(#func)
+                };
                 if !ts.args.is_empty() {
-                    // TODO: get type args from to
+                    if is_generic {
+                        // T<K,V> with T generic ...
+                        self.ctxt.err_msg(format!(
+                            "{}: generic args of a generic type is not supported",
+                            i
+                        ))
+                    }
                     let args = self.ctxt.derive_syn_types(&ts.args, &self.field);
                     quote! { if (!#func<#(#args),*>(#obj)) return false; }
                 } else {
@@ -163,9 +193,10 @@ impl<'a> Verify<'a> {
         let n = self.field.attrs.name().serialize_name(); // use serde name instead of field.member
         let n = ident_from_str(&n);
         let verify = self.verify_type(&quote!(val), &self.field.ty);
+        let eq = eq();
 
         quote! {
-           if (#obj.#n == undefined) return false;
+           if (#obj.#n #eq undefined) return false;
            {
             const val = #obj.#n;
             #verify;
@@ -178,7 +209,7 @@ impl<'a> ParseContext<'a> {
         let attrs = Attrs::from_field(field, self.ctxt);
         let verify = Verify {
             attrs,
-            ctxt: self,
+            ctxt: &self,
             field,
         };
         verify.verify_type(&obj, &field.ty)
@@ -207,18 +238,18 @@ impl<'a> ParseContext<'a> {
         fields.iter().enumerate().map(move |(i, f)| {
             let i = Literal::usize_unsuffixed(i);
             let n = quote!(#obj[#i]);
-            let attrs = Attrs::from_field(f, self.ctxt);
+            let attrs = Attrs::from_field(f, self.ctxt);;
 
             let v = Verify {
                 attrs,
                 field: f,
                 ctxt: &self,
             };
-            let verify = v.verify_type(&quote!(v), &f.ty);
+            let verify = v.verify_type(&quote!(val), &f.ty);
             quote! {
-                if (#n == undefined) return false;
+                if (#n #eq undefined) return false;
                 {
-                    const v = #n;
+                    const val = #n;
                     #verify;
                 }
             }

@@ -8,10 +8,11 @@
 
 use super::{ast, ident_from_str, Ctxt};
 use quote::quote;
+use std::collections::HashMap;
 // use std::str::FromStr;
 // use syn::Type::Path;
 use proc_macro2::TokenStream;
-use syn::{Attribute, Ident, Lit, Meta, /* MetaList ,*/ MetaNameValue, NestedMeta};
+use syn::{Attribute, Ident, Lit, Meta, MetaList, MetaNameValue, NestedMeta};
 
 #[derive(Debug)]
 pub struct Attrs {
@@ -19,6 +20,7 @@ pub struct Attrs {
     pub verify: bool,
     pub turbofish: Option<TokenStream>,
     pub only_first: bool,
+    pub isa: HashMap<String, TokenStream>,
 }
 
 #[inline]
@@ -43,6 +45,7 @@ impl Attrs {
             turbofish: None,
             verify: false,
             only_first: false,
+            isa: HashMap::new(),
         }
     }
     pub fn push_doc_comment(&mut self, attrs: &[Attribute]) {
@@ -104,8 +107,12 @@ impl Attrs {
             self.comments.join("\n") + "\n" // <-- need better way!
         }
     }
-    fn err_msg(&self, msg: String) {
-        panic!(msg);
+    fn err_msg<'a>(&self, msg: String, ctxt: Option<&'a Ctxt>) {
+        if let Some(ctxt) = ctxt {
+            ctxt.error(msg);
+        } else {
+            panic!(msg)
+        };
     }
     pub fn find_typescript<'a>(
         attrs: &'a [Attribute],
@@ -122,6 +129,8 @@ impl Attrs {
                     Err(msg) => {
                         if let Some(ctxt) = ctxt {
                             ctxt.error(format!("invalid typescript syntax: {}", msg));
+                        } else {
+                            panic!("invalid typescript syntax: {}", msg)
                         };
                         None
                     }
@@ -136,6 +145,8 @@ impl Attrs {
                             "unsupported syntax: {}",
                             quote!(#tokens).to_string()
                         ));
+                    } else {
+                        panic!("invalid typescript syntax: {}", quote!(#tokens).to_string())
                     };
                     None
                 }
@@ -149,6 +160,8 @@ impl Attrs {
                             "unsupported syntax: {}",
                             quote!(#tokens).to_string()
                         ));
+                    } else {
+                        panic!("invalid typescript syntax: {}", quote!(#tokens).to_string())
                     };
                     None
                 }
@@ -157,7 +170,7 @@ impl Attrs {
     pub fn push_attrs(&mut self, struct_ident: &Ident, attrs: &[Attribute], ctxt: Option<&Ctxt>) {
         use syn::Meta::*;
         use Lit::*;
-        // use NestedMeta::*;
+        use NestedMeta::*;
 
         for attr in Self::find_typescript(&attrs, ctxt) {
             match attr {
@@ -176,12 +189,36 @@ impl Attrs {
                     self.verify = match value.value().parse() {
                         Ok(v) => v,
                         Err(..) => {
-                            self.err_msg(format!(
-                                "{}: verify must be true or false not \"{}\"",
-                                struct_ident,
-                                quote!(#value)
-                            ));
+                            self.err_msg(
+                                format!(
+                                    "{}: verify must be true or false not \"{}\"",
+                                    struct_ident,
+                                    quote!(#value)
+                                ),
+                                ctxt,
+                            );
                             false
+                        }
+                    }
+                }
+                List(MetaList {
+                    ref ident,
+                    ref nested,
+                    ..
+                }) if ident == "isa" => {
+                    for method in nested {
+                        match *method {
+                            Meta(NameValue(MetaNameValue {
+                                ref ident,
+                                lit: Str(ref v),
+                                ..
+                            })) => match v.value().parse::<TokenStream>() {
+                                Ok(t) => {
+                                    self.isa.insert(ident.to_string(), quote!(#t));
+                                }
+                                Err(_) => self.err_msg(format!("Can't parse {}", quote!(#v)), ctxt),
+                            },
+                            ref mi @ _ => panic!("unsupported raw entry: {}", quote!(#mi)),
                         }
                     }
                 }
@@ -193,17 +230,22 @@ impl Attrs {
                 }) if ident == "turbofish" => {
                     let v = value.value();
                     match turbofish_check(&v) {
-                        Err(msg) => self.err_msg(msg),
+                        Err(msg) => self.err_msg(msg, ctxt),
                         Ok(tokens) => self.turbofish = Some(tokens),
                     }
                 }
                 ref i @ NameValue(..) | ref i @ List(..) | ref i @ Word(..) => {
-                    self.err_msg(format!("unsupported option: {}", quote!(#i)));
+                    self.err_msg(format!("unsupported option: {}", quote!(#i)), ctxt);
                 }
             }
         }
     }
-    pub fn push_field_attrs(&mut self, struct_ident: &Ident, attrs: &[Attribute], ctxt: Option<&Ctxt>) {
+    pub fn push_field_attrs(
+        &mut self,
+        struct_ident: &Ident,
+        attrs: &[Attribute],
+        ctxt: Option<&Ctxt>,
+    ) {
         use syn::Meta::*;
         use Lit::*;
         // use NestedMeta::*;
@@ -214,21 +256,25 @@ impl Attrs {
                     ref ident,
                     lit: Str(ref value),
                     ..
-                }) if ident == "array" => {
+                }) if ident == "check" => {
                     self.only_first = match value.value().as_ref() {
                         "first" => true,
+                        "all" => false,
                         _ => {
-                            self.err_msg(format!(
-                                "{}: array must be \"first\" not {}",
-                                struct_ident,
-                                quote!(#value)
-                            ));
+                            self.err_msg(
+                                format!(
+                                    r#"{}: check value must be "first" or "all" not "{}""#,
+                                    struct_ident,
+                                    quote!(#value)
+                                ),
+                                ctxt,
+                            );
                             false
                         }
                     }
                 }
                 ref i @ NameValue(..) | ref i @ List(..) | ref i @ Word(..) => {
-                    self.err_msg(format!("unsupported option: {}", quote!(#i)));
+                    self.err_msg(format!("unsupported option: {}", quote!(#i)), ctxt);
                 }
             }
         }
@@ -243,44 +289,4 @@ impl Attrs {
         }
         res
     }
-    /*
-    fn push_generic_value(&mut self, ident: &Ident, lit: &Lit) {
-        self.instance.push(Instance{ ident: quote!(#ident), value: quote!(#lit)} );
-
-        use Lit::*;
-        match lit {
-        Str(
-            ref token
-        ) => {},
-        ByteStr(
-            ref token
-        ) => {},
-        Byte(
-            ref token
-        )=> {},
-        Char(
-            ref token
-        )=> {},
-        Int(
-            ref token
-        )=> {},
-        Float(
-            ref token
-        )=> {},
-        Bool(
-            ref value
-        )=> {},
-        Verbatim(
-            ref token
-        )=> {},
-
-    }
-
-     pub fn to _generics(&self) -> TokenStream {
-        if self.instance.is_empty() {
-            return quote!();
-        }
-        let values = self.instance.iter().map(|i| &i.value);
-        quote!(<#(#values),*>)
-    } */
 }

@@ -32,8 +32,6 @@ use utils::*;
 
 use patch::patch;
 
-
-
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
 
@@ -82,7 +80,7 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     };
     let parsed = Typescriptify::parse(verify, input);
     let export_string = parsed.wasm_string();
-    let name = parsed.ident.to_string().to_uppercase();
+    let name = parsed.ctxt.ident.to_string().to_uppercase();
 
     let export_ident = ident_from_str(&format!("TS_EXPORT_{}", name));
 
@@ -103,7 +101,7 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     // just to allow testing... only `--features=test` seems to work
     if cfg!(any(test, feature = "test")) {
         let typescript_ident =
-            ident_from_str(&format!("{}___typescript_definition", &parsed.ident));
+            ident_from_str(&format!("{}___typescript_definition", &parsed.ctxt.ident));
 
         q.extend(quote!(
             fn #typescript_ident ( ) -> &'static str {
@@ -129,14 +127,14 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
 
     // let map = &parsed.map();
 
-    let ident = &parsed.ident;
+    let ident = &parsed.ctxt.ident;
 
     let verifier = match parsed.wasm_verify() {
         Some(ref txt) => quote!(Some(#txt.into())),
         None => quote!(None),
     };
 
-    let ret = if parsed.ts_generics.is_empty() {
+    let ret = if parsed.ctxt.ts_generics.is_empty() {
         quote! {
 
             impl ::typescript_definitions::TypeScriptifyTrait for #ident {
@@ -151,7 +149,7 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
         }
     } else {
         let generics = parsed.generic_args_with_lifetimes();
-        let rustg = &parsed.rust_generics;
+        let rustg = &parsed.ctxt.rust_generics;
         quote! {
 
             impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
@@ -172,10 +170,7 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
 }
 struct Typescriptify {
     ctxt: ParseContext<'static>,
-    ident: syn::Ident,                         // name of enum struct
-    ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     body: QuoteMaker,
-    rust_generics: syn::Generics, // original rust generics
 }
 impl Typescriptify {
     fn wasm_string(&self) -> String {
@@ -199,13 +194,15 @@ impl Typescriptify {
         match self.body.verify {
             None => None,
             Some(ref body) => {
-                let ident = &self.ident;
+                let ident = &self.ctxt.ident;
                 let obj = &self.ctxt.arg_name;
                 let body = body.to_string();
                 let body = patch(&body);
-                let generics = self.ts_generics();
-                Some(format!("export const isa_{ident} = {generics}({obj}: any): {obj} is {ident}{generics} => {body}", 
-                    ident=ident, obj=obj, body=body, generics=generics ))
+
+                let generics = self.ts_generics(false);
+                let generics_wb = &generics; // self.ts_generics(true);
+                Some(format!("export const isa_{ident} = {generics_wb}({obj}: any): {obj} is {ident}{generics} => {body}", 
+                    ident=ident, obj=obj, body=body, generics=generics, generics_wb=generics_wb ))
             }
         }
     }
@@ -219,8 +216,8 @@ impl Typescriptify {
         let ts = patch(&ts);
         ts.into()
     }
-    fn ts_generics(&self) -> QuoteT {
-        let args_wo_lt: Vec<_> = self.ts_generic_args_wo_lifetimes(false).collect();
+    fn ts_generics(&self, with_bound: bool) -> QuoteT {
+        let args_wo_lt: Vec<_> = self.ts_generic_args_wo_lifetimes(with_bound).collect();
         if args_wo_lt.is_empty() {
             quote!()
         } else {
@@ -229,13 +226,13 @@ impl Typescriptify {
     }
     /// type name suitable for typescript i.e. *no* 'a lifetimes
     fn ts_ident(&self) -> QuoteT {
-        let ident = &self.ident;
-        let generics = self.ts_generics();
+        let ident = &self.ctxt.ident;
+        let generics = self.ts_generics(false);
         quote!(#ident#generics)
     }
 
     fn ts_generic_args_wo_lifetimes(&self, with_bounds: bool) -> impl Iterator<Item = QuoteT> + '_ {
-        self.ts_generics.iter().filter_map(move |g| match g {
+        self.ctxt.ts_generics.iter().filter_map(move |g| match g {
             Some((ref ident, ref bounds)) => {
                 // we ignore trait bounds for typescript
                 if bounds.is_empty() || !with_bounds {
@@ -253,7 +250,7 @@ impl Typescriptify {
     fn generic_args_with_lifetimes(&self) -> impl Iterator<Item = QuoteT> + '_ {
         // suitable for impl<...> Trait for T<#generic_args_with_lifetime> ...
         // we need to return quotes because '_ is not an Ident
-        self.ts_generics.iter().map(|g| match g {
+        self.ctxt.ts_generics.iter().map(|g| match g {
             Some((ref i, ref _bounds)) => quote!(#i),
             None => quote!('_), // only need '_
         })
@@ -268,9 +265,18 @@ impl Typescriptify {
         attrs.push_attrs(&input.ident, &input.attrs, Some(&cx));
 
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
+        let ts_generics = ts_generics(container.generics);
 
         let (typescript, ctxt) = {
-            let pctxt = ParseContext::new(gen_verifier, attrs, &cx);
+            let pctxt = ParseContext {
+                ctxt: Some(&cx),
+                arg_name: quote!(obj),
+                global_attrs: attrs,
+                gen_verifier: gen_verifier,
+                ident: container.ident.clone(),
+                ts_generics: ts_generics,
+                rust_generics: container.generics.clone(),
+            };
 
             let typescript = match container.data {
                 ast::Data::Enum(ref variants) => pctxt.derive_enum(variants, &container),
@@ -287,8 +293,6 @@ impl Typescriptify {
                 },
             )
         };
-
-        let ts_generics = ts_generics(container.generics);
 
         // if false
         //     && is_type_script_ify
@@ -308,10 +312,7 @@ impl Typescriptify {
         }
         Self {
             ctxt,
-            ident: container.ident,
-            ts_generics,
             body: typescript,
-            rust_generics: container.generics.clone(), // keep original type generics around for type_script_ify
         }
     }
 }
@@ -421,16 +422,11 @@ pub(crate) struct ParseContext<'a> {
     arg_name: QuoteT,       // top level "name" of argument for verifier
     global_attrs: Attrs,
     gen_verifier: bool,
+    ident: syn::Ident,                         // name of enum struct
+    ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
+    rust_generics: syn::Generics,              // original rust generics
 }
 impl<'a> ParseContext<'a> {
-    fn new(gen_verifier: bool, global_attrs: Attrs, ctxt: &'a Ctxt) -> ParseContext<'a> {
-        ParseContext {
-            ctxt: Some(ctxt),
-            gen_verifier,
-            arg_name: quote!(obj),
-            global_attrs,
-        }
-    }
     fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {
         let to_ts = |ty: &syn::Type| self.type_to_ts(ty, field);
 
@@ -463,10 +459,7 @@ impl<'a> ParseContext<'a> {
             "Result" if ts.args.len() == 2 => {
                 let k = to_ts(&ts.args[0]);
                 let v = to_ts(&ts.args[1]);
-                // ugh!
-                // see patch.rs...
-                let vertical_bar = ident_from_str(patch::RESULT_BAR);
-                quote!(  { Ok : #k } #vertical_bar { Err : #v }  )
+                quote!(  { Ok : #k } | { Err : #v }  )
             }
             "Fn" | "FnOnce" | "FnMut" => {
                 let args = self.derive_syn_types(&ts.args, field);
@@ -591,6 +584,14 @@ impl<'a> ParseContext<'a> {
     }
 
     // Some helpers
+
+    fn err_msg(&self, msg: String) {
+        if let Some(ctxt) = self.ctxt {
+            ctxt.error(msg);
+        } else {
+            panic!(msg)
+        }
+    }
 
     fn field_to_ts(&self, field: &ast::Field<'a>) -> QuoteT {
         self.type_to_ts(&field.ty, field)

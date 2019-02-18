@@ -78,7 +78,7 @@ mod macro_test {
             }
         );
         let ty = Typescriptify::parse(true, tokens);
-        let i = &ty.ident;
+        let i = &ty.ctxt.ident;
         let g = ty.ctxt.global_attrs.turbofish.unwrap_or_else(|| quote!());
         let res = quote!(#i#g::type_script_ify()).to_string();
         assert_snapshot_matches!(res,

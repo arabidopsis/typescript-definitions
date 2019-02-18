@@ -15,12 +15,9 @@
 //!
 
 use lazy_static::lazy_static;
+use proc_macro2::Literal;
 use regex::{Captures, Regex};
 use std::borrow::Cow;
-use proc_macro2::Literal;
-use super::{ident_from_str, Ident};
-
-pub const RESULT_BAR: &str = "__XYZZ__patch_me__XYZZ__";
 
 // In typescript '===' is a single token whereas
 // for rust this would be two tokens '==' and '=',
@@ -32,26 +29,26 @@ pub const RESULT_BAR: &str = "__XYZZ__patch_me__XYZZ__";
 //
 // This is also the reason we prefer !(x === y) to x !== y ..
 // too much patching.
-const TRIPPLE_EQ: &str = "__eeeeEEEeeee__";
-const NL_PATCH: &str = "__nlnlnlnlnln__";
-const _NL_PATCHQ: &str = "\"__nlnlnlnlnln__\"";
+
+// no field names have anything but ascii at the moment.
+
+const TRIPPLE_EQ: &str = "\"__============__\"";
+const NL_PATCH: &str = "\"__nlnlnlnl__\"";
 // type N = [(&'static str, &'static str); 10];
-const NAMES: [(&str, &str); 15] = [
+const NAMES: [(&str, &str); 13] = [
     ("brack", r"\s*\[\s+\]"),
     ("brace", r"\{\s+\}"),
     ("colon", r"\s+[:]\s"),
-    ("bar", r"(^|\s)\|\s+\{"),
     ("enl", r"\n+\}"),
     ("fnl", r"\{\n+"),
-    ("result", RESULT_BAR), // for Result...
-    ("te", TRIPPLE_EQ),     // for ===
+    ("te", TRIPPLE_EQ), // for ===
     ("lt", r"\s<\s"),
     ("gt", r"\s>(\s|$)"),
     ("semi", r"\s+;"),
     ("call", r"\s\(\s+\)\s"),
     ("dot", r"\s\.\s"),
-    ("nlpatch", _NL_PATCHQ),
-    ("nl", r"\n+"), // last!
+    ("nlpatch", NL_PATCH), // for adding newlines to output string
+    ("nl", r"\n+"),        // last!
 ];
 lazy_static! {
     static ref RE: Regex = {
@@ -108,10 +105,10 @@ pub fn patch(s: &str) -> Cow<'_, str> {
             "brack" => "[]",
             "colon" => ": ",
             "fnl" => "{ ",
-            "bar" => "\n  | {",
+            // "bar" => "\n  | {",
             "enl" => " }",
             "nl" => " ",
-            "result" => "|",
+            // "result" => "|",
             "te" => "===",
             "lt" => "<",
             "gt" => ">",
@@ -126,8 +123,16 @@ pub fn patch(s: &str) -> Cow<'_, str> {
 }
 
 #[inline]
-pub fn eq() -> Ident {ident_from_str(TRIPPLE_EQ)}
+pub fn eq() -> Literal {
+    Literal::string(&TRIPPLE_EQ[1..TRIPPLE_EQ.len() - 1])
+}
 
 #[inline]
-pub fn nl() -> Literal { Literal::string(NL_PATCH)}
+pub fn nl() -> Literal {
+    Literal::string(&NL_PATCH[1..NL_PATCH.len() - 1])
+}
 
+// #[inline]
+// pub fn vbar() -> Ident {
+//     ident_from_str(RESULT_BAR)
+// }

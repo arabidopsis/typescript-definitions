@@ -6,7 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-
 use quote::quote;
 use serde_derive_internals::ast;
 
@@ -113,6 +112,7 @@ impl<'a> ParseContext<'_> {
         let verify = if self.gen_verifier {
             let obj = &self.arg_name;
             let v = self.verify_field_tuple(&obj, &fields);
+            // obj can't be null or undefined
             Some(quote!({ if (#obj == undefined) return false; #(#v;)* return true; }))
         } else {
             None
