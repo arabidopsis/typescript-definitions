@@ -21,6 +21,7 @@ pub(crate) struct Verify<'a> {
     pub attrs: Attrs,
 }
 
+
 impl<'a> Verify<'a> {
     pub fn verify_type(&self, obj: &'a TokenStream, ty: &syn::Type) -> QuoteT {
         // remeber obj is definitely *not* undefined... but because
@@ -126,7 +127,7 @@ impl<'a> Verify<'a> {
                 };
                 // obj is definitely not undefined... but it might be null...
                 quote!(
-                    if (!(#obj #eq null))
+                    if (#obj #eq null) return false;
                     for (let e of #obj) {
                         let [k, v] = e;
                         #k;
@@ -156,14 +157,16 @@ impl<'a> Verify<'a> {
                         return false;
                  } )
             }
-            "Fn" | "FnOnce" | "FnMut" => quote!(),
+            "Fn" | "FnOnce" | "FnMut" => quote!(), // skip
             _ => {
                 let i = ts.ident;
-                let func = ident_from_str(&format!("isa_{}", i));
+                
                 let is_generic = self.ctxt.ts_generics.iter().any(|v| match v {
                     Some((t, _)) => *t == i,
                     None => false,
                 });
+                let func = ident_from_str(&format!("isa_{}", i));
+               
                 let func: TokenStream = if is_generic {
                     if let Some(q) = self.ctxt.global_attrs.isa.get(&i.to_string()) {
                         quote!(#q<#i>)
@@ -182,6 +185,8 @@ impl<'a> Verify<'a> {
                         ))
                     }
                     let args = self.ctxt.derive_syn_types(&ts.args, &self.field);
+                    // let mangle = name_mange(args);
+                    // quote! { if (!#func_#mangle(#obj)) return false; }
                     quote! { if (!#func<#(#args),*>(#obj)) return false; }
                 } else {
                     quote!( if (!#func(#obj)) return false; )
