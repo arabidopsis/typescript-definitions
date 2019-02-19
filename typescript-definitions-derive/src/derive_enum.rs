@@ -430,7 +430,8 @@ impl<'a> ParseContext<'_> {
             let tag = ident_from_str(&variant_name);
             let verify = if self.gen_verifier {
                 let obj = &self.arg_name;
-                let verify = self.verify_field_tuple(&obj, &fields);
+                let v = quote!(v);
+                let verify = self.verify_field_tuple(&v, &fields);
                 let len = Literal::usize_unsuffixed(fields.len());
                 let eq = eq();
                 Some(quote!({
@@ -463,13 +464,13 @@ impl<'a> ParseContext<'_> {
         let verify = if self.gen_verifier {
             let eq = eq();
             let obj = &self.arg_name;
-            let verify = self.verify_field_tuple(&obj, &fields);
+            let v = quote!(v);
+            let verify = self.verify_field_tuple(&v, &fields);
             let len = Literal::usize_unsuffixed(fields.len());
             Some(quote!({
-                if (!(#obj.tag #eq #variant_name)) return false;
+                if (!(#obj.#tag #eq #variant_name)) return false;
                 const v = #obj.#content;
                 if (!Array.isArray(v) || !(v.length #eq #len)) return false;
-                if (v == undefined) return true;
                 #(#verify;)*
                 return true;
             }))
