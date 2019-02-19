@@ -34,7 +34,7 @@ pub fn prettier(s: &str) -> String {
 
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
-
+#[cfg(feature="verifiers")]
 #[test]
 fn verify_untagged_enum() {
     use serde_json;
@@ -88,7 +88,7 @@ fn verify_untagged_enum() {
 };"###
     )
 }
-
+#[cfg(feature="verifiers")]
 #[test]
 fn verify_first_only() {
     use serde_json;

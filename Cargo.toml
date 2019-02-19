@@ -29,10 +29,10 @@ insta = { version="0.6.2", path="../insta" }
 # compiletest_rs = "*"
 
 [features]
-default = ["verifier"]
+# default = ["verifiers"]
 export-typescript = ["typescript-definitions-derive/export-typescript"]
 test = ["typescript-definitions-derive/test"]
-verifier = ["typescript-definitions-derive/verifier"]
+verifiers = ["typescript-definitions-derive/verifiers"]
 
 [workspace]
 # exclude = ["example"]
