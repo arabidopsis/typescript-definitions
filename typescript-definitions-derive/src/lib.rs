@@ -74,7 +74,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
-    let verify = if cfg!(feature = "verifier") {
+    let verify = if cfg!(feature = "verifiers") {
         true
     } else {
         false
@@ -82,7 +82,6 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     let parsed = Typescriptify::parse(verify, input);
     let export_string = parsed.wasm_string();
     let name = parsed.ctxt.ident.to_string().to_uppercase();
-    let is_generic = !parsed.ctxt.ts_generics.is_empty();
 
     let export_ident = ident_from_str(&format!("TS_EXPORT_{}", name));
 
@@ -93,13 +92,13 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     };
 
     if let Some(ref verify) = parsed.wasm_verify() {
-        if true || !is_generic {
-            let export_ident = ident_from_str(&format!("TS_EXPORT_VERIFY_{}", name));
-            q.extend(quote!(
-                #[wasm_bindgen(typescript_custom_section)]
-                pub const #export_ident : &'static str = #verify;
-            ))
-        }
+
+        let export_ident = ident_from_str(&format!("TS_EXPORT_VERIFY_{}", name));
+        q.extend(quote!(
+            #[wasm_bindgen(typescript_custom_section)]
+            pub const #export_ident : &'static str = #verify;
+        ))
+        
     }
 
     // just to allow testing... only `--features=test` seems to work
@@ -119,7 +118,7 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 }
 
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
-    let verify = if cfg!(feature = "verifier") {
+    let verify = if cfg!(feature = "verifiers") {
         true
     } else {
         false
@@ -136,40 +135,60 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
 
     let verifier = match parsed.wasm_verify() {
         Some(ref txt) => {
-            if false && is_generic {
-                quote!(None)
-            } else {
-                quote!(Some(#txt.into()))
-            }
+
+            quote!(Some(#txt.into()))
+            
         }
         None => quote!(None),
     };
 
     // TODO generics
+    // can't seem to use #[cfg(features...)] within the quote!
+    // hence the repetiton
     let ret = if !is_generic {
-        quote! {
+          if cfg!(feature="verifiers") {
+            quote! {
 
-            impl ::typescript_definitions::TypeScriptifyTrait for #ident {
-                fn type_script_ify() ->  String {
-                    #export_string.into()
+                impl ::typescript_definitions::TypeScriptifyTrait for #ident {
+                    fn type_script_ify() ->  String {
+                        #export_string.into()
+                    }
+                    fn type_script_verify() -> Option<String> {
+                        #verifier
+                    }
                 }
-
-                fn type_script_verify() -> Option<String> {
-                     #verifier
+            }
+        } else {
+            quote! {
+                impl ::typescript_definitions::TypeScriptifyTrait for #ident {
+                    fn type_script_ify() ->  String {
+                        #export_string.into()
+                    }
                 }
             }
         }
     } else {
         let generics = parsed.generic_args_with_lifetimes();
         let rustg = &parsed.ctxt.rust_generics;
-        quote! {
-
-            impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
-                fn type_script_ify() ->  String {
-                    #export_string.into()
+        if cfg!(feature="verifiers") {
+            quote! {
+            
+                impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
+                    fn type_script_ify() ->  String {
+                        #export_string.into()
+                    }
+                    fn type_script_verify() -> Option<String> {
+                        #verifier
+                    }
                 }
-                fn type_script_verify() -> Option<String> {
-                     #verifier
+            }
+        } else {
+            quote! {
+            
+                impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
+                    fn type_script_ify() ->  String {
+                        #export_string.into()
+                    }
                 }
             }
         }
@@ -236,7 +255,7 @@ impl Typescriptify {
             let e = extra.to_string();
 
             let extra = patch(&e);
-            let extra = "// EXTRA  \n".to_string() + &extra;
+            let extra = "// generic test  \n".to_string() + &extra;
             return Some(extra);
         } else {
             None
@@ -302,13 +321,14 @@ impl Typescriptify {
 
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
         let ts_generics = ts_generics(container.generics);
+        let gv = gen_verifier && attrs.verify;
 
         let (typescript, ctxt) = {
             let pctxt = ParseContext {
                 ctxt: Some(&cx),
                 arg_name: quote!(obj),
                 global_attrs: attrs,
-                gen_verifier: gen_verifier,
+                gen_verifier: gv,  
                 ident: container.ident.clone(),
                 ts_generics: ts_generics,
                 rust_generics: container.generics.clone(),
@@ -458,11 +478,11 @@ pub(crate) struct ParseContext<'a> {
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
     arg_name: QuoteT,       // top level "name" of argument for verifier
     global_attrs: Attrs,
-    gen_verifier: bool,
+    gen_verifier: bool, // generate verifier for this struct/enum
     ident: syn::Ident,                         // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     rust_generics: syn::Generics,              // original rust generics
-    extra: Cell<Option<QuoteT>>,
+    extra: Cell<Option<QuoteT>>, // for generic verifier
 }
 impl<'a> ParseContext<'a> {
     fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {
