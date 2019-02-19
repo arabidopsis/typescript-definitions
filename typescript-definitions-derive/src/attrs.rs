@@ -43,7 +43,7 @@ impl Attrs {
         Attrs {
             comments: vec![],
             turbofish: None,
-            verify: false,
+            verify: true,
             only_first: false,
             isa: HashMap::new(),
         }
