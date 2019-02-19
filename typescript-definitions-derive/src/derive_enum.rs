@@ -74,11 +74,13 @@ impl<'a> ParseContext<'_> {
             let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
             let verify = if self.gen_verifier {
                 let obj = &self.arg_name;
+                let o = (0..v.len()).map(|_| obj.clone());
+                let eq = (0..v.len()).map(|_| eq());
 
                 Some(quote!(
                     {
-                        if (#obj == undefined) return false;
-                        if (![#(#v),*].includes(#obj)) return false;
+
+                        if (!((#(#o #eq #v)||*))) return false;
                         return true;
                     }
                 ))
