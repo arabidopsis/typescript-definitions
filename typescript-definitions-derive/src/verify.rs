@@ -117,7 +117,17 @@ impl<'a> Verify<'a> {
                 self.verify_array(obj, &ts.args[0])
             }
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
-                let k = self.verify_type(&quote!(k), &ts.args[0]);
+                // k will always be strings
+                let k = self.ctxt.type_to_ts(&ts.args[0], &self.field).to_string();
+                let k = if k == "number" {
+                    quote! {
+                        if (+k #eq NaN) return false;
+                    }
+                } else  {               
+                    //self.verify_type(&quote!(k), &ts.args[0]);
+                    // always going to be a string
+                    quote!()
+                };
                 let v = self.verify_type(&quote!(v), &ts.args[1]);
                 let brk = if self.attrs.only_first {
                     quote!(break;)
@@ -126,9 +136,9 @@ impl<'a> Verify<'a> {
                 };
                 // obj is definitely not undefined... but it might be null...
                 quote!(
-                    if (#obj #eq null) return false;
-                    for (let e of #obj) {
-                        let [k, v] = e;
+                    if (#obj #eq null || !(typeof #obj #eq "object")) return false;
+                    for (let k in #obj) {
+                        let v = #obj[k];
                         #k;
                         #v;
                         #brk
