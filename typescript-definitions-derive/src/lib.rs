@@ -16,6 +16,7 @@ use proc_macro2::Ident;
 use quote::quote;
 use serde_derive_internals::{ast, Ctxt, Derive};
 // use std::str::FromStr;
+use std::cell::Cell;
 use syn::DeriveInput;
 
 mod attrs;
@@ -81,6 +82,7 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     let parsed = Typescriptify::parse(verify, input);
     let export_string = parsed.wasm_string();
     let name = parsed.ctxt.ident.to_string().to_uppercase();
+    let is_generic = !parsed.ctxt.ts_generics.is_empty();
 
     let export_ident = ident_from_str(&format!("TS_EXPORT_{}", name));
 
@@ -91,11 +93,13 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     };
 
     if let Some(ref verify) = parsed.wasm_verify() {
-        let export_ident = ident_from_str(&format!("TS_EXPORT_VERIFY_{}", name));
-        q.extend(quote!(
-            #[wasm_bindgen(typescript_custom_section)]
-            pub const #export_ident : &'static str = #verify;
-        ))
+        if true || !is_generic {
+            let export_ident = ident_from_str(&format!("TS_EXPORT_VERIFY_{}", name));
+            q.extend(quote!(
+                #[wasm_bindgen(typescript_custom_section)]
+                pub const #export_ident : &'static str = #verify;
+            ))
+        }
     }
 
     // just to allow testing... only `--features=test` seems to work
@@ -128,13 +132,21 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     // let map = &parsed.map();
 
     let ident = &parsed.ctxt.ident;
+    let is_generic = !parsed.ctxt.ts_generics.is_empty();
 
     let verifier = match parsed.wasm_verify() {
-        Some(ref txt) => quote!(Some(#txt.into())),
+        Some(ref txt) => {
+            if false && is_generic {
+                quote!(None)
+            } else {
+                quote!(Some(#txt.into()))
+            }
+        }
         None => quote!(None),
     };
 
-    let ret = if parsed.ctxt.ts_generics.is_empty() {
+    // TODO generics
+    let ret = if !is_generic {
         quote! {
 
             impl ::typescript_definitions::TypeScriptifyTrait for #ident {
@@ -194,16 +206,40 @@ impl Typescriptify {
         match self.body.verify {
             None => None,
             Some(ref body) => {
-                let ident = &self.ctxt.ident;
-                let obj = &self.ctxt.arg_name;
-                let body = body.to_string();
-                let body = patch(&body);
+                let mut s = {
+                    let ident = &self.ctxt.ident;
+                    let obj = &self.ctxt.arg_name;
+                    let body = body.to_string();
+                    let body = patch(&body);
 
-                let generics = self.ts_generics(false);
-                let generics_wb = &generics; // self.ts_generics(true);
-                Some(format!("export const isa_{ident} = {generics_wb}({obj}: any): {obj} is {ident}{generics} => {body}", 
-                    ident=ident, obj=obj, body=body, generics=generics, generics_wb=generics_wb ))
+                    let generics = self.ts_generics(false);
+                    let generics_wb = &generics; // self.ts_generics(true);
+                    let is_generic = !self.ctxt.ts_generics.is_empty();
+                    if is_generic {
+                        format!("export const isa_{ident} = {generics_wb}({obj}: any, typename: string): {obj} is {ident}{generics} => {body}", 
+                        ident=ident, obj=obj, body=body, generics=generics, generics_wb=generics_wb )
+                    } else {
+                        format!("export const isa_{ident} = {generics_wb}({obj}: any): {obj} is {ident}{generics} => {body}", 
+                            ident=ident, obj=obj, body=body, generics=generics, generics_wb=generics_wb )
+                    }
+                };
+                if let Some(txt) = self.extra_verify() {
+                    s.push('\n');
+                    s.push_str(&txt);
+                }
+                Some(s)
             }
+        }
+    }
+    fn extra_verify(&self) -> Option<String> {
+        if let Some(extra) = self.ctxt.extra.replace(None) {
+            let e = extra.to_string();
+
+            let extra = patch(&e);
+            let extra = "// EXTRA  \n".to_string() + &extra;
+            return Some(extra);
+        } else {
+            None
         }
     }
 
@@ -276,6 +312,7 @@ impl Typescriptify {
                 ident: container.ident.clone(),
                 ts_generics: ts_generics,
                 rust_generics: container.generics.clone(),
+                extra: Cell::new(None),
             };
 
             let typescript = match container.data {
@@ -425,6 +462,7 @@ pub(crate) struct ParseContext<'a> {
     ident: syn::Ident,                         // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     rust_generics: syn::Generics,              // original rust generics
+    extra: Cell<Option<QuoteT>>,
 }
 impl<'a> ParseContext<'a> {
     fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {

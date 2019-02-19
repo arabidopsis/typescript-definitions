@@ -9,7 +9,7 @@
 
 use super::{
     ast, ident_from_str, is_bytes, last_path_element, patch::eq, Attrs, ParseContext, QuoteT,
-    TSType,
+    TSType,patch::patch,
 };
 use proc_macro2::Literal;
 use proc_macro2::TokenStream;
@@ -20,7 +20,6 @@ pub(crate) struct Verify<'a> {
     pub field: &'a ast::Field<'a>,
     pub attrs: Attrs,
 }
-
 
 impl<'a> Verify<'a> {
     pub fn verify_type(&self, obj: &'a TokenStream, ty: &syn::Type) -> QuoteT {
@@ -147,7 +146,7 @@ impl<'a> Verify<'a> {
             "Result" if ts.args.len() == 2 => {
                 let v = quote!(v);
                 let k = self.verify_type(&v, &ts.args[0]);
-                let v = self.verify_type(&v, &ts.args[0]);
+                let v = self.verify_type(&v, &ts.args[1]);
                 quote! ({
                         if (#obj #eq null) return false;
                         if(
@@ -159,37 +158,56 @@ impl<'a> Verify<'a> {
             }
             "Fn" | "FnOnce" | "FnMut" => quote!(), // skip
             _ => {
-                let i = ts.ident;
-                
+                let ident = ts.ident;
+
                 let is_generic = self.ctxt.ts_generics.iter().any(|v| match v {
-                    Some((t, _)) => *t == i,
+                    Some((t, _)) => *t == ident,
                     None => false,
                 });
-                let func = ident_from_str(&format!("isa_{}", i));
-               
-                let func: TokenStream = if is_generic {
-                    if let Some(q) = self.ctxt.global_attrs.isa.get(&i.to_string()) {
-                        quote!(#q<#i>)
+                let func = ident_from_str(&format!("isa_{}", ident));
+
+                let (func, gen_params): (TokenStream, TokenStream) = if is_generic {
+                    if let Some(q) = self.ctxt.global_attrs.isa.get(&ident.to_string()) {
+                        (quote!(#q), quote!(<#ident>))
                     } else {
-                        quote!(#func<#i>) // fixme need typescript(isa(T=isa_V<T>(a)))
+                        (quote!(#func), quote!(<#ident>)) // fixme need typescript(isa(T=isa_V<T>(a)))
                     }
                 } else {
-                    quote!(#func)
+                    (quote!(#func), quote!())
                 };
                 if !ts.args.is_empty() {
                     if is_generic {
                         // T<K,V> with T generic ...
                         self.ctxt.err_msg(format!(
                             "{}: generic args of a generic type is not supported",
-                            i
+                            ident
                         ))
                     }
-                    let args = self.ctxt.derive_syn_types(&ts.args, &self.field);
-                    // let mangle = name_mange(args);
-                    // quote! { if (!#func_#mangle(#obj)) return false; }
-                    quote! { if (!#func<#(#args),*>(#obj)) return false; }
+                    let args: Vec<_> = self.ctxt.derive_syn_types(&ts.args, &self.field).collect();
+                    let a = args.clone();
+                    let a = quote!(#(#a),*).to_string();
+                   
+                    if (!( a == "number" || a == "string" || a  == "boolean"))  {
+                        self.ctxt.err_msg(format!(
+                            "{}: only monomorphization of number, string or boolean permitted: got \"{}\"",
+                            ident, patch(&a)
+                        ));
+                    };
+                    let a = Literal::string(&a);
+                    quote! { if (!#func#gen_params<#(#args),*>(#obj, #a)) return false; }
                 } else {
-                    quote!( if (!#func(#obj)) return false; )
+                    if is_generic {
+                        let gen_func = quote!(
+                            export const #func = #gen_params(#obj: any, typename: string): #obj is #ident => {
+                                return typeof #obj #eq typename
+                            }
+                        );
+                        self.ctxt.add_extra_verifier(gen_func);
+
+                        quote!( if (!#func#gen_params(#obj, typename)) return false; )
+                    } else {
+                        quote!( if (!#func#gen_params(#obj)) return false; )
+                    }
                 }
             }
         }
@@ -243,7 +261,7 @@ impl<'a> ParseContext<'a> {
         fields.iter().enumerate().map(move |(i, f)| {
             let i = Literal::usize_unsuffixed(i);
             let n = quote!(#obj[#i]);
-            let attrs = Attrs::from_field(f, self.ctxt);;
+            let attrs = Attrs::from_field(f, self.ctxt);
 
             let v = Verify {
                 attrs,
@@ -259,5 +277,9 @@ impl<'a> ParseContext<'a> {
                 }
             }
         })
+    }
+
+    fn add_extra_verifier(&'a self, tokens: QuoteT) {
+        self.extra.set(Some(tokens));
     }
 }

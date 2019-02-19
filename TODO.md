@@ -60,5 +60,73 @@ for arrays #tp[]  Array.isArray(v) && all(for x in v verify_#tp(x))
 probably want two types a "shallow" verification (see above) and a deep one.
 
 
+## Verification for Generics
+
+Maybe just say no... who is going to use generic types for *data* transfer?
+
+Still there is the possibility that a type will use a monomorphisation of a generic
+struct.
+
+Maybe a variants attribute:
+
+```rust
+#[typescript(variants(T="str + Vec<f64>"))]
+struct S<T> { value: T}
+```
+With typescript as
+
+```typescript
+export type S<T>
+| { value: string }
+| { value: number[]}
+| { value: T}
+
+// OR maybe just as before
+export type S<T> { value: T}
+
+export type S_s = { value: string }
+export type S_vn = { value: number[] }
+export const isa_S = (a:any): a is S => isa_S_s(a) || isa_S_vn(a);
+export const isa_S_s (a:any) a is S_s => {/*....*/}
+export const isa_S_vn (a:any) a is S_vn => {/*....*/}
+// etc...
+```
+Type erasure would allow one to instaniate `let v = S<number> = { value: 32 }`
+
+### non generics using generics
+
+This would allow structs using this generic:
+```rust
+struct T { value: S<Vec<f64>> }
+```
+
+to generate *automatically* a `isa_S_vn` verifier
+
+```typescript
+export type T { value: S<number[]> }
+export const isa_T = (a:any) a is T => { isa_S_vn(a.value)}
+```
+
+## Totally generic arguments 
+
+This will probably be last to have a verifier....
+
+```rust
+#[typescript(variants(T="str + Vec<f64>"))]
+struct S2<T> {value: S<T> }
+```
+```typescript
+export type S2<T> =
+| { value : S<string> }
+| { value : S<number[]>}
+| { value: S<T>}
+```
+
+maybe some better name mangling `<Vec<Vec<f64>>>` go to `vvn` Could get
+arbitrarily complex...
+
+
+
+
 
 

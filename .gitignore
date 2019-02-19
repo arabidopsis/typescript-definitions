@@ -8,3 +8,7 @@
 **/*.bk
 Cargo.lock
 README.cache
+node_modules
+*.map
+*junk*
+example2/pkg

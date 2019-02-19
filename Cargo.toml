@@ -35,5 +35,5 @@ test = ["typescript-definitions-derive/test"]
 verifier = ["typescript-definitions-derive/verifier"]
 
 [workspace]
-exclude = ["example"]
+# exclude = ["example"]
 

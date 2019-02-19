@@ -41,9 +41,10 @@ pub enum Enum {
         quux: String,
     },
 }
-// #[derive(Serialize)]
+
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
-pub struct Value<T> {
+#[typescript(isa(T="isa_what"))]
+pub struct Value<T : ToString> {
     value: T,
 }
 

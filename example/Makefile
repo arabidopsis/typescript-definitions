@@ -5,6 +5,7 @@ bindgen:
 	@mkdir pkg 2> /dev/null || true
 	wasm-bindgen target/wasm32-unknown-unknown/debug/mywasm.wasm --typescript --out-dir pkg/
 
+
 wasm:
 	#RUST_LOG=error wasm-pack build --dev
 	wasm-pack build --dev
