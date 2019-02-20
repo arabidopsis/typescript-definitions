@@ -114,7 +114,7 @@ impl<'a> FieldContext<'a> {
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
                 // k will always be strings
                 // but tsc seems to check against  {[K in number]: T }
-                let k = self.type_to_ts(&ts.args[0], &self.field).to_string();
+                let k = self.type_to_ts(&ts.args[0]).to_string();
                 let k = if k == "number" {
                     quote! {
                         if (+k #eq NaN) return false;
@@ -187,7 +187,7 @@ impl<'a> FieldContext<'a> {
                         ));
                         return quote!(return false);
                     }
-                    let args: Vec<_> = self.derive_syn_types(&ts.args, &self.field).collect();
+                    let args: Vec<_> = self.derive_syn_types(&ts.args).collect();
                     let a = args.clone();
                     let a = quote!(#(#a),*).to_string();
                     let a = a.trim();
@@ -263,16 +263,16 @@ impl<'a> ParseContext<'a> {
         let attrs = Attrs::from_field(field, self.ctxt);
         let verify = FieldContext {
             attrs,
-            ctxt: &self,
             field,
+            ctxt: &self,
         };
-        verify.verify_single_type(&obj)
+        verify.verify_single_type(obj)
     }
     pub fn verify_field(&'a self, obj: &'a TokenStream, field: &'a ast::Field<'a>) -> QuoteT {
         let attrs = Attrs::from_field(field, self.ctxt);
         let verify = FieldContext {
             attrs,
-            field: field,
+            field,
             ctxt: &self,
         };
         verify.verify_field(obj)

@@ -373,17 +373,6 @@ impl Typescriptify {
             )
         };
 
-        // if false
-        //     && is_type_script_ify
-        //     && ctxt.global_attrs.turbofish.is_none()
-        //     && !ts_generics.is_empty()
-        //     && ts_generics.iter().any(|f| f.is_some())
-        // {
-        //     cx.error(format!(
-        //         "Generic item \"{}\" requires #[typescript(turbofish= \"...\")] attribute",
-        //         container.ident
-        //     ))
-        // }
 
         // consumes context panics with errors
         if let Err(m) = cx.check() {
@@ -498,15 +487,15 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
 
 pub(crate) struct FieldContext<'a> {
     pub ctxt: &'a ParseContext<'a>, //
-    pub field: &'a ast::Field<'a>, // field being parse
-    pub attrs: Attrs, // field attributes
+    pub field: &'a ast::Field<'a>,  // field being parse
+    pub attrs: Attrs,               // field attributes
 }
 
 pub(crate) struct ParseContext<'a> {
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
     arg_name: QuoteT,       // top level "name" of argument for verifier
     global_attrs: Attrs,    // global #[typescript(...)] attributes
-    gen_guard: bool,     // generate type guard for this struct/enum
+    gen_guard: bool,        // generate type guard for this struct/enum
     ident: syn::Ident,      // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     rust_generics: syn::Generics, // original rust generics
@@ -514,8 +503,8 @@ pub(crate) struct ParseContext<'a> {
 }
 
 impl<'a> FieldContext<'a> {
-    fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {
-        let to_ts = |ty: &syn::Type| self.type_to_ts(ty, field);
+    fn generic_to_ts(&self, ts: TSType) -> QuoteT {
+        let to_ts = |ty: &syn::Type| self.type_to_ts(ty);
 
         match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
@@ -526,7 +515,7 @@ impl<'a> FieldContext<'a> {
 
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
-                self.type_to_array(&ts.args[0], field)
+                self.type_to_array(&ts.args[0])
             }
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
                 let k = to_ts(&ts.args[0]);
@@ -549,7 +538,7 @@ impl<'a> FieldContext<'a> {
                 quote!(  { Ok : #k } | { Err : #v }  )
             }
             "Fn" | "FnOnce" | "FnMut" => {
-                let args = self.derive_syn_types(&ts.args, field);
+                let args = self.derive_syn_types(&ts.args);
                 if let Some(ref rt) = ts.return_type {
                     let rt = to_ts(rt);
                     quote! { (#(#args),*) => #rt }
@@ -561,7 +550,7 @@ impl<'a> FieldContext<'a> {
                 let ident = ts.ident;
                 if !ts.args.is_empty() {
                     // let args = ts.args.iter().map(|ty| self.type_to_ts(ty));
-                    let args = self.derive_syn_types(&ts.args, field);
+                    let args = self.derive_syn_types(&ts.args);
                     quote! { #ident<#(#args),*> }
                 } else {
                     quote! {#ident}
@@ -578,23 +567,23 @@ impl<'a> FieldContext<'a> {
             _ => None,
         }
     }
-    fn type_to_array(&self, elem: &syn::Type, field: &'a ast::Field<'a>) -> QuoteT {
+    fn type_to_array(&self, elem: &syn::Type) -> QuoteT {
         // check for [u8] or Vec<u8>
 
         if let Some(ty) = self.get_path(elem) {
-            if ty.ident == "u8" && is_bytes(field) {
+            if ty.ident == "u8" && is_bytes(&self.field) {
                 return quote!(string);
             };
         };
 
-        let tp = self.type_to_ts(elem, field);
+        let tp = self.type_to_ts(elem);
         quote! { #tp[] }
     }
     /// # convert a `syn::Type` rust type to a
     /// `TokenStream` of typescript type: basically i32 => number etc.
     ///
     /// field is the current Field for which we are trying a conversion
-    fn type_to_ts(&self, ty: &syn::Type, field: &'a ast::Field<'a>) -> QuoteT {
+    fn type_to_ts(&self, ty: &syn::Type) -> QuoteT {
         // `type_to_ts` recursively calls itself occationally
         // finding a Path which it hands to last_path_element
         // which generates a "simplified" TSType struct which
@@ -609,8 +598,8 @@ impl<'a> FieldContext<'a> {
         match ty {
             Slice(TypeSlice { elem, .. })
             | Array(TypeArray { elem, .. })
-            | Ptr(TypePtr { elem, .. }) => self.type_to_array(elem, field),
-            Reference(TypeReference { elem, .. }) => self.type_to_ts(elem, field),
+            | Ptr(TypePtr { elem, .. }) => self.type_to_array(elem),
+            Reference(TypeReference { elem, .. }) => self.type_to_ts(elem),
             // fn(a: A,b: B, c:C) -> D
             BareFn(TypeBareFn { output, inputs, .. }) => {
                 let mut args: Vec<Ident> = Vec::with_capacity(inputs.len());
@@ -630,9 +619,9 @@ impl<'a> FieldContext<'a> {
                 // typescript lambda (a: A, b:B) => C
 
                 // let typs = typs.iter().map(|ty| self.type_to_ts(ty));
-                let typs = self.derive_syn_types_ptr(&typs, field);
+                let typs = self.derive_syn_types_ptr(&typs);
                 if let Some(ref rt) = return_type(&output) {
-                    let rt = self.type_to_ts(rt, field);
+                    let rt = self.type_to_ts(rt);
                     quote! { ( #(#args: #typs),* ) => #rt }
                 } else {
                     quote! { ( #(#args: #typs),* ) => undefined}
@@ -640,12 +629,12 @@ impl<'a> FieldContext<'a> {
             }
             Never(..) => quote! { never },
             Tuple(TypeTuple { elems, .. }) => {
-                let elems = elems.iter().map(|t| self.type_to_ts(t, field));
+                let elems = elems.iter().map(|t| self.type_to_ts(t));
                 quote!([ #(#elems),* ])
             }
 
             Path(TypePath { path, .. }) => match last_path_element(&path) {
-                Some(ts) => self.generic_to_ts(ts, field),
+                Some(ts) => self.generic_to_ts(ts),
                 _ => quote! { any },
             },
             TraitObject(TypeTraitObject { bounds, .. })
@@ -656,14 +645,14 @@ impl<'a> FieldContext<'a> {
                         TypeParamBound::Trait(t) => last_path_element(&t.path),
                         _ => None, // skip lifetime etc.
                     })
-                    .map(|t| self.generic_to_ts(t, field));
+                    .map(|t| self.generic_to_ts(t));
 
                 // TODO check for zero length?
                 // A + B + C => A & B & C
                 quote!(#(#elems)&*)
             }
             Paren(TypeParen { elem, .. }) | Group(TypeGroup { elem, .. }) => {
-                let tp = self.type_to_ts(elem, field);
+                let tp = self.type_to_ts(elem);
                 quote! { ( #tp ) }
             }
             Infer(..) | Macro(..) | Verbatim(..) => quote! { any },
@@ -672,16 +661,11 @@ impl<'a> FieldContext<'a> {
     fn derive_syn_types_ptr(
         &'a self,
         types: &'a [&'a syn::Type],
-        field: &'a ast::Field<'a>,
     ) -> impl Iterator<Item = QuoteT> + 'a {
-        types.iter().map(move |ty| self.type_to_ts(ty, field))
+        types.iter().map(move |ty| self.type_to_ts(ty))
     }
-    fn derive_syn_types(
-        &'a self,
-        types: &'a [syn::Type],
-        field: &'a ast::Field<'a>,
-    ) -> impl Iterator<Item = QuoteT> + 'a {
-        types.iter().map(move |ty| self.type_to_ts(ty, field))
+    fn derive_syn_types(&'a self, types: &'a [syn::Type]) -> impl Iterator<Item = QuoteT> + 'a {
+        types.iter().map(move |ty| self.type_to_ts(ty))
     }
 }
 
@@ -707,7 +691,7 @@ impl<'a> ParseContext<'a> {
             ctxt: &self,
             field,
         };
-        ts.type_to_ts(&field.ty, field)
+        ts.type_to_ts(&field.ty)
     }
 
     fn derive_field(&self, field: &ast::Field<'a>) -> QuoteT {
