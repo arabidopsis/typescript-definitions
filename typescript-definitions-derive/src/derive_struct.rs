@@ -107,6 +107,10 @@ impl<'a> ParseContext<'_> {
         if fields.is_empty() {
             return self.derive_struct_unit();
         }
+
+        if fields.len() == 1 && ast_container.attrs.transparent() {
+            return self.derive_struct_newtype(&fields[0], ast_container);
+        };
         self.check_flatten(&fields, ast_container);
         let content = self.derive_field_tuple(&fields);
         let verify = if self.gen_verifier {

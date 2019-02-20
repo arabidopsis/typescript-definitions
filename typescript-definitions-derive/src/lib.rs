@@ -33,6 +33,14 @@ use utils::*;
 
 use patch::patch;
 
+const GUARD_PREFIX: &str = "is";
+
+fn guard_name(ident: &Ident) -> Ident {
+    let mut s = String::new();
+    s.push_str(GUARD_PREFIX);
+    s.push_str(&ident.to_string());
+    ident_from_str(&s)
+}
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
 
@@ -74,7 +82,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
-    let verify = if cfg!(feature = "verifiers") {
+    let verify = if cfg!(feature = "type-guards") {
         true
     } else {
         false
@@ -92,13 +100,11 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     };
 
     if let Some(ref verify) = parsed.wasm_verify() {
-
         let export_ident = ident_from_str(&format!("TS_EXPORT_VERIFY_{}", name));
         q.extend(quote!(
             #[wasm_bindgen(typescript_custom_section)]
             pub const #export_ident : &'static str = #verify;
         ))
-        
     }
 
     // just to allow testing... only `--features=test` seems to work
@@ -113,12 +119,15 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 
         ));
     }
+    if let Some("1") = option_env!("TFY_SHOW_CODE") {
+        eprintln!("{}", patch(&q.to_string()));
+    }
 
     q
 }
 
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
-    let verify = if cfg!(feature = "verifiers") {
+    let verify = if cfg!(feature = "type-guards") {
         true
     } else {
         false
@@ -134,11 +143,7 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     let is_generic = !parsed.ctxt.ts_generics.is_empty();
 
     let verifier = match parsed.wasm_verify() {
-        Some(ref txt) => {
-
-            quote!(Some(#txt.into()))
-            
-        }
+        Some(ref txt) => quote!(Some(#txt.into())),
         None => quote!(None),
     };
 
@@ -146,7 +151,7 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     // can't seem to use #[cfg(features...)] within the quote!
     // hence the repetiton
     let ret = if !is_generic {
-          if cfg!(feature="verifiers") {
+        if cfg!(feature = "type-guards") {
             quote! {
 
                 impl ::typescript_definitions::TypeScriptifyTrait for #ident {
@@ -170,9 +175,9 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     } else {
         let generics = parsed.generic_args_with_lifetimes();
         let rustg = &parsed.ctxt.rust_generics;
-        if cfg!(feature="verifiers") {
+        if cfg!(feature = "type-guards") {
             quote! {
-            
+
                 impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
                     fn type_script_ify() ->  String {
                         #export_string.into()
@@ -184,7 +189,7 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
             }
         } else {
             quote! {
-            
+
                 impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
                     fn type_script_ify() ->  String {
                         #export_string.into()
@@ -234,15 +239,32 @@ impl Typescriptify {
                     let generics = self.ts_generics(false);
                     let generics_wb = &generics; // self.ts_generics(true);
                     let is_generic = !self.ctxt.ts_generics.is_empty();
+                    let name = guard_name(&ident);
                     if is_generic {
-                        format!("export const isa_{ident} = {generics_wb}({obj}: any, typename: string): {obj} is {ident}{generics} => {body}", 
-                        ident=ident, obj=obj, body=body, generics=generics, generics_wb=generics_wb )
+                        format!(
+                            "export const {name} = {generics_wb}({obj}: any, typename: string):\
+                             {obj} is {ident}{generics} => {body}",
+                            name = name,
+                            obj = obj,
+                            body = body,
+                            generics = generics,
+                            generics_wb = generics_wb,
+                            ident = ident
+                        )
                     } else {
-                        format!("export const isa_{ident} = {generics_wb}({obj}: any): {obj} is {ident}{generics} => {body}", 
-                            ident=ident, obj=obj, body=body, generics=generics, generics_wb=generics_wb )
+                        format!(
+                            "export const {name} = {generics_wb}({obj}: any):\
+                             {obj} is {ident}{generics} => {body}",
+                            name = name,
+                            obj = obj,
+                            body = body,
+                            generics = generics,
+                            generics_wb = generics_wb,
+                            ident = ident
+                        )
                     }
                 };
-                if let Some(txt) = self.extra_verify() {
+                for txt in self.extra_verify() {
                     s.push('\n');
                     s.push_str(&txt);
                 }
@@ -250,16 +272,16 @@ impl Typescriptify {
             }
         }
     }
-    fn extra_verify(&self) -> Option<String> {
-        if let Some(extra) = self.ctxt.extra.replace(None) {
-            let e = extra.to_string();
+    fn extra_verify(&self) -> Vec<String> {
+        let v = self.ctxt.extra.replace(vec![]);
+        v.iter()
+            .map(|extra| {
+                let e = extra.to_string();
 
-            let extra = patch(&e);
-            let extra = "// generic test  \n".to_string() + &extra;
-            return Some(extra);
-        } else {
-            None
-        }
+                let extra = patch(&e);
+                "// generic test  \n".to_string() + &extra
+            })
+            .collect()
     }
 
     fn ts_ident_str(&self) -> String {
@@ -328,11 +350,11 @@ impl Typescriptify {
                 ctxt: Some(&cx),
                 arg_name: quote!(obj),
                 global_attrs: attrs,
-                gen_verifier: gv,  
+                gen_verifier: gv,
                 ident: container.ident.clone(),
                 ts_generics: ts_generics,
                 rust_generics: container.generics.clone(),
-                extra: Cell::new(None),
+                extra: Cell::new(vec![]),
             };
 
             let typescript = match container.data {
@@ -474,17 +496,24 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
     }
 }
 
+pub(crate) struct FieldContext<'a> {
+    pub ctxt: &'a ParseContext<'a>,
+    pub field: &'a ast::Field<'a>,
+    pub attrs: Attrs,
+}
+
 pub(crate) struct ParseContext<'a> {
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
     arg_name: QuoteT,       // top level "name" of argument for verifier
-    global_attrs: Attrs,
-    gen_verifier: bool, // generate verifier for this struct/enum
-    ident: syn::Ident,                         // name of enum struct
+    global_attrs: Attrs,    // global #[typescript(...)] attributes
+    gen_verifier: bool,     // generate verifier for this struct/enum
+    ident: syn::Ident,      // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
-    rust_generics: syn::Generics,              // original rust generics
-    extra: Cell<Option<QuoteT>>, // for generic verifier
+    rust_generics: syn::Generics, // original rust generics
+    extra: Cell<Vec<QuoteT>>, // for generic verifier hack!
 }
-impl<'a> ParseContext<'a> {
+
+impl<'a> FieldContext<'a> {
     fn generic_to_ts(&self, ts: TSType, field: &'a ast::Field<'a>) -> QuoteT {
         let to_ts = |ty: &syn::Type| self.type_to_ts(ty, field);
 
@@ -640,19 +669,45 @@ impl<'a> ParseContext<'a> {
             Infer(..) | Macro(..) | Verbatim(..) => quote! { any },
         }
     }
+    fn derive_syn_types_ptr(
+        &'a self,
+        types: &'a [&'a syn::Type],
+        field: &'a ast::Field<'a>,
+    ) -> impl Iterator<Item = QuoteT> + 'a {
+        types.iter().map(move |ty| self.type_to_ts(ty, field))
+    }
+    fn derive_syn_types(
+        &'a self,
+        types: &'a [syn::Type],
+        field: &'a ast::Field<'a>,
+    ) -> impl Iterator<Item = QuoteT> + 'a {
+        types.iter().map(move |ty| self.type_to_ts(ty, field))
+    }
+}
 
+impl<'a> ParseContext<'a> {
     // Some helpers
 
-    fn err_msg(&self, msg: String) {
+    fn err_msg(&self, msg: &str) {
         if let Some(ctxt) = self.ctxt {
             ctxt.error(msg);
         } else {
-            panic!(msg)
+            panic!(msg.to_string())
         }
     }
 
     fn field_to_ts(&self, field: &ast::Field<'a>) -> QuoteT {
-        self.type_to_ts(&field.ty, field)
+        let attrs = Attrs::from_field(field, self.ctxt);
+        // eprintln!("HERE {:?} {:?}", attrs.as_ts, field.attrs.name().serialize_name());
+        if attrs.as_ts.is_some() {
+            return attrs.as_ts.unwrap();
+        }
+        let ts = FieldContext {
+            attrs,
+            ctxt: &self,
+            field,
+        };
+        ts.type_to_ts(&field.ty, field)
     }
 
     fn derive_field(&self, field: &ast::Field<'a>) -> QuoteT {
@@ -676,20 +731,6 @@ impl<'a> ParseContext<'a> {
         fields: &'a [&'a ast::Field<'a>],
     ) -> impl Iterator<Item = QuoteT> + 'a {
         fields.iter().map(move |f| self.field_to_ts(f))
-    }
-    fn derive_syn_types_ptr(
-        &'a self,
-        types: &'a [&'a syn::Type],
-        field: &'a ast::Field<'a>,
-    ) -> impl Iterator<Item = QuoteT> + 'a {
-        types.iter().map(move |ty| self.type_to_ts(ty, field))
-    }
-    fn derive_syn_types(
-        &'a self,
-        types: &'a [syn::Type],
-        field: &'a ast::Field<'a>,
-    ) -> impl Iterator<Item = QuoteT> + 'a {
-        types.iter().map(move |ty| self.type_to_ts(ty, field))
     }
 
     fn check_flatten(&self, fields: &[&'a ast::Field<'a>], ast_container: &ast::Container) -> bool {

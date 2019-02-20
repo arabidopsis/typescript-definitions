@@ -1,7 +1,7 @@
 
 
 test: readme
-	@cargo test --all --features="test verifiers"
+	@cargo test --all --features="test type-guards"
 
 doc: readme
 	@rm -rf target/doc

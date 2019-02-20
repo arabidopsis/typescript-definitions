@@ -8,7 +8,6 @@ mod macro_test {
     use insta::assert_snapshot_matches;
     use quote::quote;
     #[test]
-    // #[should_panic]
     fn tag_clash_in_enum() {
         let tokens = quote!(
             #[derive(Serialize)]
@@ -53,7 +52,7 @@ mod macro_test {
     fn verify_is_recognized() {
         let tokens = quote!(
             #[derive(Serialize)]
-            #[typescript(verify = "blah")]
+            #[typescript(guard = "blah")]
             struct S {
                 a: i32,
                 b: f64,
@@ -67,6 +66,7 @@ mod macro_test {
             ),
         }
     }
+    /*
     #[test]
     fn turbofish() {
         let tokens = quote!(
@@ -101,5 +101,5 @@ mod macro_test {
             @r###"Can't lex turbofish "😀i32>""###
             ),
         }
-    }
+    } */
 }

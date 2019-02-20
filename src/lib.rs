@@ -30,7 +30,7 @@ mod README;
 ///
 pub trait TypeScriptifyTrait {
     fn type_script_ify() -> String;
-    #[cfg(feature="verifiers")]
+    #[cfg(feature = "type-guards")]
     fn type_script_verify() -> Option<String>;
 }
 /// # String serializer for `u8` byte buffers.

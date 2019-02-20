@@ -6,21 +6,22 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use super::{ast, ident_from_str, Ctxt};
+use super::{ast, ident_from_str, Ctxt, QuoteT};
 use quote::quote;
-use std::collections::HashMap;
+// use std::collections::HashMap;
 // use std::str::FromStr;
 // use syn::Type::Path;
 use proc_macro2::TokenStream;
-use syn::{Attribute, Ident, Lit, Meta, MetaList, MetaNameValue, NestedMeta};
+use syn::{Attribute, Ident, Lit, Meta, /* MetaList,*/ MetaNameValue, NestedMeta};
 
 #[derive(Debug)]
 pub struct Attrs {
     pub comments: Vec<String>,
     pub verify: bool,
-    pub turbofish: Option<TokenStream>,
+    // pub turbofish: Option<TokenStream>,
     pub only_first: bool,
-    pub isa: HashMap<String, TokenStream>,
+    pub user_type_guard: bool,
+    pub as_ts: Option<QuoteT>,
 }
 
 #[inline]
@@ -28,6 +29,7 @@ fn path_to_str(path: &syn::Path) -> String {
     quote!(#path).to_string()
 }
 
+#[allow(unused)]
 pub fn turbofish_check(v: &str) -> Result<TokenStream, String> {
     match v.parse::<proc_macro2::TokenStream>() {
         // just get LexError as error message... so make our own.
@@ -42,10 +44,12 @@ impl Attrs {
     pub fn new() -> Attrs {
         Attrs {
             comments: vec![],
-            turbofish: None,
+            // turbofish: None,
             verify: true,
             only_first: false,
-            isa: HashMap::new(),
+            user_type_guard: false,
+            as_ts: None,
+            // isa: HashMap::new(),
         }
     }
     pub fn push_doc_comment(&mut self, attrs: &[Attribute]) {
@@ -121,17 +125,21 @@ impl Attrs {
         use syn::Meta::*;
         use NestedMeta::*;
 
+        fn err<'a>(msg: String, ctxt: Option<&'a Ctxt>) {
+            if let Some(ctxt) = ctxt {
+                ctxt.error(format!("invalid typescript syntax: {}", msg));
+            } else {
+                panic!("invalid typescript syntax: {}", msg)
+            };
+        }
+
         attrs
             .iter()
             .filter_map(move |attr| match path_to_str(&attr.path).as_ref() {
                 "typescript" => match attr.parse_meta() {
                     Ok(v) => Some(v),
                     Err(msg) => {
-                        if let Some(ctxt) = ctxt {
-                            ctxt.error(format!("invalid typescript syntax: {}", msg));
-                        } else {
-                            panic!("invalid typescript syntax: {}", msg)
-                        };
+                        err(msg.to_string(), ctxt);
                         None
                     }
                 },
@@ -140,14 +148,7 @@ impl Attrs {
             .filter_map(move |m| match m {
                 List(l) => Some(l.nested),
                 ref tokens => {
-                    if let Some(ctxt) = ctxt {
-                        ctxt.error(format!(
-                            "unsupported syntax: {}",
-                            quote!(#tokens).to_string()
-                        ));
-                    } else {
-                        panic!("invalid typescript syntax: {}", quote!(#tokens).to_string())
-                    };
+                    err(quote!(#tokens).to_string(), ctxt);
                     None
                 }
             })
@@ -155,14 +156,7 @@ impl Attrs {
             .filter_map(move |m| match m {
                 Meta(m) => Some(m),
                 ref tokens => {
-                    if let Some(ctxt) = ctxt {
-                        ctxt.error(format!(
-                            "unsupported syntax: {}",
-                            quote!(#tokens).to_string()
-                        ));
-                    } else {
-                        panic!("invalid typescript syntax: {}", quote!(#tokens).to_string())
-                    };
+                    err(quote!(#tokens).to_string(), ctxt);
                     None
                 }
             })
@@ -170,7 +164,7 @@ impl Attrs {
     pub fn push_attrs(&mut self, struct_ident: &Ident, attrs: &[Attribute], ctxt: Option<&Ctxt>) {
         use syn::Meta::*;
         use Lit::*;
-        use NestedMeta::*;
+        // use NestedMeta::*;
 
         for attr in Self::find_typescript(&attrs, ctxt) {
             match attr {
@@ -178,14 +172,14 @@ impl Attrs {
                     ref ident,
                     lit: Bool(ref value),
                     ..
-                }) if ident == "verify" => {
+                }) if ident == "guard" => {
                     self.verify = value.value;
                 }
                 NameValue(MetaNameValue {
                     ref ident,
                     lit: Str(ref value),
                     ..
-                }) if ident == "verify" => {
+                }) if ident == "guard" => {
                     self.verify = match value.value().parse() {
                         Ok(v) => v,
                         Err(..) => {
@@ -201,39 +195,39 @@ impl Attrs {
                         }
                     }
                 }
-                List(MetaList {
-                    ref ident,
-                    ref nested,
-                    ..
-                }) if ident == "isa" => {
-                    for method in nested {
-                        match *method {
-                            Meta(NameValue(MetaNameValue {
-                                ref ident,
-                                lit: Str(ref v),
-                                ..
-                            })) => match v.value().parse::<TokenStream>() {
-                                Ok(t) => {
-                                    self.isa.insert(ident.to_string(), quote!(#t));
-                                }
-                                Err(_) => self.err_msg(format!("Can't parse {}", quote!(#v)), ctxt),
-                            },
-                            ref mi @ _ => panic!("unsupported raw entry: {}", quote!(#mi)),
-                        }
-                    }
-                }
-                Word(ref w) if w == "verify" => self.verify = true,
-                NameValue(MetaNameValue {
-                    ref ident,
-                    lit: Str(ref value),
-                    ..
-                }) if ident == "turbofish" => {
-                    let v = value.value();
-                    match turbofish_check(&v) {
-                        Err(msg) => self.err_msg(msg, ctxt),
-                        Ok(tokens) => self.turbofish = Some(tokens),
-                    }
-                }
+                Word(ref w) if w == "guard" => self.verify = true,
+                // List(MetaList {
+                //     ref ident,
+                //     ref nested,
+                //     ..
+                // }) if ident == "isa" => {
+                //     for method in nested {
+                //         match *method {
+                //             Meta(NameValue(MetaNameValue {
+                //                 ref ident,
+                //                 lit: Str(ref v),
+                //                 ..
+                //             })) => match v.value().parse::<TokenStream>() {
+                //                 Ok(t) => {
+                //                     self.isa.insert(ident.to_string(), quote!(#t));
+                //                 }
+                //                 Err(_) => self.err_msg(format!("Can't parse {}", quote!(#v)), ctxt),
+                //             },
+                //             ref mi @ _ => panic!("unsupported raw entry: {}", quote!(#mi)),
+                //         }
+                //     }
+                // }
+                // NameValue(MetaNameValue {
+                //     ref ident,
+                //     lit: Str(ref value),
+                //     ..
+                // }) if ident == "turbofish" => {
+                //     let v = value.value();
+                //     match turbofish_check(&v) {
+                //         Err(msg) => self.err_msg(msg, ctxt),
+                //         Ok(tokens) => self.turbofish = Some(tokens),
+                //     }
+                // }
                 ref i @ NameValue(..) | ref i @ List(..) | ref i @ Word(..) => {
                     self.err_msg(format!("unsupported option: {}", quote!(#i)), ctxt);
                 }
@@ -256,14 +250,27 @@ impl Attrs {
                     ref ident,
                     lit: Str(ref value),
                     ..
-                }) if ident == "check" => {
+                }) if ident == "ts_type" => {
+                    let v = value.value();
+                    match v.parse::<proc_macro2::TokenStream>() {
+                        Ok(tokens) => self.as_ts = Some(tokens),
+                        Err(..) => {
+                            self.err_msg(format!("Can't parse {}", v), ctxt);
+                        }
+                    }
+                }
+                NameValue(MetaNameValue {
+                    ref ident,
+                    lit: Str(ref value),
+                    ..
+                }) if ident == "array_check" => {
                     self.only_first = match value.value().as_ref() {
                         "first" => true,
                         "all" => false,
                         _ => {
                             self.err_msg(
                                 format!(
-                                    r#"{}: check value must be "first" or "all" not "{}""#,
+                                    r#"{}: array_check value must be "first" or "all" not "{}""#,
                                     struct_ident,
                                     quote!(#value)
                                 ),
@@ -273,6 +280,35 @@ impl Attrs {
                         }
                     }
                 }
+                Word(ref w) if w == "array_check" => self.only_first = true,
+                NameValue(MetaNameValue {
+                    ref ident,
+                    lit: Bool(ref value),
+                    ..
+                }) if ident == "user_type_guard" => {
+                    self.user_type_guard = value.value;
+                }
+                NameValue(MetaNameValue {
+                    ref ident,
+                    lit: Str(ref value),
+                    ..
+                }) if ident == "user_type_guard" => {
+                    self.user_type_guard = match value.value().parse() {
+                        Ok(v) => v,
+                        Err(..) => {
+                            self.err_msg(
+                                format!(
+                                    "{}: user_type_guard must be true or false not \"{}\"",
+                                    struct_ident,
+                                    quote!(#value)
+                                ),
+                                ctxt,
+                            );
+                            false
+                        }
+                    }
+                }
+                Word(ref w) if w == "user_type_guard" => self.user_type_guard = true,
                 ref i @ NameValue(..) | ref i @ List(..) | ref i @ Word(..) => {
                     self.err_msg(format!("unsupported option: {}", quote!(#i)), ctxt);
                 }

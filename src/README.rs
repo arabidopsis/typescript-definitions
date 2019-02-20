@@ -8,6 +8,22 @@
 ![License](https://img.shields.io/crates/l/typescript-definitions.svg)
 
 
+Good news everyone! Version 0.1.9 introduces a feature gated option to
+generate typescript [type guards](https://www.typescriptlang.org/docs/handbook/advanced-types.html). Now you can:
+
+```typescript
+    import {Record, isRecord} from "./mytypescript";
+    const a: any = JSON.parse(some_string_from_your_server)
+    if (isRecord(a)) {
+        // all the typescript type checking goodness plus a bit of safety
+    } else {
+        // something went wrong.
+    }
+```
+
+See [Type Guards](#type-guards) below.
+
+
 ## Motivation 🦀
 
 Now that rust 2018 has landed
@@ -263,6 +279,123 @@ Serde attributes understood but rejected
 * flatten (This will produce a panic). Currently on my TODO list.
 
 All others are just ignored.
+
+## Type Guards
+
+`typescript-definitions` type guards provide a fail fast defensive check that
+a random json object agrees with the layout and types of a given `typescript-definitions`
+type.
+
+To enable them change your dependency to:
+
+```toml
+typescript-definitions = { version="0.1.9", features=["type-guards"] }
+```
+
+With the feature *on* you can turn guard generation *off* for any struct/enum with the
+`#[typescript(guard=false)]` attribute.
+
+If your struct has a long list of data as `Vec<data>` then you can prevent a
+type check of the entire array with a field attribute `#[typescript(array_check="first")]`
+which will check only the first row.
+
+### Limitations of JSON
+
+e.g. Maps with non string keys: This
+
+```rust
+use wasm_bindgen::prelude::*;
+use serde::Serialize;
+use std::collections::HashMap;
+use typescript_definitions::TypescriptDefinition;
+#[derive(Serialize, TypescriptDefinition)]
+pub struct IntMap {
+    pub intmap: HashMap<i32, i32>,
+}
+```
+
+will generate:
+
+```typescript
+
+export type IntMap = { intmap: { [key: number]: number } };
+```
+
+But the typescript compiler will type check this:
+
+```typescript
+let v : IntMap = { intmap: {  "6": 6, 4: 4 } };
+```
+
+So the generated guard also checks for integer keys with `(+key !== NaN)`.
+
+### Limitations of Generics
+
+`typescript-definitions` has limited support for verifing generics.
+
+Rust and typescript diverge a lot on what genericity means. Generic Rust structs
+don't map well to generic typescript types. However we don't give up totally.
+
+This will work:
+
+```rust
+use wasm_bindgen::prelude::*;
+use serde::Serialize;
+use typescript_definitions::TypescriptDefinition;
+
+#[derive(Serialize, TypescriptDefinition)]
+pub struct Value<T> {
+    pub value: T,
+}
+
+#[derive(Serialize, TypescriptDefinition)]
+pub struct DependsOnValue {
+    pub value: Vec<Value<i32>>,
+}
+```
+Since the monomorphization of `Value` in `DependsOnValue` is one of
+`number`, `string` or `boolean`.
+
+Beyond this you will have to write your own guards:
+
+e.g. First markup the generics:
+
+```rust
+use wasm_bindgen::prelude::*;
+use serde::Serialize;
+use typescript_definitions::TypescriptDefinition;
+
+#[derive(Serialize, TypescriptDefinition)]
+pub struct Value<T> {
+    #[typescript(user_type_guard=true)]
+    pub value: T,
+}
+
+#[derive(Serialize, TypescriptDefinition)]
+pub struct DependsOnValue {
+    #[typescript(user_type_guard=true)]
+    pub value: Value<Vec<i32>>,
+}
+```
+Then you will have to write...
+
+```typescript
+const isT = <T>(o: any, typename: string): o is T => {
+    // Vec<i32> maps to number[]
+    if (typename !== "number[]") return false;
+    if (!Array.isArray(o)) return false;
+    for (let v of o) {
+        if (typeof v !== "number") return false;
+    }
+    return true
+}
+```
+
+Watch out for function name collisons especially if you use simple names
+such as `T`, for a generic
+type name.
+
+The generated output file should really be passed through something like [prettier](https://www.npmjs.com/package/prettier).
 
 ## Examples
 

@@ -34,7 +34,7 @@ pub fn prettier(s: &str) -> String {
 
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
-#[cfg(feature="verifiers")]
+#[cfg(feature = "type-guards")]
 #[test]
 fn verify_untagged_enum() {
     use serde_json;
@@ -47,7 +47,7 @@ fn verify_untagged_enum() {
     }
     let verify_untagged_enum = prettier(&Untagged::type_script_verify().unwrap());
     assert_snapshot_matches!(verify_untagged_enum,
-        @r###"export const isa_Untagged = (obj: any): obj is Untagged => {
+        @r###"export const isUntagged = (obj: any): obj is Untagged => {
   if (obj == undefined) return false;
   if (
     (() => {
@@ -88,19 +88,20 @@ fn verify_untagged_enum() {
 };"###
     )
 }
-#[cfg(feature="verifiers")]
+#[cfg(feature = "type-guards")]
 #[test]
 fn verify_first_only() {
     use serde_json;
 
     #[derive(Serialize, TypeScriptify)]
     struct S {
-        #[typescript(check = "first")]
+        #[typescript(array_check = "first")]
         vals: Vec<String>,
     }
+
     let verify_first_only = prettier(&S::type_script_verify().unwrap());
     assert_snapshot_matches!(verify_first_only,
-    @r###"export const isa_S = (obj: any): obj is S => {
+    @r###"export const isS = (obj: any): obj is S => {
   if (obj == undefined) return false;
   if (obj.vals === undefined) return false;
   {
@@ -113,4 +114,38 @@ fn verify_first_only() {
   }
   return true;
 };"###)
+}
+#[cfg(feature = "type-guards")]
+#[test]
+fn no_verifier() {
+    use serde_json;
+
+    #[derive(Serialize, TypeScriptify)]
+    #[typescript(guard = false)]
+    struct S {
+        a: i32,
+        b: i64,
+        vals: Vec<String>,
+    }
+
+    let verify = S::type_script_verify();
+    assert!(verify.is_none(), "expecting None")
+}
+#[cfg(feature = "type-guards")]
+#[test]
+fn verify_typescript_enum() {
+    use serde_json;
+    #[derive(Serialize, TypeScriptify)]
+    enum TyEnum {
+        Red,
+        Green,
+        Blue,
+    }
+    let verify_typescript_enum = prettier(&TyEnum::type_script_verify().unwrap());
+    assert_snapshot_matches!(verify_typescript_enum,
+        @r###"export const isTyEnum = (obj: any): obj is TyEnum => {
+  if (!(obj === "Red" || obj === "Green" || obj === "Blue")) return false;
+  return true;
+};"###
+    )
 }

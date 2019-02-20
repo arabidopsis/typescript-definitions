@@ -126,6 +126,19 @@ maybe some better name mangling `<Vec<Vec<f64>>>` go to `vvn` Could get
 arbitrarily complex...
 
 
+Interesting that this seems to pass tsc
+
+```typescript
+
+type IntMap = { intmap: { [key: number]: number } };
+
+let v : IntMap = { intmap: { 2: 6, "6": 5, 4:5 } };
+```
+but `{ 2: 6, "6a": 5, 4:5 }` fails.
+
+
+check Dates/times durations
+
 
 
 

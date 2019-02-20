@@ -407,3 +407,21 @@ fn struct_with_one_field_is_transparent() {
 
     )
 }
+
+#[cfg(feature = "test")]
+#[test]
+fn struct_with_two_fields_is_transparent_with_skip() {
+    #[derive(Serialize, TypescriptDefinition)]
+    #[serde(transparent)]
+    struct TwoSkip {
+        a: i32,
+        #[serde(skip)]
+        b: i32,
+    }
+
+    assert_snapshot_matches!(
+        TwoSkip___typescript_definition(),
+        @"export type TwoSkip = number;"
+
+    )
+}

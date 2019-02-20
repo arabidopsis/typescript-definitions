@@ -191,7 +191,9 @@ impl<'a> ParseContext<'_> {
         if taginfo.tag.is_none() {
             if taginfo.untagged {
                 let verify = if self.gen_verifier {
-                    Some(self.verify_type(&obj, field))
+                    let v = self.verify_type(&obj, field);
+
+                    Some(quote!( { #v; return true }))
                 } else {
                     None
                 };
@@ -438,7 +440,6 @@ impl<'a> ParseContext<'_> {
                 let eq = eq();
                 Some(quote!({
                     const v = #obj.#tag;
-                    if (v == undefined) return true;
                     if (!Array.isArray(v) || !(v.length #eq #len)) return false;
                     #(#verify;)*
                     return true;
