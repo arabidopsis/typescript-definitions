@@ -62,7 +62,7 @@ mod macro_test {
         match result {
             Ok(_x) => assert!(false, "expecting panic!"),
             Err(ref msg) => assert_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
-            @r###"S: verify must be true or false not ""blah"""###
+            @r###"S: guard must be true or false not ""blah"""###
             ),
         }
     }

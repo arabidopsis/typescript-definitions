@@ -343,14 +343,14 @@ impl Typescriptify {
 
         let container = ast::Container::from_ast(&cx, &input, Derive::Serialize);
         let ts_generics = ts_generics(container.generics);
-        let gv = gen_verifier && attrs.verify;
+        let gv = gen_verifier && attrs.guard;
 
         let (typescript, ctxt) = {
             let pctxt = ParseContext {
                 ctxt: Some(&cx),
                 arg_name: quote!(obj),
                 global_attrs: attrs,
-                gen_verifier: gv,
+                gen_guard: gv,
                 ident: container.ident.clone(),
                 ts_generics: ts_generics,
                 rust_generics: container.generics.clone(),
@@ -497,16 +497,16 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
 }
 
 pub(crate) struct FieldContext<'a> {
-    pub ctxt: &'a ParseContext<'a>,
-    pub field: &'a ast::Field<'a>,
-    pub attrs: Attrs,
+    pub ctxt: &'a ParseContext<'a>, //
+    pub field: &'a ast::Field<'a>, // field being parse
+    pub attrs: Attrs, // field attributes
 }
 
 pub(crate) struct ParseContext<'a> {
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
     arg_name: QuoteT,       // top level "name" of argument for verifier
     global_attrs: Attrs,    // global #[typescript(...)] attributes
-    gen_verifier: bool,     // generate verifier for this struct/enum
+    gen_guard: bool,     // generate type guard for this struct/enum
     ident: syn::Ident,      // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     rust_generics: syn::Generics, // original rust generics

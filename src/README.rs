@@ -280,6 +280,27 @@ Serde attributes understood but rejected
 
 All others are just ignored.
 
+
+## typescript-definition attributes
+
+Some types, for example `chrono::DateTime`, will serializes themselves in an opaque
+manner. Youn need to tell `typescript-definitions`, viz:
+
+```rust
+use chrono::prelude::*; 
+use serde::Serialize;
+use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+
+#[derive(Serialize, TypeScriptify)]
+pub struct Chrono {
+    #[typescript(ts_type="string")]
+    pub datetime: DateTime<Local>,
+}
+```
+
+Any typescript type can be used *unless* you are want a type guard generated, then
+only string, number and boolean are accepted at the moment.
+
 ## Type Guards
 
 `typescript-definitions` type guards provide a fail fast defensive check that
@@ -354,7 +375,7 @@ pub struct DependsOnValue {
 }
 ```
 Since the monomorphization of `Value` in `DependsOnValue` is one of
-`number`, `string` or `boolean`.
+`number`, `string` or `boolean`. 
 
 Beyond this you will have to write your own guards:
 

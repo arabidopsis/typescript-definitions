@@ -17,7 +17,7 @@ use syn::{Attribute, Ident, Lit, Meta, /* MetaList,*/ MetaNameValue, NestedMeta}
 #[derive(Debug)]
 pub struct Attrs {
     pub comments: Vec<String>,
-    pub verify: bool,
+    pub guard: bool,
     // pub turbofish: Option<TokenStream>,
     pub only_first: bool,
     pub user_type_guard: bool,
@@ -45,7 +45,7 @@ impl Attrs {
         Attrs {
             comments: vec![],
             // turbofish: None,
-            verify: true,
+            guard: true,
             only_first: false,
             user_type_guard: false,
             as_ts: None,
@@ -173,19 +173,19 @@ impl Attrs {
                     lit: Bool(ref value),
                     ..
                 }) if ident == "guard" => {
-                    self.verify = value.value;
+                    self.guard = value.value;
                 }
                 NameValue(MetaNameValue {
                     ref ident,
                     lit: Str(ref value),
                     ..
                 }) if ident == "guard" => {
-                    self.verify = match value.value().parse() {
+                    self.guard = match value.value().parse() {
                         Ok(v) => v,
                         Err(..) => {
                             self.err_msg(
                                 format!(
-                                    "{}: verify must be true or false not \"{}\"",
+                                    "{}: guard must be true or false not \"{}\"",
                                     struct_ident,
                                     quote!(#value)
                                 ),
@@ -195,7 +195,7 @@ impl Attrs {
                         }
                     }
                 }
-                Word(ref w) if w == "guard" => self.verify = true,
+                Word(ref w) if w == "guard" => self.guard = true,
                 // List(MetaList {
                 //     ref ident,
                 //     ref nested,

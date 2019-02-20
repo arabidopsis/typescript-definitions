@@ -72,7 +72,7 @@ impl<'a> ParseContext<'_> {
                 .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
                 .collect::<Vec<_>>();
             let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
-            let verify = if self.gen_verifier {
+            let verify = if self.gen_guard {
                 let obj = &self.arg_name;
                 let o = (0..v.len()).map(|_| obj.clone());
                 let eq = (0..v.len()).map(|_| eq());
@@ -111,7 +111,7 @@ impl<'a> ParseContext<'_> {
         let newl = nl();
         let body = content.iter().map(|q| q.body.clone());
         let nl = content.iter().map(|_| quote!(#newl));
-        let verify = if self.gen_verifier {
+        let verify = if self.gen_guard {
             let v = content.iter().map(|q| q.verify.clone().unwrap());
 
             let obj = &self.arg_name;
@@ -139,7 +139,7 @@ impl<'a> ParseContext<'_> {
         let eq = eq();
 
         if taginfo.tag.is_none() {
-            let verify = if self.gen_verifier {
+            let verify = if self.gen_guard {
                 let obj = &self.arg_name;
                 Some(quote!(
                     {
@@ -156,7 +156,7 @@ impl<'a> ParseContext<'_> {
             };
         }
         let tag = ident_from_str(taginfo.tag.unwrap());
-        let verify = if self.gen_verifier {
+        let verify = if self.gen_guard {
             let obj = &self.arg_name;
             Some(quote!(
                 {
@@ -190,7 +190,7 @@ impl<'a> ParseContext<'_> {
 
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-                let verify = if self.gen_verifier {
+                let verify = if self.gen_guard {
                     let v = self.verify_type(&obj, field);
 
                     Some(quote!( { #v; return true }))
@@ -205,7 +205,7 @@ impl<'a> ParseContext<'_> {
             };
             let tag = ident_from_str(&variant_name);
 
-            let verify = if self.gen_verifier {
+            let verify = if self.gen_guard {
                 let v = quote!(v);
                 let verify = self.verify_type(&v, field);
                 let eq = eq();
@@ -239,7 +239,7 @@ impl<'a> ParseContext<'_> {
             ident_from_str(CONTENT) // should not get here...
         };
 
-        let verify = if self.gen_verifier {
+        let verify = if self.gen_guard {
             let eq = eq();
             let verify = self.verify_type(&quote!(val), field);
             Some(quote!(
@@ -284,7 +284,7 @@ impl<'a> ParseContext<'_> {
         let nl = contents.iter().map(|_| quote!(#last));
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-                let verify = if self.gen_verifier {
+                let verify = if self.gen_guard {
                     let verify = self.verify_fields(&self.arg_name, &fields);
 
                     Some(quote!(
@@ -306,7 +306,7 @@ impl<'a> ParseContext<'_> {
             };
             let v = &quote!(v);
             let tag = ident_from_str(&variant_name);
-            let verify = if self.gen_verifier {
+            let verify = if self.gen_guard {
                 let obj = &self.arg_name;
                 let verify = self.verify_fields(&v, &fields);
                 Some(quote!(
@@ -334,7 +334,7 @@ impl<'a> ParseContext<'_> {
         if let Some(content) = taginfo.content {
             let content = ident_from_str(&content);
 
-            let verify = if self.gen_verifier {
+            let verify = if self.gen_guard {
                 let obj = &self.arg_name;
                 let v = quote!(v);
                 let verify = self.verify_fields(&v, &fields);
@@ -373,7 +373,7 @@ impl<'a> ParseContext<'_> {
                     ));
                 }
             };
-            let verify = if self.gen_verifier {
+            let verify = if self.gen_guard {
                 let obj = &self.arg_name;
                 let verify = self.verify_fields(&obj, &fields);
                 let eq = eq();
@@ -414,7 +414,7 @@ impl<'a> ParseContext<'_> {
 
         if taginfo.tag.is_none() {
             if taginfo.untagged {
-                let verify = if self.gen_verifier {
+                let verify = if self.gen_guard {
                     let verify = self.verify_field_tuple(&self.arg_name, &fields);
                     Some(quote!({
                         #(#verify;)*
@@ -432,7 +432,7 @@ impl<'a> ParseContext<'_> {
                 };
             }
             let tag = ident_from_str(&variant_name);
-            let verify = if self.gen_verifier {
+            let verify = if self.gen_guard {
                 let obj = &self.arg_name;
                 let v = quote!(v);
                 let verify = self.verify_field_tuple(&v, &fields);
@@ -464,7 +464,7 @@ impl<'a> ParseContext<'_> {
             ident_from_str(CONTENT)
         };
 
-        let verify = if self.gen_verifier {
+        let verify = if self.gen_guard {
             let eq = eq();
             let obj = &self.arg_name;
             let v = quote!(v);

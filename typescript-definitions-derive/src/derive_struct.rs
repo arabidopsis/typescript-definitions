@@ -36,7 +36,7 @@ impl<'a> ParseContext<'_> {
         }
         self.check_flatten(&[field], ast_container);
 
-        let verify = if self.gen_verifier {
+        let verify = if self.gen_guard {
             let v = self.verify_type(&self.arg_name, field);
             Some(quote!( { #v; return true; } ))
         } else {
@@ -51,7 +51,7 @@ impl<'a> ParseContext<'_> {
     }
 
     fn derive_struct_unit(&self) -> QuoteMaker {
-        let verify = if self.gen_verifier {
+        let verify = if self.gen_guard {
             let obj = &self.arg_name;
             Some(quote!({ if (#obj == undefined) return false; return true; }))
         } else {
@@ -80,7 +80,7 @@ impl<'a> ParseContext<'_> {
         self.check_flatten(&fields, ast_container);
         let content = self.derive_fields(&fields);
 
-        let verify = if self.gen_verifier {
+        let verify = if self.gen_guard {
             let obj = &self.arg_name;
             let v = self.verify_fields(&obj, &fields);
             let n = fields.len();
@@ -113,7 +113,7 @@ impl<'a> ParseContext<'_> {
         };
         self.check_flatten(&fields, ast_container);
         let content = self.derive_field_tuple(&fields);
-        let verify = if self.gen_verifier {
+        let verify = if self.gen_guard {
             let obj = &self.arg_name;
             let v = self.verify_field_tuple(&obj, &fields);
             // obj can't be null or undefined

@@ -294,7 +294,8 @@ use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
 pub struct Chrono {
     #[typescript(ts_type="string")]
     pub datetime: DateTime<Local>,
-}```
+}
+```
 
 Any typescript type can be used *unless* you are want a type guard generated, then
 only string, number and boolean are accepted at the moment.

@@ -1,7 +1,7 @@
 
 
 test: update-readme
-	@cargo test --all --features=test
+	@cargo test --all --features= "test type-guards"
 
 doc: update-readme
 	@rm -rf target/doc
