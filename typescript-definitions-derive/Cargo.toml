@@ -22,7 +22,9 @@ syn = "0.15.26"
 proc-macro2 = "0.4.27"
 regex = "1.1.0"
 lazy_static = "1.2.0"
-
+failure = "0.1.5"
+pest = "2.1.0"
+pest_derive = "2.1.0"
 
 [dev-dependencies]
 serde = { version = "1.0.87", features = ["derive"] }
