@@ -363,6 +363,7 @@ fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
             GenericParam::Const(ConstParam { ident, ty, ..}) => {
                 let ty = TSType {
                     ident: ident.clone(),
+                    path: vec![],
                     args: vec![ty.clone()],
                     return_type: None,
                 };
@@ -384,10 +385,11 @@ fn return_type(rt: &syn::ReturnType) -> Option<syn::Type> {
 struct TSType {
     ident: syn::Ident,
     args: Vec<syn::Type>,
+    path: Vec<syn::Ident>, // full path
     return_type: Option<syn::Type>, // only if function
 }
 fn last_path_element(path: &syn::Path) -> Option<TSType> {
-
+    let fullpath = path.segments.iter().map(|s| s.ident.clone()).collect::<Vec<_>>();
     match path.segments.last().map(|p| p.into_value()) {
         Some(t) => {
             let ident = t.ident.clone();
@@ -407,6 +409,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     return Some(TSType {
                         ident,
                         args,
+                        path: fullpath,
                         return_type: ret,
                     });
                 }
@@ -414,6 +417,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                     return Some(TSType {
                         ident,
                         args: vec![],
+                        path: fullpath,
                         return_type: None,
                     });
                 }
@@ -430,6 +434,7 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
 
             Some(TSType {
                 ident,
+                path: fullpath,
                 args,
                 return_type: None,
             })
