@@ -11,8 +11,9 @@ use super::{
 use proc_macro2::Ident;
 use quote::quote;
 
+
 impl<'a> FieldContext<'a> {
-    fn generic_to_ts(&self, ts: TSType) -> QuoteT {
+    fn generic_to_ts(&self, ts: &TSType) -> QuoteT {
         let to_ts = |ty: &syn::Type| self.type_to_ts(ty);
 
         match ts.ident.to_string().as_ref() {
@@ -20,7 +21,7 @@ impl<'a> FieldContext<'a> {
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" | "char" | "Path" | "PathBuf" => quote! { string },
             "bool" => quote! { boolean },
-            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" | "RefMut" | "Weak"
+            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell"
                 if ts.args.len() == 1 =>
             {
                 to_ts(&ts.args[0])
@@ -54,6 +55,11 @@ impl<'a> FieldContext<'a> {
                 let v = to_ts(&ts.args[1]);
                 quote!(  { Ok : #k } | { Err : #v }  )
             }
+            "Either" if ts.args.len() == 2 => {
+                let k = to_ts(&ts.args[0]);
+                let v = to_ts(&ts.args[1]);
+                quote!(  { Left : #k } | { Right : #v }  )
+            }
             "Fn" | "FnOnce" | "FnMut" => {
                 let args = self.derive_syn_types(&ts.args);
                 if let Some(ref rt) = ts.return_type {
@@ -64,14 +70,23 @@ impl<'a> FieldContext<'a> {
                 }
             }
             _ => {
-                let ident = ts.ident;
-                if !ts.args.is_empty() {
-                    // let args = ts.args.iter().map(|ty| self.type_to_ts(ty));
-                    let args = self.derive_syn_types(&ts.args);
-                    quote! { #ident<#(#args),*> }
-                } else {
-                    quote! {#ident}
+                let owned: Vec<String> = ts.path.iter().map(|i| i.to_string()).collect(); // hold the memory
+                let path : Vec<&str> = owned.iter().map(|s| s.as_ref()).collect();
+                match path[..] {
+                    ["chrono", "DateTime"] => {
+                        quote!(string)
+                    }
+                    _  =>  {
+                        let ident = &ts.ident;
+                        if !ts.args.is_empty() {
+                            let args = self.derive_syn_types(&ts.args);
+                            quote! { #ident<#(#args),*> }
+                        } else {
+                            quote! {#ident}
+                        }
+                    }
                 }
+
             }
         }
     }
@@ -143,7 +158,7 @@ impl<'a> FieldContext<'a> {
             }
 
             Path(TypePath { path, .. }) => match last_path_element(&path) {
-                Some(ts) => self.generic_to_ts(ts),
+                Some(ref ts) => self.generic_to_ts(ts),
                 _ => quote! { any },
             },
             TraitObject(TypeTraitObject { bounds, .. })
@@ -154,7 +169,7 @@ impl<'a> FieldContext<'a> {
                         TypeParamBound::Trait(t) => last_path_element(&t.path),
                         _ => None, // skip lifetime etc.
                     })
-                    .map(|t| self.generic_to_ts(t));
+                    .map(|t| self.generic_to_ts(&t));
 
                 // TODO check for zero length?
                 // A + B + C => A & B & C

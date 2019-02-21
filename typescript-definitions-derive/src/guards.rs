@@ -15,12 +15,15 @@ use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::quote;
 
+
+
 impl<'a> FieldContext<'a> {
     fn verify_type(&self, obj: &'a TokenStream, ty: &syn::Type) -> QuoteT {
         // obj is an Ident
         // remeber obj is definitely *not* undefined... but because
         // of the option type it *could* be null....
         let eq = eq();
+
         use syn::Type::*;
         use syn::{
             BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound,
@@ -60,7 +63,7 @@ impl<'a> FieldContext<'a> {
             }
 
             Path(TypePath { path, .. }) => match last_path_element(&path) {
-                Some(ts) => self.verify_generic(obj, ts),
+                Some(ref ts) => self.verify_generic(obj, ts),
                 _ => quote! {},
             },
             TraitObject(TypeTraitObject { bounds, .. })
@@ -94,18 +97,23 @@ impl<'a> FieldContext<'a> {
                 }
         }
     }
-    fn verify_generic(&self, obj: &'a TokenStream, ts: TSType) -> QuoteT {
+    fn verify_generic(&self, obj: &'a TokenStream, ts: &TSType) -> QuoteT {
         let eq = eq();
-        match ts.ident.to_string().as_ref() {
+        let check  = |o: &TokenStream, tp: &str|  -> QuoteT {
+
+            quote! { if (! (typeof #o #eq #tp) ) return false; }
+        };
+        let ident = ts.ident.to_string();
+        match ident.as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => {
-                quote! { if (! (typeof #obj #eq "number")) return false }
+                check(obj, "number")
             }
             "String" | "str" | "char" | "Path" | "PathBuf" => {
-                quote! { if (! (typeof #obj #eq "string")) return false }
+                check(obj, "string")
             }
             "bool" => quote! { if (! (typeof #obj #eq "boolean")) return false },
-            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" | "RefMut" | "Weak"
+            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell"
                 if ts.args.len() == 1 =>
             {
                 self.verify_type(obj, &ts.args[0])
@@ -160,78 +168,96 @@ impl<'a> FieldContext<'a> {
                         }
                 )
             }
-            "Result" if ts.args.len() == 2 => {
+            "Result" | "Either" if ts.args.len() == 2 => {
                 let v = quote!(v);
                 let k = self.verify_type(&v, &ts.args[0]);
                 let v = self.verify_type(&v, &ts.args[1]);
+                let (left, right) = if ident == "Result" {
+                    (quote!(Ok), quote!(Err))
+                } else {
+                    (quote!(Left), quote!(Right))
+                };
                 quote! ({
                         if (#obj #eq null) return false;
                         if(
-                            ((v => {if(v == undefined) return false; #k; return true; })(#obj.Ok)) ||
-                            ((v => {if(v == undefined) return false; #v; return true; })(#obj.Err))
+                            ((v => {if(v == undefined) return false; #k; return true; })(#obj.#left)) ||
+                            ((v => {if(v == undefined) return false; #v; return true; })(#obj.#right))
                           ) return true;
                         return false;
                  } )
             }
+
             "Fn" | "FnOnce" | "FnMut" => quote!( {
                 if (!(typeof #obj #eq "function")) return false;
             }),
             _ => {
-                // Here we go.....
-                let ident = ts.ident;
+                let owned: Vec<String> = ts.path.iter().map(|i| i.to_string()).collect(); // hold the memory
+                let path : Vec<&str> = owned.iter().map(|s| s.as_ref()).collect();
+                 match path[..] {
+                    ["chrono", "DateTime"] => {
+                        quote!( if (!(typeof #obj #eq "string")) return false; )
+                    }
+                    _  =>  self.do_really_generic(obj, ts)
+                 }
+            }
+        }
+    }
 
-                let is_generic = self.ctxt.ts_generics.iter().any(|v| match v {
-                    Some((t, _)) => *t == ident,
-                    None => false,
-                });
-                let func = guard_name(&ident);
+    fn do_really_generic(&self, obj: &'a TokenStream, ts: &TSType) -> QuoteT {
+        // Here we go.....
+        let ident = &ts.ident;
 
-                let (func, gen_params): (TokenStream, TokenStream) = if is_generic {
-                    (quote!(#func), quote!(<#ident>))
-                } else {
-                    (quote!(#func), quote!())
+        let is_generic = self.ctxt.ts_generics.iter().any(|v| match v {
+            Some((t, _)) => *t == *ident,
+            None => false,
+        });
+        let func = guard_name(&ident);
+
+        let (func, gen_params): (TokenStream, TokenStream) = if is_generic {
+            (quote!(#func), quote!(<#ident>))
+        } else {
+            (quote!(#func), quote!())
+        };
+        if !ts.args.is_empty() {
+            if is_generic {
+                // T<K,V> with T generic ...
+                self.ctxt.err_msg(&format!(
+                    "{}: generic args of a generic type is not supported",
+                    ident
+                ));
+                return quote!(return false);
+            }
+            let args: Vec<_> = self.derive_syn_types(&ts.args).collect();
+            let a = args.clone();
+            let a = quote!(#(#a),*).to_string();
+            let a = a.trim();
+            if !self.attrs.user_type_guard {
+                if (!ok_ts_type(a)) {
+                    self.ctxt.err_msg(&format!(
+                        "{}: only monomorphization of number, string, object or boolean permitted: got \"{}\"",
+                        ident, patch(&a)
+                    ));
+                    self.ctxt.err_msg("try a user_type_guard");
+                    return quote!(return false);
                 };
-                if !ts.args.is_empty() {
-                    if is_generic {
-                        // T<K,V> with T generic ...
-                        self.ctxt.err_msg(&format!(
-                            "{}: generic args of a generic type is not supported",
-                            ident
-                        ));
-                        return quote!(return false);
-                    }
-                    let args: Vec<_> = self.derive_syn_types(&ts.args).collect();
-                    let a = args.clone();
-                    let a = quote!(#(#a),*).to_string();
-                    let a = a.trim();
-                    if !self.attrs.user_type_guard {
-                        if (!ok_ts_type(a)) {
-                            self.ctxt.err_msg(&format!(
-                                "{}: only monomorphization of number, string, object or boolean permitted: got \"{}\"",
-                                ident, patch(&a)
-                            ));
-                            self.ctxt.err_msg("try a user_type_guard");
-                            return quote!(return false);
-                        };
-                    };
-                    let a = Literal::string(&a);
-                    quote! { if (!#func#gen_params<#(#args),*>(#obj, #a)) return false; }
-                } else {
-                    if is_generic {
-                        if !self.attrs.user_type_guard {
-                            let gen_func = quote!(
-                                export const #func = #gen_params(#obj: any, typename: string): #obj is #ident => {
-                                    return typeof #obj #eq typename
-                                }
-                            );
-                            self.ctxt.add_extra_guard(gen_func);
-                        };
+            };
+            let a = Literal::string(&a);
+            quote! { if (!#func#gen_params<#(#args),*>(#obj, #a)) return false; }
+        } else {
+            if is_generic {
+                if !self.attrs.user_type_guard {
+                    let eq = eq();
+                    let gen_func = quote!(
+                        export const #func = #gen_params(#obj: any, typename: string): #obj is #ident => {
+                            return typeof #obj #eq typename
+                        }
+                    );
+                    self.ctxt.add_extra_guard(gen_func);
+                };
 
-                        quote!( if (!#func#gen_params(#obj, typename)) return false; )
-                    } else {
-                        quote!( if (!#func#gen_params(#obj)) return false; )
-                    }
-                }
+                quote!( if (!#func#gen_params(#obj, typename)) return false; )
+            } else {
+                quote!( if (!#func#gen_params(#obj)) return false; )
             }
         }
     }
