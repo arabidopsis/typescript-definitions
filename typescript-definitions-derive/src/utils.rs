@@ -73,8 +73,4 @@ pub fn guard_name(ident: &Ident) -> Ident {
     s.push_str(GUARD_PREFIX);
     s.push_str(&ident.to_string());
     ident_from_str(&s)
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> d59b8e73af971a21b0f6baf2df707386e5c8f36e
