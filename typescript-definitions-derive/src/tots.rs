@@ -1,5 +1,3 @@
-
-
 // Copyright 2019 Ian Castleden
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
@@ -7,9 +5,11 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
-use super::{FieldContext, TSType, QuoteT, last_path_element, is_bytes, ident_from_str, return_type};
-use quote::quote;
+use super::{
+    ident_from_str, is_bytes, last_path_element, return_type, FieldContext, QuoteT, TSType,
+};
 use proc_macro2::Ident;
+use quote::quote;
 
 impl<'a> FieldContext<'a> {
     fn generic_to_ts(&self, ts: TSType) -> QuoteT {
@@ -20,16 +20,16 @@ impl<'a> FieldContext<'a> {
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" | "char" | "Path" | "PathBuf" => quote! { string },
             "bool" => quote! { boolean },
-            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" | "RefMut" | "Weak" if ts.args.len() == 1 => to_ts(&ts.args[0]),
-            "Duration" => {
-                quote! ({ secs: number, nanos: number })
+            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" | "RefMut" | "Weak"
+                if ts.args.len() == 1 =>
+            {
+                to_ts(&ts.args[0])
             }
-            "SystemTime" => {
-            quote! ({
-                    secs_since_epoch: number,
-                    nanos_since_epoch: number
-                })
-            }
+            "Duration" => quote! ({ secs: number, nanos: number }),
+            "SystemTime" => quote! ({
+                secs_since_epoch: number,
+                nanos_since_epoch: number
+            }),
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
                 self.type_to_array(&ts.args[0])
@@ -75,7 +75,6 @@ impl<'a> FieldContext<'a> {
             }
         }
     }
-
 
     fn type_to_array(&self, elem: &syn::Type) -> QuoteT {
         // check for [u8] or Vec<u8>
@@ -178,4 +177,3 @@ impl<'a> FieldContext<'a> {
         types.iter().map(move |ty| self.type_to_ts(ty))
     }
 }
-

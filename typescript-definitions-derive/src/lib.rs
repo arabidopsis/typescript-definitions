@@ -24,24 +24,16 @@ mod derive_enum;
 mod derive_struct;
 mod patch;
 // mod quotet;
-mod tests;
-mod utils;
 mod guards;
+mod tests;
 mod tots;
+mod utils;
 
 use attrs::Attrs;
 use utils::*;
 
 use patch::patch;
 
-const GUARD_PREFIX: &str = "is";
-
-fn guard_name(ident: &Ident) -> Ident {
-    let mut s = String::new();
-    s.push_str(GUARD_PREFIX);
-    s.push_str(&ident.to_string());
-    ident_from_str(&s)
-}
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
 
@@ -141,64 +133,33 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     // let map = &parsed.map();
 
     let ident = &parsed.ctxt.ident;
-    let is_generic = !parsed.ctxt.ts_generics.is_empty();
 
-    let verifier = match parsed.wasm_verify() {
-        Some(ref txt) => quote!(Some(#txt.into())),
-        None => quote!(None),
-    };
+    let (impl_generics, ty_generics, where_clause) = parsed.ctxt.rust_generics.split_for_impl();
 
-    // TODO generics
-    // can't seem to use #[cfg(features...)] within the quote!
-    // hence the repetiton
-    let ret = if !is_generic {
-        if cfg!(feature = "type-guards") {
-            quote! {
-
-                impl ::typescript_definitions::TypeScriptifyTrait for #ident {
-                    fn type_script_ify() ->  String {
-                        #export_string.into()
-                    }
-                    fn type_script_verify() -> Option<String> {
-                        #verifier
-                    }
-                }
+    let type_script_guard = if cfg!(feature = "type-guards") {
+        let verifier = match parsed.wasm_verify() {
+            Some(ref txt) => quote!(Some(::std::borrow::Cow::Borrowed(#txt))),
+            None => quote!(None),
+        };
+        quote!(
+            fn type_script_guard() ->  Option<::std::borrow::Cow<'static,str>> {
+                    #verifier
             }
-        } else {
-            quote! {
-                impl ::typescript_definitions::TypeScriptifyTrait for #ident {
-                    fn type_script_ify() ->  String {
-                        #export_string.into()
-                    }
-                }
-            }
-        }
+        )
     } else {
-        let generics = parsed.generic_args_with_lifetimes();
-        let rustg = &parsed.ctxt.rust_generics;
-        if cfg!(feature = "type-guards") {
-            quote! {
-
-                impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
-                    fn type_script_ify() ->  String {
-                        #export_string.into()
-                    }
-                    fn type_script_verify() -> Option<String> {
-                        #verifier
-                    }
-                }
-            }
-        } else {
-            quote! {
-
-                impl#rustg ::typescript_definitions::TypeScriptifyTrait for #ident<#(#generics),*> {
-                    fn type_script_ify() ->  String {
-                        #export_string.into()
-                    }
-                }
-            }
-        }
+        quote!()
     };
+    let ret = quote! {
+
+        impl #impl_generics ::typescript_definitions::TypeScriptifyTrait for #ident #ty_generics #where_clause {
+            fn type_script_ify() ->  ::std::borrow::Cow<'static,str> {
+                ::std::borrow::Cow::Borrowed(#export_string)
+            }
+            #type_script_guard
+        }
+
+    };
+
     if let Some("1") = option_env!("TFY_SHOW_CODE") {
         eprintln!("{}", patch(&ret.to_string()));
     }
@@ -321,16 +282,7 @@ impl Typescriptify {
                 }
             }
 
-            _ => None,
-        })
-    }
-
-    fn generic_args_with_lifetimes(&self) -> impl Iterator<Item = QuoteT> + '_ {
-        // suitable for impl<...> Trait for T<#generic_args_with_lifetime> ...
-        // we need to return quotes because '_ is not an Ident
-        self.ctxt.ts_generics.iter().map(|g| match g {
-            Some((ref i, ref _bounds)) => quote!(#i),
-            None => quote!('_), // only need '_
+            None => None,
         })
     }
 
@@ -373,7 +325,6 @@ impl Typescriptify {
                 },
             )
         };
-
 
         // consumes context panics with errors
         if let Err(m) = cx.check() {
@@ -493,14 +444,14 @@ pub(crate) struct FieldContext<'a> {
 }
 
 impl<'a> FieldContext<'a> {
-     pub fn get_path(&self, ty: &syn::Type) -> Option<TSType> {
+    pub fn get_path(&self, ty: &syn::Type) -> Option<TSType> {
         use syn::Type::Path;
         use syn::TypePath;
         match ty {
             Path(TypePath { path, .. }) => last_path_element(&path),
             _ => None,
         }
-    }   
+    }
 }
 
 pub(crate) struct ParseContext<'a> {
@@ -513,7 +464,6 @@ pub(crate) struct ParseContext<'a> {
     rust_generics: syn::Generics, // original rust generics
     extra: Cell<Vec<QuoteT>>, // for generic verifier hack!
 }
-
 
 impl<'a> ParseContext<'a> {
     // Some helpers
@@ -529,8 +479,8 @@ impl<'a> ParseContext<'a> {
     fn field_to_ts(&self, field: &ast::Field<'a>) -> QuoteT {
         let attrs = Attrs::from_field(field, self.ctxt);
         // if user has provided a type ... use that
-        if attrs.as_ts.is_some() {
-            return attrs.as_ts.unwrap();
+        if attrs.ts_type.is_some() {
+            return attrs.ts_type.unwrap();
         }
         let ts = FieldContext {
             attrs,
@@ -567,9 +517,9 @@ impl<'a> ParseContext<'a> {
         let has_flatten = fields.iter().any(|f| f.attrs.flatten()); // .any(|f| f);
         if has_flatten {
             self.err_msg(&format!(
-                    "{}: #[serde(flatten)] does not work for typescript-definitions.",
-                    ast_container.ident
-                ));
+                "{}: #[serde(flatten)] does not work for typescript-definitions.",
+                ast_container.ident
+            ));
         };
         has_flatten
     }

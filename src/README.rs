@@ -287,7 +287,7 @@ Some types, for example `chrono::DateTime`, will serializes themselves in an opa
 manner. Youn need to tell `typescript-definitions`, viz:
 
 ```rust
-use chrono::prelude::*; 
+use chrono::prelude::*;
 use serde::Serialize;
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
 
@@ -375,7 +375,7 @@ pub struct DependsOnValue {
 }
 ```
 Since the monomorphization of `Value` in `DependsOnValue` is one of
-`number`, `string` or `boolean`. 
+`number`, `string` or `boolean`.
 
 Beyond this you will have to write your own guards:
 
@@ -542,6 +542,7 @@ println!("{}", S::type_script_ify());
 ```
 
 gives `export type S = { pig : Pig<string> }` instead of `export type S = { pig : string }`
+Use `#[typescript(ts_type="string")]` to fix this.
 
 At a certain point `typescript-definitions` just *assumes* that the token identifier `i32` (say)
 *is* really the rust signed 32 bit integer and not some crazy renamed struct in your code!

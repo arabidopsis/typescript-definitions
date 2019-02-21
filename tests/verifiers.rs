@@ -45,7 +45,7 @@ fn verify_untagged_enum() {
         V1 { id: i32, attr: String },
         V2 { id: i32, attr2: Vec<String> },
     }
-    let verify_untagged_enum = prettier(&Untagged::type_script_verify().unwrap());
+    let verify_untagged_enum = prettier(&Untagged::type_script_guard().unwrap());
     assert_snapshot_matches!(verify_untagged_enum,
         @r###"export const isUntagged = (obj: any): obj is Untagged => {
   if (obj == undefined) return false;
@@ -99,7 +99,7 @@ fn verify_first_only() {
         vals: Vec<String>,
     }
 
-    let verify_first_only = prettier(&S::type_script_verify().unwrap());
+    let verify_first_only = prettier(&S::type_script_guard().unwrap());
     assert_snapshot_matches!(verify_first_only,
     @r###"export const isS = (obj: any): obj is S => {
   if (obj == undefined) return false;
@@ -128,7 +128,7 @@ fn no_verifier() {
         vals: Vec<String>,
     }
 
-    let verify = S::type_script_verify();
+    let verify = S::type_script_guard();
     assert!(verify.is_none(), "expecting None")
 }
 #[cfg(feature = "type-guards")]
@@ -141,7 +141,7 @@ fn verify_typescript_enum() {
         Green,
         Blue,
     }
-    let verify_typescript_enum = prettier(&TyEnum::type_script_verify().unwrap());
+    let verify_typescript_enum = prettier(&TyEnum::type_script_guard().unwrap());
     assert_snapshot_matches!(verify_typescript_enum,
         @r###"export const isTyEnum = (obj: any): obj is TyEnum => {
   if (!(obj === "Red" || obj === "Green" || obj === "Blue")) return false;

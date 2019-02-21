@@ -17,6 +17,7 @@ pub extern crate typescript_definitions_derive;
 
 // re-export macros (note pub)
 use serde::ser::Serializer;
+use std::borrow::Cow;
 pub use typescript_definitions_derive::*;
 
 // just for doc tests
@@ -29,9 +30,10 @@ mod README;
 ///
 ///
 pub trait TypeScriptifyTrait {
-    fn type_script_ify() -> String;
+    fn type_script_ify() -> Cow<'static, str>;
+
     #[cfg(feature = "type-guards")]
-    fn type_script_verify() -> Option<String>;
+    fn type_script_guard() -> Option<Cow<'static, str>>;
 }
 /// # String serializer for `u8` byte buffers.
 ///

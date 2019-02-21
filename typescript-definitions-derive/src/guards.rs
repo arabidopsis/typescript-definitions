@@ -101,23 +101,23 @@ impl<'a> FieldContext<'a> {
             | "i128" | "isize" | "f64" | "f32" => {
                 quote! { if (! (typeof #obj #eq "number")) return false }
             }
-            "String" | "str" | "char" | "Path" | "PathBuf" => quote! { if (! (typeof #obj #eq "string")) return false },
+            "String" | "str" | "char" | "Path" | "PathBuf" => {
+                quote! { if (! (typeof #obj #eq "string")) return false }
+            }
             "bool" => quote! { if (! (typeof #obj #eq "boolean")) return false },
-            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" | "RefMut" | "Weak" if ts.args.len() == 1 => {
+            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" | "RefMut" | "Weak"
+                if ts.args.len() == 1 =>
+            {
                 self.verify_type(obj, &ts.args[0])
             }
-            "Duration" => {
-                quote! ({ if (#obj #eq null) return false; 
-                        if (!(typeof #obj.secs #eq "number")) return false; 
-                        if (!(typeof #obj.nanos #eq "number")) return false; 
-                         })
-            }
-            "SystemTime" => {
-                quote! ({ if (#obj #eq null) return false; 
-                        if (!(typeof #obj.secs_since_epoch #eq "number")) return false; 
-                        if (!(typeof #obj.nanos_since_epoch #eq "number")) return false; 
-                         })
-            }
+            "Duration" => quote! ({ if (#obj #eq null) return false;
+            if (!(typeof #obj.secs #eq "number")) return false;
+            if (!(typeof #obj.nanos #eq "number")) return false;
+             }),
+            "SystemTime" => quote! ({ if (#obj #eq null) return false;
+            if (!(typeof #obj.secs_since_epoch #eq "number")) return false;
+            if (!(typeof #obj.nanos_since_epoch #eq "number")) return false;
+             }),
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
                 self.verify_array(obj, &ts.args[0])
@@ -175,7 +175,7 @@ impl<'a> FieldContext<'a> {
             }
             "Fn" | "FnOnce" | "FnMut" => quote!( {
                 if (!(typeof #obj #eq "function")) return false;
-            }), 
+            }),
             _ => {
                 // Here we go.....
                 let ident = ts.ident;
@@ -253,7 +253,7 @@ impl<'a> FieldContext<'a> {
 
     pub fn verify_single_type(&self, obj: &TokenStream) -> QuoteT {
         if let Some(ref tokens) = self.attrs.ts_guard {
-            return ts_guard(obj, tokens)
+            return ts_guard(obj, tokens);
         };
         if let Some(ref tokens) = self.attrs.ts_type {
             let tokens = tokens.to_string();
@@ -276,11 +276,11 @@ fn ok_ts_type(a: &str) -> bool {
 }
 fn ts_guard<'a>(obj: &'a TokenStream, guard: &'a TokenStream) -> QuoteT {
     let o = guard.to_string();
-    if ok_ts_type(&o)  {
+    if ok_ts_type(&o) {
         let eq = eq();
         return quote! ( if (!(typeof #obj #eq #o )) return false; );
     };
-    return quote! ( if (!(#guard(#obj))) return false; )
+    return quote! ( if (!(#guard(#obj))) return false; );
 }
 impl<'a> ParseContext<'a> {
     pub fn verify_type(&'a self, obj: &'a TokenStream, field: &'a ast::Field<'a>) -> QuoteT {

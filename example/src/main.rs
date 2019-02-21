@@ -44,7 +44,7 @@ fn main() -> Result<(), Error> {
     println!("{}", FrontendMessage::type_script_ify());
     println!("{}", Value::<i32>::type_script_ify());
     println!("{}", MyBytes::type_script_ify());
-    println!("{}", MyBytes::type_script_verify().unwrap());
+    println!("{}", MyBytes::type_script_guard().unwrap());
 
     Ok(())
 }

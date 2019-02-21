@@ -21,7 +21,8 @@ pub struct Attrs {
     // pub turbofish: Option<TokenStream>,
     pub only_first: bool,
     pub user_type_guard: bool,
-    pub as_ts: Option<QuoteT>,
+    pub ts_type: Option<QuoteT>,
+    pub ts_guard: Option<QuoteT>,
 }
 
 #[inline]
@@ -48,7 +49,8 @@ impl Attrs {
             guard: true,
             only_first: false,
             user_type_guard: false,
-            as_ts: None,
+            ts_type: None,
+            ts_guard: None
             // isa: HashMap::new(),
         }
     }
@@ -253,7 +255,20 @@ impl Attrs {
                 }) if ident == "ts_type" => {
                     let v = value.value();
                     match v.parse::<proc_macro2::TokenStream>() {
-                        Ok(tokens) => self.as_ts = Some(tokens),
+                        Ok(tokens) => self.ts_type = Some(tokens),
+                        Err(..) => {
+                            self.err_msg(format!("Can't parse {}", v), ctxt);
+                        }
+                    }
+                }
+                NameValue(MetaNameValue {
+                    ref ident,
+                    lit: Str(ref value),
+                    ..
+                }) if ident == "ts_guard" => {
+                    let v = value.value();
+                    match v.parse::<proc_macro2::TokenStream>() {
+                        Ok(tokens) => self.ts_guard = Some(tokens),
                         Err(..) => {
                             self.err_msg(format!("Can't parse {}", v), ctxt);
                         }

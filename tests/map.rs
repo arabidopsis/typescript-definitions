@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::*;
 #[test]
 fn as_byte_string() {
     use serde_json;
-    // use serde_json::Error;
+
     #[derive(Serialize, TypeScriptify)]
     struct S {
         #[serde(serialize_with = "typescript_definitions::as_byte_string")]
@@ -29,8 +29,6 @@ fn as_byte_string() {
 
 #[test]
 fn untagged_enum() {
-    use serde_json;
-    // use serde_json::Error;
     #[derive(Serialize, TypeScriptify)]
     #[serde(untagged)]
     enum Untagged {
@@ -49,8 +47,6 @@ fn untagged_enum() {
 
 #[test]
 fn external_enum() {
-    use serde_json;
-    // use serde_json::Error;
     #[derive(Serialize, TypeScriptify)]
     /// Has documentation.
     enum External {
@@ -64,5 +60,24 @@ fn external_enum() {
 export type External = 
  | { V1: { id: number; attr: string } } 
  | { V2: { id: number; attr2: string[] } };"###
+    )
+}
+
+#[test]
+fn where_clause_ok() {
+    #[derive(TypeScriptify)]
+    struct Where<T>
+    where
+        T: Copy,
+    {
+        a: i32,
+
+        b: T,
+    }
+
+    assert_snapshot_matches!(
+        Where::<i32>::type_script_ify(),
+        @"export type Where<T> = { a: number; b: T };"
+
     )
 }
