@@ -34,6 +34,10 @@ use utils::*;
 
 use patch::patch;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> d59b8e73af971a21b0f6baf2df707386e5c8f36e
 // too many TokenStreams around! give it a different name
 type QuoteT = proc_macro2::TokenStream;
 
@@ -120,6 +124,7 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 }
 
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
+
     let verify = if cfg!(feature = "type-guards") {
         true
     } else {
@@ -133,9 +138,17 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     // let map = &parsed.map();
 
     let ident = &parsed.ctxt.ident;
+<<<<<<< HEAD
 
     let (impl_generics, ty_generics, where_clause) = parsed.ctxt.rust_generics.split_for_impl();
 
+=======
+
+
+    let (impl_generics, ty_generics, where_clause) = parsed.ctxt.rust_generics.split_for_impl();
+
+
+>>>>>>> d59b8e73af971a21b0f6baf2df707386e5c8f36e
     let type_script_guard = if cfg!(feature = "type-guards") {
         let verifier = match parsed.wasm_verify() {
             Some(ref txt) => quote!(Some(::std::borrow::Cow::Borrowed(#txt))),
@@ -159,7 +172,11 @@ fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
         }
 
     };
+<<<<<<< HEAD
 
+=======
+   
+>>>>>>> d59b8e73af971a21b0f6baf2df707386e5c8f36e
     if let Some("1") = option_env!("TFY_SHOW_CODE") {
         eprintln!("{}", patch(&ret.to_string()));
     }
@@ -387,6 +404,7 @@ struct TSType {
     return_type: Option<syn::Type>, // only if function
 }
 fn last_path_element(path: &syn::Path) -> Option<TSType> {
+
     match path.segments.last().map(|p| p.into_value()) {
         Some(t) => {
             let ident = t.ident.clone();
