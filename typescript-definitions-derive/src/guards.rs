@@ -89,10 +89,10 @@ impl<'a> FieldContext<'a> {
 
         quote! {
             if (!Array.isArray(#obj)) return false;
-                for (let x of #obj) {
-                    #verify;
-                    #brk
-                }
+            for (let x of #obj) {
+                #verify;
+                #brk
+            }
         }
     }
     fn verify_generic(&self, obj: &'a TokenStream, ts: &TSType) -> QuoteT {

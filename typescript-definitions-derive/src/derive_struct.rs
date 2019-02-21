@@ -6,10 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use proc_macro2::Literal;
 use quote::quote;
 use serde_derive_internals::ast;
 
-use super::{filter_visible, patch::nl, ParseContext, QuoteMaker};
+use super::{filter_visible, patch::eq, patch::nl, ParseContext, QuoteMaker};
 
 impl<'a> ParseContext<'_> {
     pub(crate) fn derive_struct(
@@ -115,9 +116,16 @@ impl<'a> ParseContext<'_> {
         let content = self.derive_field_tuple(&fields);
         let verify = if self.gen_guard {
             let obj = &self.arg_name;
-            let v = self.verify_field_tuple(&obj, &fields);
+            let verify = self.verify_field_tuple(&obj, &fields);
+            let eq = eq();
+            let len = Literal::usize_unsuffixed(fields.len());
+
             // obj can't be null or undefined
-            Some(quote!({ if (#obj == undefined) return false; #(#v;)* return true; }))
+            Some(quote!({
+            if (!Array.isArray(#obj) || ! #obj.length #eq #len ) return false;
+             #(#verify;)*
+             return true;
+             }))
         } else {
             None
         };

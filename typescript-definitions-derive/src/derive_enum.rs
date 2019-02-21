@@ -415,8 +415,13 @@ impl<'a> ParseContext<'_> {
         if taginfo.tag.is_none() {
             if taginfo.untagged {
                 let verify = if self.gen_guard {
-                    let verify = self.verify_field_tuple(&self.arg_name, &fields);
+                    let obj = &self.arg_name;
+                    let verify = self.verify_field_tuple(&obj, &fields);
+                    let eq = eq();
+                    let len = Literal::usize_unsuffixed(fields.len());
+
                     Some(quote!({
+                        if (!Array.isArray(#obj) || !(#obj.length #eq #len)) return false;
                         #(#verify;)*
                         return true;
                     }))
