@@ -65,3 +65,12 @@ pub fn filter_visible<'a>(fields: &'a [ast::Field<'a>]) -> Vec<&'a ast::Field<'a
     }
     content
 }
+
+const GUARD_PREFIX: &str = "is";
+
+pub fn guard_name(ident: &Ident) -> Ident {
+    let mut s = String::new();
+    s.push_str(GUARD_PREFIX);
+    s.push_str(&ident.to_string());
+    ident_from_str(&s)
+}
