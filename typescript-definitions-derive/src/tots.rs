@@ -11,8 +11,19 @@ use super::{
 use proc_macro2::Ident;
 use quote::quote;
 
-
 impl<'a> FieldContext<'a> {
+    // FIXME we never get here...
+    fn array_like(&self, ts: &TSType) -> bool {
+        if let Some(ref s) = self.attrs.ts_type {
+            if s.to_string() == "arraylike" && ts.args.len() == 1 {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
     fn generic_to_ts(&self, ts: &TSType) -> QuoteT {
         let to_ts = |ty: &syn::Type| self.type_to_ts(ty);
 
@@ -21,9 +32,7 @@ impl<'a> FieldContext<'a> {
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" | "char" | "Path" | "PathBuf" => quote! { string },
             "bool" => quote! { boolean },
-            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell"
-                if ts.args.len() == 1 =>
-            {
+            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" if ts.args.len() == 1 => {
                 to_ts(&ts.args[0])
             }
             "Duration" => quote! ({ secs: number, nanos: number }),
@@ -32,7 +41,7 @@ impl<'a> FieldContext<'a> {
                 nanos_since_epoch: number
             }),
             // std::collections
-            "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
+            "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 || self.array_like(ts) => {
                 self.type_to_array(&ts.args[0])
             }
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {
@@ -71,12 +80,10 @@ impl<'a> FieldContext<'a> {
             }
             _ => {
                 let owned: Vec<String> = ts.path.iter().map(|i| i.to_string()).collect(); // hold the memory
-                let path : Vec<&str> = owned.iter().map(|s| s.as_ref()).collect();
+                let path: Vec<&str> = owned.iter().map(|s| s.as_ref()).collect();
                 match path[..] {
-                    ["chrono", "DateTime"] => {
-                        quote!(string)
-                    }
-                    _  =>  {
+                    ["chrono", "DateTime"] => quote!(string),
+                    _ => {
                         let ident = &ts.ident;
                         if !ts.args.is_empty() {
                             let args = self.derive_syn_types(&ts.args);
@@ -86,7 +93,6 @@ impl<'a> FieldContext<'a> {
                         }
                     }
                 }
-
             }
         }
     }

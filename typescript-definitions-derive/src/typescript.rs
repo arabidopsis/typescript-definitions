@@ -6,9 +6,9 @@ use pest_derive::Parser;
 
 #[derive(Fail, Debug)]
 #[fail(display = "{}", _0)]
-pub struct SelectorParseError(pest::error::Error<Rule>);
+pub struct TypescriptParseError(pest::error::Error<Rule>);
 
-impl SelectorParseError {
+impl TypescriptParseError {
     /// Return the column of where the error ocurred.
     #[allow(unused)]
     pub fn column(&self) -> usize {
@@ -26,9 +26,9 @@ struct TypescriptParser;
 pub struct Typescript;
 
 impl Typescript {
-    pub fn parse(&self, typescript: &str) -> Result<(), SelectorParseError> {
+    pub fn parse(&self, typescript: &str) -> Result<(), TypescriptParseError> {
         let pair = TypescriptParser::parse(Rule::typescript, typescript)
-            .map_err(SelectorParseError)?
+            .map_err(TypescriptParseError)?
             .next() // skip SOI
             .unwrap();
 
@@ -42,7 +42,7 @@ impl Typescript {
 
         Ok(())
     }
-    fn parse_item<'a>(&self, item: Pair<'a, Rule>) -> Result<(), SelectorParseError> {
+    fn parse_item<'a>(&self, item: Pair<'a, Rule>) -> Result<(), TypescriptParseError> {
         let mut i = item.into_inner();
         let (singleton, array) = (i.next().unwrap(), i.next().unwrap());
 
@@ -59,18 +59,18 @@ impl Typescript {
         }
         Ok(())
     }
-    fn parse_typ<'a>(&self, typ: Pair<'a, Rule>) -> Result<(), SelectorParseError> {
+    fn parse_typ<'a>(&self, typ: Pair<'a, Rule>) -> Result<(), TypescriptParseError> {
         eprintln!("type {}", typ.as_str());
         Ok(())
     }
-    fn parse_map<'a>(&self, map: Pair<'a, Rule>) -> Result<(), SelectorParseError> {
+    fn parse_map<'a>(&self, map: Pair<'a, Rule>) -> Result<(), TypescriptParseError> {
         let mut i = map.into_inner();
         let (typ, item) = (i.next().unwrap(), i.next().unwrap());
         self.parse_typ(typ)?;
         self.parse_item(item)?;
         Ok(())
     }
-    fn parse_union<'a>(&self, union: Pair<'a, Rule>) -> Result<(), SelectorParseError> {
+    fn parse_union<'a>(&self, union: Pair<'a, Rule>) -> Result<(), TypescriptParseError> {
         for item in union.into_inner() {
             match item.as_rule() {
                 Rule::item => self.parse_item(item)?,
@@ -79,7 +79,7 @@ impl Typescript {
         }
         Ok(())
     }
-    fn parse_tuple<'a>(&self, tuple: Pair<'a, Rule>) -> Result<(), SelectorParseError> {
+    fn parse_tuple<'a>(&self, tuple: Pair<'a, Rule>) -> Result<(), TypescriptParseError> {
         for item in tuple.into_inner() {
             match item.as_rule() {
                 Rule::item => self.parse_item(item)?,
@@ -88,7 +88,7 @@ impl Typescript {
         }
         Ok(())
     }
-    fn parse_str<'a>(&self, pair: Pair<'a, Rule>) -> Result<(), SelectorParseError> {
+    fn parse_str<'a>(&self, pair: Pair<'a, Rule>) -> Result<(), TypescriptParseError> {
         for item in pair.into_inner() {
             match item.as_rule() {
                 Rule::ident => {}

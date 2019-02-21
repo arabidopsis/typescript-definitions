@@ -15,8 +15,6 @@ use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-
-
 impl<'a> FieldContext<'a> {
     fn verify_type(&self, obj: &'a TokenStream, ty: &syn::Type) -> QuoteT {
         // obj is an Ident
@@ -99,33 +97,28 @@ impl<'a> FieldContext<'a> {
     }
     fn verify_generic(&self, obj: &'a TokenStream, ts: &TSType) -> QuoteT {
         let eq = eq();
-        let check  = |o: &TokenStream, tp: &str|  -> QuoteT {
-
+        let check = |o: &TokenStream, tp: &str| -> QuoteT {
             quote! { if (! (typeof #o #eq #tp) ) return false; }
         };
         let ident = ts.ident.to_string();
         match ident.as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
-            | "i128" | "isize" | "f64" | "f32" => {
-                check(obj, "number")
-            }
-            "String" | "str" | "char" | "Path" | "PathBuf" => {
-                check(obj, "string")
-            }
+            | "i128" | "isize" | "f64" | "f32" => check(obj, "number"),
+            "String" | "str" | "char" | "Path" | "PathBuf" => check(obj, "string"),
             "bool" => quote! { if (! (typeof #obj #eq "boolean")) return false },
-            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell"
-                if ts.args.len() == 1 =>
-            {
+            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" if ts.args.len() == 1 => {
                 self.verify_type(obj, &ts.args[0])
             }
-            "Duration" => quote! ({ if (#obj #eq null) return false;
-            if (!(typeof #obj.secs #eq "number")) return false;
-            if (!(typeof #obj.nanos #eq "number")) return false;
-             }),
-            "SystemTime" => quote! ({ if (#obj #eq null) return false;
-            if (!(typeof #obj.secs_since_epoch #eq "number")) return false;
-            if (!(typeof #obj.nanos_since_epoch #eq "number")) return false;
-             }),
+            "Duration" => quote! ({
+               if (#obj #eq null) return false;
+               if (!(typeof #obj.secs #eq "number")) return false;
+               if (!(typeof #obj.nanos #eq "number")) return false;
+            }),
+            "SystemTime" => quote! ({
+               if (#obj #eq null) return false;
+               if (!(typeof #obj.secs_since_epoch #eq "number")) return false;
+               if (!(typeof #obj.nanos_since_epoch #eq "number")) return false;
+            }),
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
                 self.verify_array(obj, &ts.args[0])
@@ -192,13 +185,13 @@ impl<'a> FieldContext<'a> {
             }),
             _ => {
                 let owned: Vec<String> = ts.path.iter().map(|i| i.to_string()).collect(); // hold the memory
-                let path : Vec<&str> = owned.iter().map(|s| s.as_ref()).collect();
-                 match path[..] {
+                let path: Vec<&str> = owned.iter().map(|s| s.as_ref()).collect();
+                match path[..] {
                     ["chrono", "DateTime"] => {
                         quote!( if (!(typeof #obj #eq "string")) return false; )
                     }
-                    _  =>  self.do_really_generic(obj, ts)
-                 }
+                    _ => self.do_really_generic(obj, ts),
+                }
             }
         }
     }
