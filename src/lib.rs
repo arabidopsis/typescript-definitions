@@ -7,11 +7,14 @@
 // except according to those terms.
 #![allow(unused_imports)]
 
+
 //! # Generate Typescript types from Rust source code.
 //!
-//! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
+//! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+//! or the [README](README/index.html).
 //!
 // we add this so `cargo doc` shows re-export.
+
 #[macro_use]
 pub extern crate typescript_definitions_derive;
 
@@ -22,17 +25,21 @@ pub use typescript_definitions_derive::*;
 
 // just for doc tests
 #[allow(unused, non_snake_case)]
-mod README;
+pub mod README;
+
+
 
 /// # Trait implemented by `TypeScriptify` derive macro.
 ///
-/// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
+/// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
+/// or the [README](README/index.html).
 ///
 ///
 pub trait TypeScriptifyTrait {
     fn type_script_ify() -> Cow<'static, str>;
 
     #[cfg(feature = "type-guards")]
+    /// Available with `--features="type-guards"`
     fn type_script_guard() -> Option<Cow<'static, str>>;
 }
 /// # String serializer for `u8` byte buffers.
