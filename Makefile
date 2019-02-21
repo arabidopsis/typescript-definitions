@@ -5,12 +5,13 @@ test: readme
 
 doc: readme
 	@rm -rf target/doc
-	@cargo doc --no-deps --open
+	@cargo doc --no-deps --open --features="type-guards"
 	# ./scripts/readme.sh
 
+#@awk '{ print "//! " $$0}' README.md  > src/README.rs
 ./src/README.rs : README.md
 	@(echo '/*!'; cat README.md; echo '*/'; ) > src/README.rs
-	#@awk '{ print "//! " $$0}' README.md  > src/README.rs
+
 
 
 readme: ./src/README.rs

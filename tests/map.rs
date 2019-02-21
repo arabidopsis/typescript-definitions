@@ -81,3 +81,23 @@ fn where_clause_ok() {
 
     )
 }
+
+#[test]
+fn fullpath_chrono() {
+    use chrono;
+    #[derive(TypeScriptify)]
+    struct Where<T>
+    where
+        T: Copy,
+    {
+        datetime: chrono::DateTime<chrono::Local>,
+
+        b: T,
+    }
+
+    assert_snapshot_matches!(
+        Where::<i32>::type_script_ify(),
+        @"export type Where<T> = { datetime: string; b: T };"
+
+    )
+}

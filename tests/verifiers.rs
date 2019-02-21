@@ -149,4 +149,3 @@ fn verify_typescript_enum() {
 };"###
     )
 }
-

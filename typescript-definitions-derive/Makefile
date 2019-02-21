@@ -1,11 +1,10 @@
 
 
 test: update-readme
-	@cargo test --all --features= "test type-guards"
-
+	@cargo test --all
 doc: update-readme
 	@rm -rf target/doc
-	@cargo doc --no-deps --open
+	@cargo doc --no-deps --open --features="external_doc"
 	# ./scripts/readme.sh
 
 format: update-readme

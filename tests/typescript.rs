@@ -425,4 +425,3 @@ fn struct_with_two_fields_is_transparent_with_skip() {
 
     )
 }
-

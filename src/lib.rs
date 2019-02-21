@@ -7,7 +7,6 @@
 // except according to those terms.
 #![allow(unused_imports)]
 
-
 //! # Generate Typescript types from Rust source code.
 //!
 //! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
@@ -26,8 +25,6 @@ pub use typescript_definitions_derive::*;
 // just for doc tests
 #[allow(unused, non_snake_case)]
 pub mod README;
-
-
 
 /// # Trait implemented by `TypeScriptify` derive macro.
 ///

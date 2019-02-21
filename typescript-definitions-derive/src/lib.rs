@@ -27,6 +27,7 @@ mod patch;
 mod guards;
 mod tests;
 mod tots;
+mod typescript;
 mod utils;
 
 use attrs::Attrs;
@@ -120,7 +121,6 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 }
 
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
-
     let verify = if cfg!(feature = "type-guards") {
         true
     } else {
@@ -385,11 +385,15 @@ fn return_type(rt: &syn::ReturnType) -> Option<syn::Type> {
 struct TSType {
     ident: syn::Ident,
     args: Vec<syn::Type>,
-    path: Vec<syn::Ident>, // full path
+    path: Vec<syn::Ident>,          // full path
     return_type: Option<syn::Type>, // only if function
 }
 fn last_path_element(path: &syn::Path) -> Option<TSType> {
-    let fullpath = path.segments.iter().map(|s| s.ident.clone()).collect::<Vec<_>>();
+    let fullpath = path
+        .segments
+        .iter()
+        .map(|s| s.ident.clone())
+        .collect::<Vec<_>>();
     match path.segments.last().map(|p| p.into_value()) {
         Some(t) => {
             let ident = t.ident.clone();

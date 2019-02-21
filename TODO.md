@@ -139,7 +139,19 @@ but `{ 2: 6, "6a": 5, 4:5 }` fails.
 
 check Dates/times durations
 
+WHITESPACE = _{ WHITE_SPACE }
 
+ident = @{ XID_START ~ XID_CONTINUE* }
+union = { "(" ~ item ~ ("|" ~ item)* ~ ")" }
+key = { ident | "[" ~ ident ~ "in" ~ item ~ "]" }
+map = {  "{" ~ "[" ~ ident ~ "in" ~ item ~ "]" ~ ":" ~ item ~ "}" }
+str = {  "{" ~ (ident ~ ":" ~ item)? ~ ("," ~ ident ~ ":" ~ item )* ~ "}" }
+tuple = { "(" ~ item ~ ("," ~ item )+ ~ ")" }
+typ = { "number" | "object" | "string" | "boolean" }
+singleton = { str | map | union | tuple | typ }
+array = { "[]"* }
+item = { singleton ~ array }
+selectors = { SOI ~ item ~ ("|" ~ item)*  ~ EOI }
 
 
 
