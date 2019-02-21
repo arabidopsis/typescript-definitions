@@ -101,12 +101,23 @@ impl<'a> FieldContext<'a> {
             | "i128" | "isize" | "f64" | "f32" => {
                 quote! { if (! (typeof #obj #eq "number")) return false }
             }
-            "String" | "str" => quote! { if (! (typeof #obj #eq "string")) return false },
+            "String" | "str" | "char" | "Path" | "PathBuf" => quote! { if (! (typeof #obj #eq "string")) return false },
             "bool" => quote! { if (! (typeof #obj #eq "boolean")) return false },
-            "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => {
+            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" | "RefMut" | "Weak" if ts.args.len() == 1 => {
                 self.verify_type(obj, &ts.args[0])
             }
-
+            "Duration" => {
+                quote! ({ if (#obj #eq null) return false; 
+                        if (!(typeof #obj.secs #eq "number")) return false; 
+                        if (!(typeof #obj.nanos #eq "number")) return false; 
+                         })
+            }
+            "SystemTime" => {
+                quote! ({ if (#obj #eq null) return false; 
+                        if (!(typeof #obj.secs_since_epoch #eq "number")) return false; 
+                        if (!(typeof #obj.nanos_since_epoch #eq "number")) return false; 
+                         })
+            }
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
                 self.verify_array(obj, &ts.args[0])
@@ -162,7 +173,9 @@ impl<'a> FieldContext<'a> {
                         return false;
                  } )
             }
-            "Fn" | "FnOnce" | "FnMut" => quote!(), // skip
+            "Fn" | "FnOnce" | "FnMut" => quote!( {
+                if (!(typeof #obj #eq "function")) return false;
+            }), 
             _ => {
                 // Here we go.....
                 let ident = ts.ident;
@@ -192,9 +205,9 @@ impl<'a> FieldContext<'a> {
                     let a = quote!(#(#a),*).to_string();
                     let a = a.trim();
                     if !self.attrs.user_type_guard {
-                        if (!self.ok_ts_type(a)) {
+                        if (!ok_ts_type(a)) {
                             self.ctxt.err_msg(&format!(
-                                "{}: only monomorphization of number, string or boolean permitted: got \"{}\"",
+                                "{}: only monomorphization of number, string, object or boolean permitted: got \"{}\"",
                                 ident, patch(&a)
                             ));
                             self.ctxt.err_msg("try a user_type_guard");
@@ -227,7 +240,6 @@ impl<'a> FieldContext<'a> {
         let n = ident_from_str(&n);
         let val = quote!(val);
         let eq = eq();
-
         let verify = self.verify_single_type(&val);
 
         quote! {
@@ -238,19 +250,20 @@ impl<'a> FieldContext<'a> {
            }
         }
     }
-    fn ok_ts_type(&self, a: &str) -> bool {
-        (a == "number" || a == "string" || a == "boolean")
-    }
+
     pub fn verify_single_type(&self, obj: &TokenStream) -> QuoteT {
-        if let Some(ref tokens) = self.attrs.as_ts {
-            let eq = eq();
+        if let Some(ref tokens) = self.attrs.ts_guard {
+            return ts_guard(obj, tokens)
+        };
+        if let Some(ref tokens) = self.attrs.ts_type {
             let tokens = tokens.to_string();
-            if !self.ok_ts_type(&tokens) {
+            if !ok_ts_type(&tokens) {
                 self.ctxt.err_msg(&format!(
-                    "only string, number or boolean permitted: got \"{}\"",
+                    "only string, number, object or boolean permitted: got \"{}\". Maybe use ts_guard",
                     tokens
                 ));
             }
+            let eq = eq();
             quote!( if(!(typeof #obj #eq #tokens)) return false; )
         } else {
             self.verify_type(obj, &self.field.ty)
@@ -258,6 +271,17 @@ impl<'a> FieldContext<'a> {
     }
 }
 
+fn ok_ts_type(a: &str) -> bool {
+    (a == "number" || a == "string" || a == "boolean" || a == "object")
+}
+fn ts_guard<'a>(obj: &'a TokenStream, guard: &'a TokenStream) -> QuoteT {
+    let o = guard.to_string();
+    if ok_ts_type(&o)  {
+        let eq = eq();
+        return quote! ( if (!(typeof #obj #eq #o )) return false; );
+    };
+    return quote! ( if (!(#guard(#obj))) return false; )
+}
 impl<'a> ParseContext<'a> {
     pub fn verify_type(&'a self, obj: &'a TokenStream, field: &'a ast::Field<'a>) -> QuoteT {
         let attrs = Attrs::from_field(field, self.ctxt);
@@ -270,6 +294,7 @@ impl<'a> ParseContext<'a> {
     }
     pub fn verify_field(&'a self, obj: &'a TokenStream, field: &'a ast::Field<'a>) -> QuoteT {
         let attrs = Attrs::from_field(field, self.ctxt);
+
         let verify = FieldContext {
             attrs,
             field,

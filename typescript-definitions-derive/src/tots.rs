@@ -1,5 +1,12 @@
 
 
+// Copyright 2019 Ian Castleden
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
 use super::{FieldContext, TSType, QuoteT, last_path_element, is_bytes, ident_from_str, return_type};
 use quote::quote;
 use proc_macro2::Ident;
@@ -11,10 +18,18 @@ impl<'a> FieldContext<'a> {
         match ts.ident.to_string().as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
-            "String" | "str" => quote! { string },
+            "String" | "str" | "char" | "Path" | "PathBuf" => quote! { string },
             "bool" => quote! { boolean },
-            "Box" | "Cow" | "Rc" | "Arc" if ts.args.len() == 1 => to_ts(&ts.args[0]),
-
+            "Box" | "Cow" | "Rc" | "Arc" | "Cell" | "RefCell" | "RefMut" | "Weak" if ts.args.len() == 1 => to_ts(&ts.args[0]),
+            "Duration" => {
+                quote! ({ secs: number, nanos: number })
+            }
+            "SystemTime" => {
+            quote! ({
+                    secs_since_epoch: number,
+                    nanos_since_epoch: number
+                })
+            }
             // std::collections
             "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
                 self.type_to_array(&ts.args[0])
