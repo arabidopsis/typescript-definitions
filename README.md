@@ -1,4 +1,11 @@
+
+
 # typescript-definitions
+
+![TSD](assets/typescript-definitons.svg)
+
+<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
+
 
 > Exports serde-serializable structs and enums to Typescript definitions.
 
