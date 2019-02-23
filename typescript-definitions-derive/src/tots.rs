@@ -79,7 +79,7 @@ impl<'a> FieldContext<'a> {
                 }
             }
             _ => {
-                let owned: Vec<String> = ts.path.iter().map(|i| i.to_string()).collect(); // hold the memory
+                let owned = ts.path();
                 let path: Vec<&str> = owned.iter().map(|s| s.as_ref()).collect();
                 match path[..] {
                     ["chrono", "DateTime"] => quote!(string),

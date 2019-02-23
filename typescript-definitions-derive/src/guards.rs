@@ -184,7 +184,7 @@ impl<'a> FieldContext<'a> {
                 if (!(typeof #obj #eq "function")) return false;
             }),
             _ => {
-                let owned: Vec<String> = ts.path.iter().map(|i| i.to_string()).collect(); // hold the memory
+                let owned = ts.path();
                 let path: Vec<&str> = owned.iter().map(|s| s.as_ref()).collect();
                 match path[..] {
                     ["chrono", "DateTime"] => {
@@ -349,8 +349,6 @@ impl<'a> ParseContext<'a> {
     }
 
     fn add_extra_guard(&'a self, tokens: QuoteT) {
-        let mut v = self.extra.replace(vec![]);
-        v.push(tokens);
-        self.extra.set(v);
+        self.extra.borrow_mut().push(tokens);
     }
 }

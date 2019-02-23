@@ -16,7 +16,7 @@ use proc_macro2::Ident;
 use quote::quote;
 use serde_derive_internals::{ast, Ctxt, Derive};
 // use std::str::FromStr;
-use std::cell::Cell;
+use std::cell::RefCell;
 use syn::DeriveInput;
 
 mod attrs;
@@ -235,7 +235,7 @@ impl Typescriptify {
         }
     }
     fn extra_verify(&self) -> Vec<String> {
-        let v = self.ctxt.extra.replace(vec![]);
+        let v = self.ctxt.extra.borrow();
         v.iter()
             .map(|extra| {
                 let e = extra.to_string();
@@ -307,7 +307,7 @@ impl Typescriptify {
                 ident: container.ident.clone(),
                 ts_generics: ts_generics,
                 rust_generics: container.generics.clone(),
-                extra: Cell::new(vec![]),
+                extra: RefCell::new(vec![]),
             };
 
             let typescript = match container.data {
@@ -343,33 +343,34 @@ fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
 
     // impl#generics TypeScriptTrait for A<... lifetimes to '_ and T without bounds>
 
-    use syn::{ConstParam, GenericParam, LifetimeDef, TypeParam, TypeParamBound};
+    use syn::{GenericParam, TypeParamBound};
     g.params
         .iter()
         .map(|p| match p {
-            GenericParam::Lifetime(LifetimeDef { /* lifetime,*/ .. }) => None,
-            GenericParam::Type(TypeParam { ident, bounds, ..}) => {
-                let bounds = bounds.iter()
+            GenericParam::Lifetime(..) => None,
+            GenericParam::Type(ref ty) => {
+                let bounds = ty
+                    .bounds
+                    .iter()
                     .filter_map(|b| match b {
                         TypeParamBound::Trait(t) => Some(&t.path),
-                        _ => None // skip lifetimes for bounds
+                        _ => None, // skip lifetimes for bounds
                     })
                     .map(last_path_element)
                     .filter_map(|b| b)
                     .collect::<Vec<_>>();
 
-                Some((ident.clone(), bounds))
-            },
-            GenericParam::Const(ConstParam { ident, ty, ..}) => {
+                Some((ty.ident.clone(), bounds))
+            }
+            GenericParam::Const(ref param) => {
                 let ty = TSType {
-                    ident: ident.clone(),
+                    ident: param.ident.clone(),
                     path: vec![],
-                    args: vec![ty.clone()],
+                    args: vec![param.ty.clone()],
                     return_type: None,
                 };
-                Some((ident.clone(), vec![ty]))
-            },
-
+                Some((param.ident.clone(), vec![ty]))
+            }
         })
         .collect()
 }
@@ -388,6 +389,11 @@ struct TSType {
     path: Vec<syn::Ident>,          // full path
     return_type: Option<syn::Type>, // only if function
 }
+impl TSType {
+    fn path(&self) -> Vec<String> {
+        self.path.iter().map(|i| i.to_string()).collect() // hold the memory
+    }
+}
 fn last_path_element(path: &syn::Path) -> Option<TSType> {
     let fullpath = path
         .segments
@@ -398,18 +404,11 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
         Some(t) => {
             let ident = t.ident.clone();
             let args = match &t.arguments {
-                syn::PathArguments::AngleBracketed(syn::AngleBracketedGenericArguments {
-                    args,
-                    ..
-                }) => args,
+                syn::PathArguments::AngleBracketed(ref path) => &path.args,
                 // closures Fn(A,B) -> C
-                syn::PathArguments::Parenthesized(syn::ParenthesizedGenericArguments {
-                    output,
-                    inputs,
-                    ..
-                }) => {
-                    let args: Vec<_> = inputs.iter().cloned().collect();
-                    let ret = return_type(output);
+                syn::PathArguments::Parenthesized(ref path) => {
+                    let args: Vec<_> = path.inputs.iter().cloned().collect();
+                    let ret = return_type(&path.output);
                     return Some(TSType {
                         ident,
                         args,
@@ -431,7 +430,10 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
                 .iter()
                 .filter_map(|p| match p {
                     syn::GenericArgument::Type(t) => Some(t),
-                    _ => None, // bindings A=I, expr, constraints A : B ... skip!
+                    syn::GenericArgument::Binding(t) => Some(&t.ty),
+                    syn::GenericArgument::Constraint(..) => None,
+                    syn::GenericArgument::Const(..) => None,
+                    _ => None, // lifetimes, expr, constraints A : B ... skip!
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -472,7 +474,7 @@ pub(crate) struct ParseContext<'a> {
     ident: syn::Ident,      // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
     rust_generics: syn::Generics, // original rust generics
-    extra: Cell<Vec<QuoteT>>, // for generic verifier hack!
+    extra: RefCell<Vec<QuoteT>>, // for generic verifier hack!
 }
 
 impl<'a> ParseContext<'a> {
