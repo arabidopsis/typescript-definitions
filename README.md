@@ -2,12 +2,15 @@
 
 # typescript-definitions
 
-![TSD](assets/typescript-definitons.svg)
 
-<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
+<div style="text-align:center">
+ <img src="https://github.com/mitsuhiko/insta/blob/master/assets/logo.png?raw=true"  style="width:50%">
+</div>
 
 
-> Exports serde-serializable structs and enums to Typescript definitions.
+
+
+> **Exports serde-serializable structs and enums to Typescript definitions.**
 
 [![](https://img.shields.io/crates/v/typescript-definitions.svg)](https://crates.io/crates/typescript-definitions)
 [![](https://docs.rs/typescript-definitions/badge.svg)](https://docs.rs/typescript-definitions)
@@ -29,6 +32,33 @@ generate typescript [type guards](https://www.typescriptlang.org/docs/handbook/a
 
 See [Type Guards](#type-guards) below.
 
+---
+
+
+<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
+
+<!-- code_chunk_output -->
+
+* [typescript-definitions](#typescript-definitions)
+	* [Motivation 🦀](#motivation)
+	* [Using `typescript-definitions`](#using-typescript-definitions)
+		* [Getting the toolchains](#getting-the-toolchains)
+	* [Using `type_script_ify`](#using-type_script_ify)
+	* [Features](#features)
+	* [Serde attributes.](#serde-attributes)
+	* [typescript-definition attributes](#typescript-definition-attributes)
+	* [Type Guards](#type-guards)
+		* [Limitations of JSON](#limitations-of-json)
+		* [Limitations of Generics](#limitations-of-generics)
+	* [Examples](#examples)
+	* [Problems](#problems)
+	* [TODO](#todo)
+	* [Credits](#credits)
+	* [License](#license)
+
+<!-- /code_chunk_output -->
+
+---
 
 ## Motivation 🦀
 
