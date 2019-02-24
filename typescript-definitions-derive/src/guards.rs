@@ -100,8 +100,12 @@ impl<'a> FieldContext<'a> {
         let check = |o: &TokenStream, tp: &str| -> QuoteT {
             quote! { if (! (typeof #o #eq #tp) ) return false; }
         };
-        let ident = ts.ident.to_string();
-        match ident.as_ref() {
+        let name = if let Some(ref s) = self.attrs.ts_as {
+            s.to_owned()
+        } else {
+            ts.ident.to_string()
+        };
+        match name.as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => check(obj, "number"),
             "String" | "str" | "char" | "Path" | "PathBuf" => check(obj, "string"),
@@ -165,7 +169,7 @@ impl<'a> FieldContext<'a> {
                 let v = quote!(v);
                 let k = self.verify_type(&v, &ts.args[0]);
                 let v = self.verify_type(&v, &ts.args[1]);
-                let (left, right) = if ident == "Result" {
+                let (left, right) = if name == "Result" {
                     (quote!(Ok), quote!(Err))
                 } else {
                     (quote!(Left), quote!(Right))
