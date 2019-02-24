@@ -41,4 +41,7 @@ pre-publish: update-readme test format-check lint
 publish: pre-publish
 	@cargo publish
 
+img:
+	@echo "data:image/svg+xml;base64,`svgo -o - assets/typescript-derivations.svg | base64`"
+
 .PHONY:  doc test format format-check lint update-readme readme check-readme pre-publish publish

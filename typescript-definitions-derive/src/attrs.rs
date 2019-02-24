@@ -6,11 +6,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use super::{ast, ident_from_str, Ctxt, QuoteT};
+use super::{ast, ident_from_str, Ctxt};
 use quote::quote;
-// use std::collections::HashMap;
-// use std::str::FromStr;
-// use syn::Type::Path;
+
 use proc_macro2::TokenStream;
 use syn::{Attribute, Ident, Lit, Meta, /* MetaList,*/ MetaNameValue, NestedMeta};
 
@@ -18,11 +16,10 @@ use syn::{Attribute, Ident, Lit, Meta, /* MetaList,*/ MetaNameValue, NestedMeta}
 pub struct Attrs {
     pub comments: Vec<String>,
     pub guard: bool,
-    // pub turbofish: Option<TokenStream>,
     pub only_first: bool,
-    pub user_type_guard: bool,
-    pub ts_type: Option<QuoteT>,
-    pub ts_guard: Option<QuoteT>,
+    pub ts_type: Option<String>,
+    pub ts_guard: Option<String>,
+    pub ts_as : Option<String>,
 }
 
 #[inline]
@@ -48,9 +45,9 @@ impl Attrs {
             // turbofish: None,
             guard: true,
             only_first: false,
-            user_type_guard: false,
             ts_type: None,
-            ts_guard: None
+            ts_guard: None,
+            ts_as : None
             // isa: HashMap::new(),
         }
     }
@@ -138,7 +135,7 @@ impl Attrs {
         attrs
             .iter()
             .filter_map(move |attr| match path_to_str(&attr.path).as_ref() {
-                "typescript" => match attr.parse_meta() {
+                "ts" => match attr.parse_meta() {
                     Ok(v) => Some(v),
                     Err(msg) => {
                         err(msg.to_string(), ctxt);
@@ -254,12 +251,7 @@ impl Attrs {
                     ..
                 }) if ident == "ts_type" => {
                     let v = value.value();
-                    match v.parse::<proc_macro2::TokenStream>() {
-                        Ok(tokens) => self.ts_type = Some(tokens),
-                        Err(..) => {
-                            self.err_msg(format!("Can't parse {}", v), ctxt);
-                        }
-                    }
+                    self.ts_type = Some(v);
                 }
                 NameValue(MetaNameValue {
                     ref ident,
@@ -267,12 +259,15 @@ impl Attrs {
                     ..
                 }) if ident == "ts_guard" => {
                     let v = value.value();
-                    match v.parse::<proc_macro2::TokenStream>() {
-                        Ok(tokens) => self.ts_guard = Some(tokens),
-                        Err(..) => {
-                            self.err_msg(format!("Can't parse {}", v), ctxt);
-                        }
-                    }
+                    self.ts_guard = Some(v);
+                }
+                NameValue(MetaNameValue {
+                    ref ident,
+                    lit: Str(ref value),
+                    ..
+                }) if ident == "ts_as" => {
+                    let v = value.value();
+                    self.ts_as = Some(v);
                 }
                 NameValue(MetaNameValue {
                     ref ident,
@@ -296,34 +291,7 @@ impl Attrs {
                     }
                 }
                 Word(ref w) if w == "array_check" => self.only_first = true,
-                NameValue(MetaNameValue {
-                    ref ident,
-                    lit: Bool(ref value),
-                    ..
-                }) if ident == "user_type_guard" => {
-                    self.user_type_guard = value.value;
-                }
-                NameValue(MetaNameValue {
-                    ref ident,
-                    lit: Str(ref value),
-                    ..
-                }) if ident == "user_type_guard" => {
-                    self.user_type_guard = match value.value().parse() {
-                        Ok(v) => v,
-                        Err(..) => {
-                            self.err_msg(
-                                format!(
-                                    "{}: user_type_guard must be true or false not \"{}\"",
-                                    struct_ident,
-                                    quote!(#value)
-                                ),
-                                ctxt,
-                            );
-                            false
-                        }
-                    }
-                }
-                Word(ref w) if w == "user_type_guard" => self.user_type_guard = true,
+
                 ref i @ NameValue(..) | ref i @ List(..) | ref i @ Word(..) => {
                     self.err_msg(format!("unsupported option: {}", quote!(#i)), ctxt);
                 }

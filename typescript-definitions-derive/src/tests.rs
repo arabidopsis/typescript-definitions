@@ -52,7 +52,7 @@ mod macro_test {
     fn verify_is_recognized() {
         let tokens = quote!(
             #[derive(Serialize)]
-            #[typescript(guard = "blah")]
+            #[ts(guard = "blah")]
             struct S {
                 a: i32,
                 b: f64,
@@ -71,7 +71,7 @@ mod macro_test {
     fn turbofish() {
         let tokens = quote!(
             #[derive(TypeScriptify)]
-            #[typescript(turbofish = "<i32>")]
+            #[ts(turbofish = "<i32>")]
             struct S<T> {
                 a: i32,
                 b: Vec<T>,
@@ -88,7 +88,7 @@ mod macro_test {
     fn bad_turbofish() {
         let tokens = quote!(
             #[derive(TypeScriptify)]
-            #[typescript(turbofish = "😀i32>")]
+            #[ts(turbofish = "😀i32>")]
             struct S<T> {
                 a: i32,
                 b: Vec<T>,

@@ -95,7 +95,7 @@ fn verify_first_only() {
 
     #[derive(Serialize, TypeScriptify)]
     struct S {
-        #[typescript(array_check = "first")]
+        #[ts(array_check = "first")]
         vals: Vec<String>,
     }
 
@@ -121,7 +121,7 @@ fn no_verifier() {
     use serde_json;
 
     #[derive(Serialize, TypeScriptify)]
-    #[typescript(guard = false)]
+    #[ts(guard = false)]
     struct S {
         a: i32,
         b: i64,

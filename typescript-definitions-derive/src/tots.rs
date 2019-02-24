@@ -12,22 +12,16 @@ use proc_macro2::Ident;
 use quote::quote;
 
 impl<'a> FieldContext<'a> {
-    // FIXME we never get here...
-    fn array_like(&self, ts: &TSType) -> bool {
-        if let Some(ref s) = self.attrs.ts_type {
-            if s.to_string() == "arraylike" && ts.args.len() == 1 {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    }
+
     fn generic_to_ts(&self, ts: &TSType) -> QuoteT {
         let to_ts = |ty: &syn::Type| self.type_to_ts(ty);
+        let name = if let Some(ref s) = self.attrs.ts_as {
+            s.to_owned()
+        } else {
+            ts.ident.to_string()
+        };
 
-        match ts.ident.to_string().as_ref() {
+        match name.as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => quote! { number },
             "String" | "str" | "char" | "Path" | "PathBuf" => quote! { string },
@@ -41,7 +35,7 @@ impl<'a> FieldContext<'a> {
                 nanos_since_epoch: number
             }),
             // std::collections
-            "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 || self.array_like(ts) => {
+            "Vec" | "VecDeque" | "LinkedList" if ts.args.len() == 1 => {
                 self.type_to_array(&ts.args[0])
             }
             "HashMap" | "BTreeMap" if ts.args.len() == 2 => {

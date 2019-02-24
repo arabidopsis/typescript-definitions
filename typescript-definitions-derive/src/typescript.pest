@@ -1,12 +1,14 @@
 WHITESPACE = _{ WHITE_SPACE }
 
 ident = @{ XID_START ~ XID_CONTINUE* }
-union = { "(" ~ item ~ ("|" ~ item)* ~ ")" }
-map = {  "{" ~ "[" ~ "key" ~ ":" ~ typ ~ "]" ~ ":" ~ item ~ "}" }
-str = {  "{" ~ (ident ~ ":" ~ item)? ~ ("," ~ ident ~ ":" ~ item )* ~ "}" }
-tuple = { "[" ~ item ~ ("," ~ item )+ ~ "]" }
-typ = { "number" | "object" | "string" | "boolean" }
-singleton = { str | map | union | tuple | typ }
+union = {   item ~ ("|" ~ item)*  }
+map = {  "{" ~ "[" ~ "key" ~ ":" ~ key ~ "]" ~ ":" ~ expr ~ "}" }
+str = {  "{" ~ (ident ~ ":" ~ expr)? ~ ("," ~ ident ~ ":" ~ expr )* ~ "}" }
+tuple = { "[" ~ expr ~ ("," ~ expr )* ~ "]" }
+key = { "number" | "string" }
+typ = { "number" | "object" | "string" | "boolean" | "null" }
+singleton = { str | map | tuple | typ | "(" ~ union ~ ")" }
 array = { "[]"* }
-item = { singleton ~ array }
-typescript = { SOI ~ item ~ ("|" ~ item)*  ~ EOI }
+item = { singleton ~ array  }
+expr = { union | "(" ~ expr ~ ")" }
+typescript = { SOI ~ expr  ~ EOI }

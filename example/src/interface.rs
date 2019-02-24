@@ -43,14 +43,13 @@ pub enum Enum {
 }
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
-#[typescript(isa(T="isa_what"))]
 pub struct Value<T : ToString> {
     value: T,
 }
 
 #[derive(TypescriptDefinition, Serialize, TypeScriptify)]
 #[serde(tag = "tag", content = "fields")]
-#[typescript(verify = "true")]
+#[ts(guard = "true")]
 /// This is some API Event.
 pub enum FrontendMessage {
     Init {
@@ -75,7 +74,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify)]
-#[typescript(verify)]
+#[ts(guard)]
 pub struct Borrow<'a> {
     raw: &'a str,
     cow: Cow<'a, str>,

@@ -52,7 +52,7 @@ struct QuoteMaker {
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
-#[proc_macro_derive(TypescriptDefinition, attributes(typescript))]
+#[proc_macro_derive(TypescriptDefinition, attributes(ts))]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let input = QuoteT::from(input);
@@ -65,7 +65,7 @@ pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macr
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
-#[proc_macro_derive(TypeScriptify, attributes(typescript))]
+#[proc_macro_derive(TypeScriptify, attributes(ts))]
 pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if cfg!(any(debug_assertions, feature = "export-typescript")) {
         let input = QuoteT::from(input);
@@ -469,7 +469,7 @@ impl<'a> FieldContext<'a> {
 pub(crate) struct ParseContext<'a> {
     ctxt: Option<&'a Ctxt>, // serde parse context for error reporting
     arg_name: QuoteT,       // top level "name" of argument for verifier
-    global_attrs: Attrs,    // global #[typescript(...)] attributes
+    global_attrs: Attrs,    // global #[ts(...)] attributes
     gen_guard: bool,        // generate type guard for this struct/enum
     ident: syn::Ident,      // name of enum struct
     ts_generics: Vec<Option<(Ident, Bounds)>>, // None means a lifetime parameter
@@ -492,7 +492,15 @@ impl<'a> ParseContext<'a> {
         let attrs = Attrs::from_field(field, self.ctxt);
         // if user has provided a type ... use that
         if attrs.ts_type.is_some() {
-            return attrs.ts_type.unwrap();
+            use std::str::FromStr;
+            let s = attrs.ts_type.unwrap();
+            return match QuoteT::from_str(&s) {
+                Ok(tokens) => tokens,
+                Err(..) => {
+                    self.err_msg(&format!("{}: can't parse type {}", self.ident, s));
+                    quote!()
+                }
+            }
         }
         let ts = FieldContext {
             attrs,

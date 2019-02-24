@@ -1,7 +1,7 @@
 #![allow(unused)]
-use super::ident_from_str;
+
 use super::patch::{eq, nl};
-use failure::Fail;
+use failure::{Error, Fail};
 use pest::iterators::Pair;
 use pest::Parser;
 use pest_derive::Parser;
@@ -9,6 +9,12 @@ use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::cell::RefCell;
+
+use proc_macro2::{Ident, Span};
+
+pub fn ident_from_str(s: &str) -> Ident {
+    syn::Ident::new(s, Span::call_site())
+}
 
 #[derive(Fail, Debug)]
 #[fail(display = "{}", _0)]
@@ -23,6 +29,13 @@ impl TypescriptParseError {
             pest::error::LineColLocation::Span((_, col), _) => col,
         }
     }
+    #[allow(unused)]
+    pub fn row(&self) -> usize {
+        match self.0.line_col {
+            pest::error::LineColLocation::Pos((row, _)) => row,
+            pest::error::LineColLocation::Span((row, _), _) => row,
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -32,105 +45,153 @@ struct TypescriptParser;
 pub struct Typescript {
     only_first: bool,
     var: RefCell<i32>,
+
+}
+
+struct Ret {
+    result: TokenStream,
+    need_undef: bool,
 }
 
 impl Typescript {
     pub fn new() -> Self {
+        Self::with_first(false)
+    }
+    pub fn with_first(only_first: bool) -> Self {
         Typescript {
-            only_first: false,
+            only_first: only_first,
             var: RefCell::new(0),
         }
     }
-    pub fn parse(
-        &self,
-        obj: &TokenStream,
-        typescript: &str,
-    ) -> Result<TokenStream, TypescriptParseError> {
+
+    pub fn parse(&self, obj: &TokenStream, typescript: &str) -> Result<TokenStream, Error> {
         let pair = TypescriptParser::parse(Rule::typescript, typescript)
             .map_err(TypescriptParseError)?
             .next() // skip SOI
             .unwrap();
         let mut content = vec![];
+        let mut need_undef = true;
         for item in pair.into_inner() {
             match item.as_rule() {
                 Rule::EOI => break,
-                other => assert_eq!(other, Rule::item),
+                other => assert_eq!(other, Rule::expr),
             }
-            content.push(self.parse_item(obj, item)?);
+            content.push({
+                let r = self.parse_expr(obj, item)?;
+                need_undef = r.need_undef;
+                r.result
+            });
         }
+        assert!(content.len() == 1);
         let newl = nl();
+
         // obj can't be null or undefined
-        if content.len() == 1 {
-            Ok(quote!(
-                {
-
-                    #(#content)*
-                    #newl return true;
-                }
-            ))
+        assert!(self.level() == 0);
+        let guard = if need_undef {
+            let eq = eq();
+            quote!(if (#obj #eq undefined) return false;)
         } else {
-            let nl = (0..content.len()).map(|_| quote!(#newl));
-            Ok(quote!(
-                {
+            quote!()
+        };
 
-                    #( #nl if ( ( () => { #content } )() ) return true; )*
-                    #newl return false;
-                }
-            ))
-        }
+        Ok(quote!(
+            {
+                #guard
+                #(#content)*
+                #newl return true;
+            }
+        ))
     }
-    fn parse_item<'a>(
-        &self,
-        obj: &TokenStream,
-        item: Pair<'a, Rule>,
-    ) -> Result<TokenStream, TypescriptParseError> {
-        let mut i = item.into_inner();
-        let (singleton, array) = (i.next().unwrap(), i.next().unwrap());
-        let mut content = vec![];
-        let narr = array.as_str().len() / 2;
-        let val = obj; // self.pushvar();
-        let mut is_union = false;
+    fn parse_expr<'a>(&self, obj: &TokenStream, expr: Pair<'a, Rule>) -> Result<Ret, Error> {
+        // expr = { union | "(" ~ expr ~ ")" }
 
-        for singleton_pair in singleton.into_inner() {
-            content.push(match singleton_pair.as_rule() {
-                Rule::map => self.parse_map(&val, singleton_pair)?,
-                Rule::str => self.parse_struct(&val, singleton_pair)?,
+        let mut content = vec![];
+        let mut is_union = false;
+        let mut size = 0;
+        for u in expr.into_inner() {
+            content.push(match u.as_rule() {
                 Rule::union => {
                     is_union = true;
-                    self.parse_union(&val, singleton_pair)?
+                    let (q, n) = self.parse_union(&obj, u)?;
+                    size = n;
+                    q
                 }
-                Rule::tuple => self.parse_tuple(&val, singleton_pair)?,
-                Rule::typ => self.parse_typ(&val, singleton_pair)?,
+                Rule::expr => self.parse_expr(&obj, u)?,
+
+                _ => unreachable!(),
+            })
+        }
+        assert!(content.len() == 1);
+
+        let c = &content[0].result;
+        let n = content[0].need_undef;
+
+        let test = if is_union && size > 1 {
+            quote!(if ( !( () => { #c } )() ) return false;)
+        } else {
+            quote!( #c )
+        };
+        Ok(Ret {
+            result: test,
+            need_undef: n,
+        })
+    }
+    fn parse_item<'a>(&self, obj: &TokenStream, item: Pair<'a, Rule>) -> Result<Ret, Error> {
+        let mut i = item.into_inner();
+        // item = { singleton ~ array  }
+        let (singleton, array) = (i.next().unwrap(), i.next().unwrap());
+
+        let mut content = vec![];
+        let n = array.as_str().len();
+        let narr = n / 2;
+        assert!(narr * 2 == n);
+        let mut size = 0;
+        let mut is_union = false;
+        let val = &obj; // self.pushvar();
+        // singleton = { str | map | tuple | typ | "(" ~ union ~ ")" }
+        for singleton_pair in singleton.into_inner() {
+            content.push(match singleton_pair.as_rule() {
+                Rule::map => self.parse_map(val, singleton_pair)?,
+                Rule::str => self.parse_struct(val, singleton_pair)?,
+                Rule::tuple => self.parse_tuple(val, singleton_pair)?,
+                Rule::typ => self.parse_typ(val, singleton_pair)?,
+                Rule::union => {
+                    is_union = true;
+                    let (q, n) = self.parse_union(val, singleton_pair)?;
+                    size = n;
+                    q
+                }
                 _ => unreachable!(),
             });
         }
         assert!(content.len() == 1);
+        let c = &content[0].result;
+        let n = content[0].need_undef;
+        let test = if is_union && size > 1 {
+            quote!(if ( !( () => { #c } )() ) return false;)
+        } else {
+            quote!( #c )
+        };
         if narr == 0 {
             // self.popvar();
-            Ok(quote!(
-                {
-                    if (#obj == undefined) return false;
-                    #(#content)*
-                }
-            ))
+            Ok(Ret {
+                result: test,
+                need_undef: n,
+            })
         } else {
             let brk = if self.only_first {
                 quote!(break;)
             } else {
                 quote!()
             };
-            let test = if is_union {
-                quote!(#(if ( !( () => { #content } )() ) return false; )*)
-            } else {
-                quote!( #(#content)* )
-            };
+
             let mut vinner = self.pushvar();
             let mut inner = quote!(
                 {
                     if (!Array.isArray(#vinner)) return false;
                     for (let #val of #vinner) {
                         #test
-                        #brk;
+                        #brk
                     }
                 }
             );
@@ -140,37 +201,39 @@ impl Typescript {
                 if (!Array.isArray(#vnext)) return false;
                 for (let #vinner of #vnext) {
                     #inner
+                    #brk
                 });
                 vinner = vnext;
             }
             for i in 0..narr {
                 self.popvar()
             }
-            Ok(quote!(let #vinner = #obj; #inner; return true;))
+            Ok(Ret {
+                result: quote!(const #vinner = #obj; #inner;),
+                need_undef: false,
+            })
         }
     }
-    fn parse_typ<'a>(
-        &self,
-        obj: &TokenStream,
-        typ: Pair<'a, Rule>,
-    ) -> Result<TokenStream, TypescriptParseError> {
+    fn parse_typ<'a>(&self, obj: &TokenStream, typ: Pair<'a, Rule>) -> Result<Ret, Error> {
+        // typ = { "number" | "object" | "string" | "boolean" | "null" }
         let typ = typ.as_str();
         let eq = eq();
-        Ok(quote!(
-            if (!(typeof #obj #eq #typ)) return false;
-        ))
+        Ok(Ret {
+            result: quote!(
+               if (!(typeof #obj #eq #typ)) return false;
+            ),
+            need_undef: false,
+        })
     }
-    fn parse_map<'a>(
-        &self,
-        obj: &TokenStream,
-        map: Pair<'a, Rule>,
-    ) -> Result<TokenStream, TypescriptParseError> {
+    fn parse_map<'a>(&self, obj: &TokenStream, map: Pair<'a, Rule>) -> Result<Ret, Error> {
+        // map = {  "{" ~ "[" ~ "key" ~ ":" ~ key ~ "]" ~ ":" ~ expr ~ "}" }
         let mut i = map.into_inner();
-        let (typ, item) = (i.next().unwrap(), i.next().unwrap());
+        let (typ, expr) = (i.next().unwrap(), i.next().unwrap());
         let k = typ.as_str();
+
         // let typ = self.parse_typ(typ)?;
         let val = self.pushvar();
-        let v = self.parse_item(&val, item)?;
+        let result = self.parse_expr(&val, expr)?;
         let eq = eq();
         let kval = self.pushvar();
         let k = if k == "number" {
@@ -178,7 +241,6 @@ impl Typescript {
                 if (+#kval #eq NaN) return false;
             }
         } else {
-            //self.verify_type(&quote!(k), &ts.args[0]);
             // always going to be a string
             quote!()
         };
@@ -190,60 +252,85 @@ impl Typescript {
         self.popvar();
         self.popvar();
         // obj is definitely not undefined... but it might be null...
-        Ok(quote!(
-            if (#obj #eq null || !(typeof #obj #eq "object")) return false;
-            for (let #kval in #obj) {
-                let #val = #obj[#kval];
-                #k;
-                #v;
-                #brk
-            }
-        ))
+        let v = result.result;
+        Ok(Ret {
+            result: quote!(
+                if (!(typeof #obj #eq "object")) return false;
+                for (let #kval in #obj) {
+                    let #val = #obj[#kval];
+                    // #val is not undefined....
+                    #k;
+                    #v;
+                    #brk
+                }
+            ),
+            need_undef: false,
+        })
     }
     fn parse_union<'a>(
         &self,
         obj: &TokenStream,
         union: Pair<'a, Rule>,
-    ) -> Result<TokenStream, TypescriptParseError> {
-        let mut content = vec![];
-        let val = self.pushvar();
+    ) -> Result<(Ret, usize), Error> {
+        // union = {   item ~ ("|" ~ item)*  }
+        let mut results = vec![];
+        // let val = self.pushvar();
         for item in union.into_inner() {
             match item.as_rule() {
-                Rule::item => content.push(self.parse_item(&val, item)?),
+                Rule::item => results.push(self.parse_item(obj, item)?),
                 _ => unreachable!(),
             }
         }
         let newl = nl();
-        let nl = (0..content.len()).map(|_| quote!(#newl));
-        self.popvar();
+        let nl = (0..results.len()).map(|_| quote!(#newl));
+        // self.popvar();
         // obj can't be null or undefined
-        Ok(quote!(
-            {
-                if (#obj == undefined) return false;
-
-                #( #nl if ( ( () => { #content } )() ) return true; )*
+        let n = results.len();
+        // a *single* union doesn't need to check multiple failures
+        // looking for a success....
+        let content = results.iter().map(|r| &r.result);
+        let need = results.iter().any(|r| r.need_undef);
+        let ret = if n == 1 {
+            quote!(
+                #(#content)*
+            )
+        } else {
+            quote!(
+                {
+                #( #nl if ( ( () => { #content; return true; } )() ) return true; )*
                 #newl return false;
-            }
+                }
+            )
+        };
+
+        Ok((
+            Ret {
+                result: ret,
+                need_undef: need,
+            },
+            n,
         ))
     }
-    fn parse_tuple<'a>(
-        &self,
-        obj: &TokenStream,
-        tuple: Pair<'a, Rule>,
-    ) -> Result<TokenStream, TypescriptParseError> {
+    fn parse_tuple<'a>(&self, obj: &TokenStream, tuple: Pair<'a, Rule>) -> Result<Ret, Error> {
+        // tuple = { "[" ~ expr ~ ("," ~ expr )+ ~ "]" }
         let mut content = vec![];
         let eq = eq();
         let val = self.pushvar();
-        for (i, item) in tuple.into_inner().enumerate() {
+        for (i, expr) in tuple.into_inner().enumerate() {
             let i = Literal::usize_unsuffixed(i);
             let n = quote!(#obj[#i]);
 
-            match item.as_rule() {
-                Rule::item => {
-                    let verify = self.parse_item(&val, item)?;
-
+            match expr.as_rule() {
+                Rule::expr => {
+                    let v = self.parse_expr(&val, expr)?;
+                    let verify = v.result;
+                    let guard = if v.need_undef {
+                        quote!(if (#n #eq undefined) return false;)
+                    } else {
+                        quote!()
+                    };
                     content.push(quote! {
-                        if (#n #eq undefined) return false;
+                        #guard
                         {
                             const #val = #n;
                             #verify;
@@ -255,36 +342,51 @@ impl Typescript {
         }
         self.popvar();
         let len = Literal::usize_unsuffixed(content.len());
-        Ok(quote!(if (!Array.isArray(#obj) || !(#obj.length #eq #len)) return false; #(#content)* ))
+        // isArray protects us from null obj
+        Ok(Ret {
+            result: quote!(
+                if (!Array.isArray(#obj) || !(#obj.length #eq #len)) return false;
+                #(#content)*
+            ),
+            need_undef: false,
+        })
     }
-    fn parse_struct<'a>(
-        &self,
-        obj: &TokenStream,
-        pair: Pair<'a, Rule>,
-    ) -> Result<TokenStream, TypescriptParseError> {
+    fn parse_struct<'a>(&self, obj: &TokenStream, pair: Pair<'a, Rule>) -> Result<Ret, Error> {
+        // str = {  "{" ~ (ident ~ ":" ~ expr)? ~ ("," ~ ident ~ ":" ~ expr )* ~ "}" }
         let mut keys = vec![];
         let mut values = vec![];
         let val = self.pushvar();
-        for item in pair.into_inner() {
-            match item.as_rule() {
-                Rule::ident => keys.push(ident_from_str(&item.as_str())),
-                Rule::item => values.push(self.parse_item(&val, item)?),
+        for expr in pair.into_inner() {
+            match expr.as_rule() {
+                Rule::ident => keys.push(ident_from_str(&expr.as_str())),
+                Rule::expr => values.push(self.parse_expr(&val, expr)?),
                 _ => unreachable!(),
             }
         }
         let mut ret = vec![];
         let eq = eq();
         for (n, v) in keys.iter().zip(values) {
+            let verify = v.result;
+            let guard = if v.need_undef {
+                quote!(if (#obj.#n #eq undefined) return false;)
+            } else {
+                quote!()
+            };
             ret.push(quote! {
-                if (#obj.#n #eq undefined) return false;
+                #guard
                 {
                     const #val = #obj.#n;
-                    #v;
+                    #verify
                 }
             });
         }
         self.popvar();
-        Ok(quote!(#(#ret)*;))
+        // need to protect object access from the null object so ==
+
+        Ok(Ret {
+            result: quote!(if( !(typeof #obj #eq "object")) return false; #(#ret)*),
+            need_undef: false,
+        })
     }
 
     fn pushvar(&self) -> TokenStream {
@@ -297,6 +399,10 @@ impl Typescript {
     fn popvar(&self) {
         let mut var = self.var.borrow_mut();
         *var -= 1;
+        assert!(*var >= 0);
+    }
+    fn level(&self) -> i32 {
+        return *self.var.borrow();
     }
 }
 

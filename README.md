@@ -1,6 +1,6 @@
 
 
-<div style="float:right; padding-left:2em; width:30%">
+<div style="float:right; padding-left:2em;">
 <img
 src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjE5IDE5IDEz
 NC4wNzIgMTk3LjE1OSIgaGVpZ2h0PSIyNjcuODM4IiB3aWR0aD0iMTgyLjEzNiI+PHBhdGggZD0i
@@ -217,7 +217,7 @@ Using [wasm-bindgen](https://rustwasm.github.io/wasm-bindgen/) this will output 
 
 ```typescript
 export type Enum =
-      {tag: "V1", fields: { Foo: boolean } }
+    | {tag: "V1", fields: { Foo: boolean } }
     | {tag: "V2", fields: { Bar: number, Baz: number } }
     | {tag: "V3", fields: { Quux: string } }
     ;
@@ -225,7 +225,7 @@ export type Enum =
 
 ## Using `typescript-definitions`
 
-**NB**: Please note these macros - by default - work *only for the debug build* since they pollute the
+**NB**: Please note that these macros - by default - work *only for the debug build* since they pollute the
 code with strings and methods all of which are proabably not useful in any release (Since
 you are only using them to extract information about your current types from your *code*). In
 release builds they become no-ops. This means that there is *no cost* to your release exes/libs
@@ -412,9 +412,9 @@ println!("{}", S::type_script_ify());
 
  prints `export type S = { image: string, buffer: number[] };`.
 
-Serde attributes understood but rejected
+Serde attributes understood but *rejected*:
 
-* flatten (This will produce a panic). Currently on my TODO list.
+* flatten (This will produce a panic). Probably will never be fixed.
 
 All others are just ignored.
 
@@ -431,7 +431,7 @@ use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
 
 #[derive(Serialize, TypeScriptify)]
 pub struct Chrono {
-    #[typescript(ts_type="string")]
+    #[ts(ts_type="string")]
     pub datetime: DateTime<Local>,
 }
 ```
@@ -452,10 +452,10 @@ typescript-definitions = { version="0.1.9", features=["type-guards"] }
 ```
 
 With the feature *on* you can turn guard generation *off* for any struct/enum with the
-`#[typescript(guard=false)]` attribute.
+`#[ts(guard=false)]` attribute.
 
 If your struct has a long list of data as `Vec<data>` then you can prevent a
-type check of the entire array with a field attribute `#[typescript(array_check="first")]`
+type check of the entire array with a field attribute `#[ts(array_check="first")]`
 which will check only the first row.
 
 ### Limitations of JSON
@@ -526,13 +526,13 @@ use typescript_definitions::TypescriptDefinition;
 
 #[derive(Serialize, TypescriptDefinition)]
 pub struct Value<T> {
-    #[typescript(user_type_guard=true)]
+    #[ts(guard="number[]|string")]
     pub value: T,
 }
 
 #[derive(Serialize, TypescriptDefinition)]
 pub struct DependsOnValue {
-    #[typescript(user_type_guard=true)]
+    #[ts(ts_guard="{value: number[]}")]
     pub value: Value<Vec<i32>>,
 }
 ```
@@ -680,7 +680,7 @@ println!("{}", S::type_script_ify());
 ```
 
 gives `export type S = { pig : Pig<string> }` instead of `export type S = { pig : string }`
-Use `#[typescript(ts_type="string")]` to fix this.
+Use `#[ts(ts_type="string")]` to fix this.
 
 At a certain point `typescript-definitions` just *assumes* that the token identifier `i32` (say)
 *is* really the rust signed 32 bit integer and not some crazy renamed struct in your code!

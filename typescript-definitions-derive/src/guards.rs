@@ -220,33 +220,27 @@ impl<'a> FieldContext<'a> {
                 ));
                 return quote!(return false);
             }
+            // OK we have a monomorphisation of a generic type possibly
+            // user defined and hopefully also generated
+            // we generate a S<type...>(obj, typename) function call.
             let args: Vec<_> = self.derive_syn_types(&ts.args).collect();
             let a = args.clone();
             let a = quote!(#(#a),*).to_string();
             let a = a.trim();
-            if !self.attrs.user_type_guard {
-                if (!ok_ts_type(a)) {
-                    self.ctxt.err_msg(&format!(
-                        "{}: only monomorphization of number, string, object or boolean permitted: got \"{}\"",
-                        ident, patch(&a)
-                    ));
-                    self.ctxt.err_msg("try a user_type_guard");
-                    return quote!(return false);
-                };
-            };
             let a = Literal::string(&a);
             quote! { if (!#func#gen_params<#(#args),*>(#obj, #a)) return false; }
         } else {
             if is_generic {
-                if !self.attrs.user_type_guard {
-                    let eq = eq();
-                    let gen_func = quote!(
-                        export const #func = #gen_params(#obj: any, typename: string): #obj is #ident => {
-                            return typeof #obj #eq typename
-                        }
-                    );
-                    self.ctxt.add_extra_guard(gen_func);
-                };
+
+                let eq = eq();
+                // this will return false if typename is anything other
+                // than number boolean, string or possibly object
+                let gen_func = quote!(
+                    export const #func = #gen_params(#obj: any, typename: string): #obj is #ident => {
+                        return typeof #obj #eq typename
+                    }
+                );
+                self.ctxt.add_extra_guard(gen_func);
 
                 quote!( if (!#func#gen_params(#obj, typename)) return false; )
             } else {
@@ -271,21 +265,24 @@ impl<'a> FieldContext<'a> {
     }
 
     pub fn verify_single_type(&self, obj: &TokenStream) -> QuoteT {
-        if let Some(ref tokens) = self.attrs.ts_guard {
-            return ts_guard(obj, tokens);
+        if let Some(ref s) = self.attrs.ts_guard {
+            return self.ts_guard(obj, s);
         };
-        if let Some(ref tokens) = self.attrs.ts_type {
-            let tokens = tokens.to_string();
-            if !ok_ts_type(&tokens) {
-                self.ctxt.err_msg(&format!(
-                    "only string, number, object or boolean permitted: got \"{}\". Maybe use ts_guard",
-                    tokens
-                ));
-            }
-            let eq = eq();
-            quote!( if(!(typeof #obj #eq #tokens)) return false; )
+        if let Some(ref s) = self.attrs.ts_type {
+            return self.ts_guard(obj, s);
         } else {
             self.verify_type(obj, &self.field.ty)
+        }
+    }
+    fn ts_guard(&self, obj: &'a TokenStream, guard: &'a str) -> QuoteT {
+        use super::typescript::Typescript;
+        let t = Typescript::with_first(self.attrs.only_first);
+        return match t.parse(obj, guard) {
+            Ok(tokens) => tokens,
+            Err(msg) => {
+                self.ctxt.err_msg(&msg.to_string());
+                quote!()
+            }
         }
     }
 }
@@ -293,14 +290,7 @@ impl<'a> FieldContext<'a> {
 fn ok_ts_type(a: &str) -> bool {
     (a == "number" || a == "string" || a == "boolean" || a == "object")
 }
-fn ts_guard<'a>(obj: &'a TokenStream, guard: &'a TokenStream) -> QuoteT {
-    let o = guard.to_string();
-    if ok_ts_type(&o) {
-        let eq = eq();
-        return quote! ( if (!(typeof #obj #eq #o )) return false; );
-    };
-    return quote! ( if (!(#guard(#obj))) return false; );
-}
+
 impl<'a> ParseContext<'a> {
     pub fn verify_type(&'a self, obj: &'a TokenStream, field: &'a ast::Field<'a>) -> QuoteT {
         let attrs = Attrs::from_field(field, self.ctxt);
