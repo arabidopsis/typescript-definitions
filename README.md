@@ -164,8 +164,8 @@ See [Type Guards](#type-guards) below.
 
 ## Motivation 🦀
 
-Now that rust 2018 has landed
-there is no question that people should be using rust to write server applications (what are you thinking!).
+Now that rust 2018 has landed there is no question that people should be using rust to write server applications (what are you thinking!).
+
 But generating wasm from rust code to run in the browser is currently much too bleeding edge.
 
 Since javascript will be dominant on the client for the forseeable future there remains the
@@ -173,8 +173,7 @@ problem of communicating with your javascript from your rust server.
 
 Fundamental to this is to keep the datatypes on either side of the connection (http/websocket) in sync.
 
-Typescript is an incremental typing system for javascript that is as almost(!) as tricked as rust... so
-why not create a typescript definition library based on your rust code?
+Typescript is an incremental typing system for javascript that is as almost(!) as tricked as rust... so why not create a typescript definition library based on your rust code?
 
 Please see [Credits](#credits).
 
@@ -225,25 +224,19 @@ export type Enum =
 
 ## Using `typescript-definitions`
 
-**NB**: Please note that these macros - by default - work *only for the debug build* since they pollute the
-code with strings and methods all of which are proabably not useful in any release (Since
-you are only using them to extract information about your current types from your *code*). In
-release builds they become no-ops. This means that there is *no cost* to your release exes/libs
+**NB**: Please note that these macros - by default - work *only for the debug build* since they pollute the code with strings and methods all of which are proabably not useful in any release (Since you are only using them to extract information about your current types from your *code*). In release builds they become no-ops. This means that there is *no cost* to your release exes/libs
 or to your users by using these macros. Zero cost abstraction indeed. Beautiful.
 
 Also, although you might need nightly to run `wasm-bingen` *your* code can remain stable.
 
 See [features](#features) below if you really want them in your release build.
 
-There is a very small example in the repository that
-[works for me (TM)](https://bitbucket.org/athaliana/typescript-definitions/src/master/example/) if you want to get started
-on your own.
+There is a very small example in the repository that [works for me (TM)](https://bitbucket.org/athaliana/typescript-definitions/src/master/example/) if you want to get started on your own.
 
 This crate only exports two derive macros: `TypescriptDefinition` and `TypeScriptify`, a simple
 trait `TypeScriptifyTrait` and a (very simple) serializer for byte arrays.
 
-In your crate create a lib target in `Cargo.toml` pointing
-to your "interfaces"
+In your crate create a lib target in `Cargo.toml` pointing to your "interfaces"
 
 ```toml
 [lib]
@@ -274,8 +267,7 @@ What just happened? [This.](https://rustwasm.github.io/wasm-bindgen/reference/at
 
 ### Getting the toolchains
 
-If you don't have these tools then [see here](https://rustwasm.github.io/wasm-bindgen/whirlwind-tour/basic-usage.html)
-(You might also need to get [rustup](https://rustup.rs) first):
+If you don't have these tools then [see here](https://rustwasm.github.io/wasm-bindgen/whirlwind-tour/basic-usage.html) (You might also need to get [rustup](https://rustup.rs) first):
 
 ```sh
 $ rustup target add wasm32-unknown-unknown --toolchain nightly
@@ -337,20 +329,17 @@ pub struct Value<T> {
 }
 ```
 
-then you need to choose a concrete type to generate the typescript: `Value<i32>::type_script_ify()`. The concrete type
-doesn't matter as long as it obeys rust restrictions; the output will still be generic `export type Value<T> { value: T }`.
+then you need to choose a concrete type to generate the typescript: `Value<i32>::type_script_ify()`. The concrete type doesn't matter as long as it obeys rust restrictions; the output will still be generic `export type Value<T> { value: T }`.
 
 Currently type bounds are discarded in the typescript.
 
-So basically with `TypeScriptify` *you* have to create some binary that, via `println!` or similar statements, will
-cough up a typescript library file. I guess you have more control here... at the expense of complicating
+So basically with `TypeScriptify` *you* have to create some binary that, via `println!` or similar statements, will cough up a typescript library file. I guess you have more control here... at the expense of complicating
 your `Cargo.toml` file and your code.
 
 
 ## Features
 
-As we said before `typescript-descriptions` macros pollute your code with
-static strings and other garbage. Hence, by default, they only *work* in debug mode.
+As we said before `typescript-descriptions` macros pollute your code with static strings and other garbage. Hence, by default, they only *work* in debug mode.
 
 
 If you actually want `T::type_script_ify()` (for TypeScriptify) available in your
@@ -366,9 +355,7 @@ features = ["export-typescript"]
 typescript-definitions = { version="0.1",  features=["export-typescript"]  }
 ```
 
-AFAIK the strings generated by TypescriptDescription don't survive the invocation
-of `wasm-bindgen` even in debug mode. So your *.wasm files are clean. You still need
-to add `--features=export-typescript` to generate anything in release mode though.
+AFAIK the strings generated by TypescriptDescription don't survive the invocation of `wasm-bindgen` even in debug mode. So your *.wasm files are clean. You still need to add `--features=export-typescript` to generate anything in release mode though.
 
 
 ## Serde attributes.
@@ -378,23 +365,19 @@ See Serde [Docs](https://serde.rs/enum-representations.html#internally-tagged).
 `typescript-definitions` tries to adhere to the meaning of serde attributes
 like`#[serde(tag="type")]` and `#[serde(tag="tag", content="fields")]`.
 
-Before 0.1.8 we had an implicit default tag of "kind" for enums. Now we don't
-(although we still have a implicit `transparent` on NewTypes).
+Before 0.1.8 we had an implicit default tag of "kind" for enums. Now we don't (although we still have a implicit `transparent` on NewTypes).
 
 
 Serde attributes understood
 
-* rename, rename_all:
-* tag:
-* content:
-* skip: (`typescript-definitions` also skips - by default -  PhantomData fields ... sorry ghost who walks)
+* `rename`, `rename_all`:
+* `tag`:
+* `content`:
+* `skip`: (`typescript-definitions` also skips - by default -  PhantomData fields ... sorry ghost who walks)
 * serialize_with="typescript_definitions::as_byte_string"
-* transparent: Newtypes are automatically transparent. Structs with a single field can
-  be marked transparent.
+* transparent: Newtypes are automatically transparent. Structs with a single field can be marked transparent.
 
-`serialize_with`, if placed on a `[u8]` or `Vec<u8>` field, will take
-that field to be a string. (And serde_json will output a `\xdd` encoded
-string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
+`serialize_with`, if placed on a `[u8]` or `Vec<u8>` field, will take that field to be a string. (And serde_json will output a `\xdd` encoded string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
 
 ```rust
 use serde::Serialize;
@@ -421,8 +404,7 @@ All others are just ignored.
 
 ## typescript-definition attributes
 
-Some types, for example `chrono::DateTime`, will serializes themselves in an opaque
-manner. Youn need to tell `typescript-definitions`, viz:
+Some types, for example `chrono::DateTime`, will serializes themselves in an opaque manner. Youn need to tell `typescript-definitions`, viz:
 
 ```rust
 use chrono::prelude::*; 
@@ -436,13 +418,11 @@ pub struct Chrono {
 }
 ```
 
-Any typescript type can be used *unless* you are want a type guard generated, then
-only string, number and boolean are accepted at the moment.
+Any typescript type can be used *unless* you are want a type guard generated, then only string, number and boolean are accepted at the moment.
 
 ## Type Guards
 
-`typescript-definitions` type guards provide a fail fast defensive check that
-a random json object agrees with the layout and types of a given `typescript-definitions`
+`typescript-definitions` type guards provide a fail fast defensive check that a random json object agrees with the layout and types of a given `typescript-definitions`
 type.
 
 To enable them change your dependency to:
@@ -454,8 +434,7 @@ typescript-definitions = { version="0.1.9", features=["type-guards"] }
 With the feature *on* you can turn guard generation *off* for any struct/enum with the
 `#[ts(guard=false)]` attribute.
 
-If your struct has a long list of data as `Vec<data>` then you can prevent a
-type check of the entire array with a field attribute `#[ts(array_check="first")]`
+If your struct has a long list of data as `Vec<data>` then you can prevent a type check of the entire array with a field attribute `#[ts(array_check="first")]`
 which will check only the first row.
 
 ### Limitations of JSON
@@ -492,8 +471,7 @@ So the generated guard also checks for integer keys with `(+key !== NaN)`.
 
 `typescript-definitions` has limited support for verifing generics.
 
-Rust and typescript diverge a lot on what genericity means. Generic Rust structs
-don't map well to generic typescript types. However we don't give up totally.
+Rust and typescript diverge a lot on what genericity means. Generic Rust structs don't map well to generic typescript types. However we don't give up totally.
 
 This will work:
 
@@ -526,7 +504,7 @@ use typescript_definitions::TypescriptDefinition;
 
 #[derive(Serialize, TypescriptDefinition)]
 pub struct Value<T> {
-    #[ts(guard="number[]|string")]
+    #[ts(ts_guard="number[]|string")]
     pub value: T,
 }
 
@@ -550,8 +528,7 @@ const isT = <T>(o: any, typename: string): o is T => {
 }
 ```
 
-Watch out for function name collisons especially if you use simple names
-such as `T`, for a generic
+Watch out for function name collisons especially if you use simple names such as `T`, for a generic
 type name.
 
 The generated output file should really be passed through something like [prettier](https://www.npmjs.com/package/prettier).
@@ -580,10 +557,8 @@ export type Event = { what: string; pos: [ number , number ][] };"
 
 Oh yes there are problems...
 
-Currently `typescript-descriptions` will not fail (AFAIK) even for
-structs and enums with function pointers `fn(a:A, b: B) -> C` (generates typescript lambda `(a:A, b:B) => C`)
-and closures `Fn(A,B) -> C` (generates `(A,B) => C`). These make no sense in the current
-context (data types, json serialization) so this might be considered a bug.
+Currently `typescript-descriptions` will not fail (AFAIK) even for structs and enums with function pointers `fn(a:A, b: B) -> C` (generates typescript lambda `(a:A, b:B) => C`)
+and closures `Fn(A,B) -> C` (generates `(A,B) => C`). These make no sense in the current context (data types, json serialization) so this might be considered a bug.
 Watchout!
 
 This might change if use cases show that an error would be better.
@@ -612,8 +587,7 @@ Currently there is no check for this omission.
 
 Also Trait bounds are stripped out for typescript; you can't serialize Traits! However...
 
-If using `type_script_ify` then anything other than simple trait bounds will fail to compile. (because
-the `impl<...> TypeScriptify for T<...> {}` that is automatically generated by `typescript-descriptions` will be garbled).
+If using `type_script_ify` then anything other than simple trait bounds will fail to compile. (because the `impl<...> TypeScriptify for T<...> {}` that is automatically generated by `typescript-descriptions` will be garbled).
 
 * no `where` clauses.
 * no generic Traits.
@@ -652,18 +626,14 @@ enum Color {
 }
 ```
 
-because serde_json will render `Color::Red` as the string `"Red"` instead of `Color.Red`
-(because JSON).
+because serde_json will render `Color::Red` as the string `"Red"` instead of `Color.Red` (because JSON).
 
 TODO: What about `enum Color {Red = 0, Green = 1 , Blue= 2}`?
 
-Serde always seems to render `Result` (in json) as `{"Ok": T } | {"Err": E}` i.e as "External"
-so we do too.
+Serde always seems to render `Result` (in json) as `{"Ok": T } | {"Err": E}` i.e as "External" so we do too.
 
 
-Formatting is rubbish and won't pass tslint. This is due to the quote! crate taking control of the output
-token stream. I don't know what it does with whitespace for example... (is whitespace a token in rust?).
-Anyhow... this crate applies a few bandaid regex patches to pretty things up.
+Formatting is rubbish and won't pass tslint. This is due to the quote! crate taking control of the output token stream. I don't know what it does with whitespace for example... (is whitespace a token in rust?). Anyhow... this crate applies a few bandaid regex patches to pretty things up.
 
 
 We are not as clever as serde or the compiler in determining the actual type. For example this won't "work":
@@ -682,15 +652,11 @@ println!("{}", S::type_script_ify());
 gives `export type S = { pig : Pig<string> }` instead of `export type S = { pig : string }`
 Use `#[ts(ts_type="string")]` to fix this.
 
-At a certain point `typescript-definitions` just *assumes* that the token identifier `i32` (say)
-*is* really the rust signed 32 bit integer and not some crazy renamed struct in your code!
+At a certain point `typescript-definitions` just *assumes* that the token identifier `i32` (say) *is* really the rust signed 32 bit integer and not some crazy renamed struct in your code!
 
-Complex paths are ignored `std::borrow::Cow` and `mycrate::mod::Cow` are the same to us. We're
-not going to reimplement the compiler to find out if they are *actually* different. A Cow is
-always "Clone on write".
+Complex paths are ignored `std::borrow::Cow` and `mycrate::mod::Cow` are the same to us. We're not going to reimplement the compiler to find out if they are *actually* different. A Cow is always "Clone on write".
 
-We can't reasonably obey serde attributes like "flatten" since we would need
-to find the *actual* Struct object (from somewhere) and query its fields.
+We can't reasonably obey serde attributes like "flatten" since we would need to find the *actual* Struct object (from somewhere) and query its fields.
 
 ## TODO
 

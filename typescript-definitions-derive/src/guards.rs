@@ -5,17 +5,17 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
-#![allow(unused)]
 
 use super::{
-    ast, guard_name, ident_from_str, is_bytes, last_path_element, patch::eq, patch::patch, Attrs,
-    FieldContext, ParseContext, QuoteT, TSType,
+    ast, guard_name, ident_from_str, is_bytes, last_path_element, patch::eq, Attrs, FieldContext,
+    ParseContext, QuoteT, TSType,
 };
 use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::quote;
 
 impl<'a> FieldContext<'a> {
+    #[allow(unused)]
     fn verify_type(&self, obj: &'a TokenStream, ty: &syn::Type) -> QuoteT {
         // obj is an Ident
         // remeber obj is definitely *not* undefined... but because
@@ -24,8 +24,9 @@ impl<'a> FieldContext<'a> {
 
         use syn::Type::*;
         use syn::{
-            BareFnArgName, TypeArray, TypeBareFn, TypeGroup, TypeImplTrait, TypeParamBound,
-            TypeParen, TypePath, TypePtr, TypeReference, TypeSlice, TypeTraitObject, TypeTuple,
+            /* BareFnArgName, */ TypeArray, TypeBareFn, TypeGroup, TypeImplTrait,
+            TypeParamBound, TypeParen, TypePath, TypePtr, TypeReference, TypeSlice,
+            TypeTraitObject, TypeTuple,
         };
         match ty {
             Slice(TypeSlice { elem, .. })
@@ -235,7 +236,6 @@ impl<'a> FieldContext<'a> {
             quote! { if (!#func#gen_params<#(#args),*>(#obj, #a)) return false; }
         } else {
             if is_generic {
-
                 let eq = eq();
                 // this will return false if typename is anything other
                 // than number boolean, string or possibly object
@@ -280,19 +280,15 @@ impl<'a> FieldContext<'a> {
     }
     fn ts_guard(&self, obj: &'a TokenStream, guard: &'a str) -> QuoteT {
         use super::typescript::Typescript;
-        let t = Typescript::with_first(self.attrs.only_first);
+        let mut t = Typescript::with_first(self.attrs.only_first);
         return match t.parse(obj, guard) {
             Ok(tokens) => tokens,
             Err(msg) => {
                 self.ctxt.err_msg(&msg.to_string());
                 quote!()
             }
-        }
+        };
     }
-}
-
-fn ok_ts_type(a: &str) -> bool {
-    (a == "number" || a == "string" || a == "boolean" || a == "object")
 }
 
 impl<'a> ParseContext<'a> {

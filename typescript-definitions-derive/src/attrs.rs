@@ -19,7 +19,7 @@ pub struct Attrs {
     pub only_first: bool,
     pub ts_type: Option<String>,
     pub ts_guard: Option<String>,
-    pub ts_as : Option<String>,
+    pub ts_as: Option<String>,
 }
 
 #[inline]

@@ -22,9 +22,8 @@ use syn::DeriveInput;
 mod attrs;
 mod derive_enum;
 mod derive_struct;
-mod patch;
-// mod quotet;
 mod guards;
+mod patch;
 mod tests;
 mod tots;
 mod typescript;
@@ -54,7 +53,10 @@ struct QuoteMaker {
 ///
 #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
 pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    if cfg!(any(debug_assertions, feature = "export-typescript")) {
+    if cfg!(all(
+        any(target_arch = "wasm32", feature = "test"),
+        any(debug_assertions, feature = "export-typescript")
+    )) {
         let input = QuoteT::from(input);
         do_derive_typescript_definition(input).into()
     } else {
@@ -450,8 +452,8 @@ fn last_path_element(path: &syn::Path) -> Option<TSType> {
 }
 
 pub(crate) struct FieldContext<'a> {
-    pub ctxt: &'a ParseContext<'a>, //
-    pub field: &'a ast::Field<'a>,  // field being parse
+    pub ctxt: &'a ParseContext<'a>, // global parse context
+    pub field: &'a ast::Field<'a>,  // field being parsed
     pub attrs: Attrs,               // field attributes
 }
 
@@ -500,14 +502,14 @@ impl<'a> ParseContext<'a> {
                     self.err_msg(&format!("{}: can't parse type {}", self.ident, s));
                     quote!()
                 }
-            }
+            };
         }
-        let ts = FieldContext {
+        let fc = FieldContext {
             attrs,
             ctxt: &self,
             field,
         };
-        ts.type_to_ts(&field.ty)
+        fc.type_to_ts(&field.ty)
     }
 
     fn derive_field(&self, field: &ast::Field<'a>) -> QuoteT {
