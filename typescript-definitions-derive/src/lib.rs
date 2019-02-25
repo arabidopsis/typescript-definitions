@@ -78,11 +78,7 @@ pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::Tok
 }
 
 fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
-    let verify = if cfg!(feature = "type-guards") {
-        true
-    } else {
-        false
-    };
+    let verify = cfg!(feature = "type-guards");
     let parsed = Typescriptify::parse(verify, input);
     let export_string = parsed.wasm_string();
     let name = parsed.ctxt.ident.to_string().to_uppercase();
@@ -123,11 +119,7 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
 }
 
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
-    let verify = if cfg!(feature = "type-guards") {
-        true
-    } else {
-        false
-    };
+    let verify = cfg!(feature = "type-guards");
 
     let parsed = Typescriptify::parse(verify, input);
 
@@ -307,7 +299,7 @@ impl Typescriptify {
                 global_attrs: attrs,
                 gen_guard: gv,
                 ident: container.ident.clone(),
-                ts_generics: ts_generics,
+                ts_generics,
                 rust_generics: container.generics.clone(),
                 extra: RefCell::new(vec![]),
             };

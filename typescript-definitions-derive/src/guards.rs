@@ -234,23 +234,22 @@ impl<'a> FieldContext<'a> {
             let a = a.trim();
             let a = Literal::string(&a);
             quote! { if (!#func#gen_params<#(#args),*>(#obj, #a)) return false; }
-        } else {
-            if is_generic {
-                let eq = eq();
-                // this will return false if typename is anything other
-                // than number boolean, string or possibly object
-                let gen_func = quote!(
-                    export const #func = #gen_params(#obj: any, typename: string): #obj is #ident => {
-                        return typeof #obj #eq typename
-                    }
-                );
-                self.ctxt.add_extra_guard(gen_func);
+        } else if is_generic {
+            let eq = eq();
+            // this will return false if typename is anything other
+            // than number boolean, string or possibly object
+            let gen_func = quote!(
+                export const #func = #gen_params(#obj: any, typename: string): #obj is #ident => {
+                    return typeof #obj #eq typename
+                }
+            );
+            self.ctxt.add_extra_guard(gen_func);
 
-                quote!( if (!#func#gen_params(#obj, typename)) return false; )
-            } else {
-                quote!( if (!#func#gen_params(#obj)) return false; )
-            }
+            quote!( if (!#func#gen_params(#obj, typename)) return false; )
+        } else {
+            quote!( if (!#func#gen_params(#obj)) return false; )
         }
+
     }
     pub fn verify_field(&self, obj: &TokenStream) -> QuoteT {
         let n = self.field.attrs.name().serialize_name(); // use serde name instead of field.member
@@ -281,13 +280,13 @@ impl<'a> FieldContext<'a> {
     fn ts_guard(&self, obj: &'a TokenStream, guard: &'a str) -> QuoteT {
         use super::typescript::Typescript;
         let mut t = Typescript::with_first(self.attrs.only_first);
-        return match t.parse(obj, guard) {
+        match t.parse(obj, guard) {
             Ok(tokens) => tokens,
             Err(msg) => {
                 self.ctxt.err_msg(&msg.to_string());
                 quote!()
             }
-        };
+        }
     }
 }
 

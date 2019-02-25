@@ -124,7 +124,7 @@ impl Attrs {
         use syn::Meta::*;
         use NestedMeta::*;
 
-        fn err<'a>(msg: String, ctxt: Option<&'a Ctxt>) {
+        fn err(msg: String, ctxt: Option<&'_ Ctxt>) {
             if let Some(ctxt) = ctxt {
                 ctxt.error(format!("invalid typescript syntax: {}", msg));
             } else {

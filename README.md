@@ -49,7 +49,6 @@ See [Type Guards](#type-guards) below.
 		* [Limitations of Generics](#limitations-of-generics)
 	* [Examples](#examples)
 	* [Problems](#problems)
-	* [TODO](#todo)
 	* [Credits](#credits)
 	* [License](#license)
 
@@ -120,13 +119,13 @@ export type Enum =
 
 ## Using `typescript-definitions`
 
-> **NB**: Please note that these macros - by default - work *only for the debug build* since they  pollute the code with strings and methods all of which are proabably not useful in any release (since you are only using them to extract information about your current types from your *code*). In release builds they become no-ops. This means that there is *no cost* to your release exes/libs or to your users by using these macros. Zero cost abstraction indeed. Beautiful.
+> **NB**: please note that these macros - by default - work *only for the debug build* since they  pollute the code with strings and methods all of which are proabably not useful in any release (since you are only using them to extract information about your current types from your *code*). In release builds they become no-ops. This means that there is *no cost* to your release exes/libs or to your users by using these macros. Zero cost abstraction indeed. Beautiful.
 
 Also, although you might need nightly to run `wasm-bingen` *your* code can remain stable.
 
 See [features](#features) below if you really want them in your release build.
 
-There is a very small example in the repository that [works for me™](https://github.com/arabidopsis/typescript-definitions/src/master/example/) if you want to get started on your own.
+There is a very small example in the repository that [works for me™](https://github.com/arabidopsis/typescript-definitions/src/master/example/) if you want to get started.
 
 This crate only exports two derive macros: `TypescriptDefinition` and `TypeScriptify`, a simple
 trait `TypeScriptifyTrait` and a (very simple) serializer for byte arrays.
@@ -281,6 +280,7 @@ use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
 #[derive(Serialize, TypeScriptify)]
 struct S {
      #[serde(serialize_with="typescript_definitions::as_byte_string")]
+     #[ts(ts_type="string")]
      image : Vec<u8>,
      buffer: &'static [u8],
 }
@@ -409,7 +409,9 @@ for generic type `value: T` yourself. viz:
 
 ```typescript
 const isT = <T>(o: any, typename: string): o is T => {
-    // Vec<i32> maps to number[]
+    // typename is the stringified type that we are
+    // expecting e.g. `number` or `{a: number, b: string}[]` etc.
+    // 
     if (typename !== "number[]") return false;
     if (!Array.isArray(o)) return false;
     for (let v of o) {

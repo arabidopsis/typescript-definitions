@@ -12,6 +12,7 @@ use proc_macro2::Ident;
 use quote::quote;
 
 impl<'a> FieldContext<'a> {
+    #[allow(clippy::cyclomatic_complexity)]
     fn generic_to_ts(&self, ts: &TSType) -> QuoteT {
         let to_ts = |ty: &syn::Type| self.type_to_ts(ty);
         let name = if let Some(ref s) = self.attrs.ts_as {

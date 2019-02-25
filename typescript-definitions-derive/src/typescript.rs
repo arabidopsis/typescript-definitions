@@ -57,11 +57,11 @@ impl Typescript {
     }
     pub fn with_first(only_first: bool) -> Self {
         Typescript {
-            only_first: only_first,
+            only_first,
             var: 0,
         }
     }
-    pub fn verify<'a>(typescript: &str) -> Result<pest::iterators::Pairs<'_, Rule>, Error> {
+    pub fn verify(typescript: &str) -> Result<pest::iterators::Pairs<'_, Rule>, Error> {
         Ok(TypescriptParser::parse(Rule::typescript, typescript).map_err(TypescriptParseError)?)
     }
 
