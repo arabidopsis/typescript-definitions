@@ -12,13 +12,13 @@ fn main() -> Result<(), Error> {
     // need the trait
     use typescript_definitions::TypeScriptifyTrait;
 
-    let p = Point {
+    let point = Point {
         x: 23,
         y: 24,
         z: 33,
     };
-    let j = serde_json::to_string(&p)?;
-    let f = FrontendMessage::Render {
+
+    let f1 = FrontendMessage::Render {
         html: "stuff".into(),
         time: 33,
         other_result: Err(32),
@@ -32,14 +32,17 @@ fn main() -> Result<(), Error> {
     let b = MyBytes {
         buffer: vec![5u8, 6, 7, 8, 9, 186, 233],
     };
-    println!("Point {:?}", p);
-    println!("{}", j);
-    println!("{}", serde_json::to_string(&f)?);
+    let nt = Newtype(32);
+
+
+    println!("{}", serde_json::to_string(&point)?);
+    println!("{}", serde_json::to_string(&f1)?);
     println!("{}", serde_json::to_string(&f2)?);
     println!("{}", serde_json::to_string(&b)?);
+    println!("{}", serde_json::to_string(&nt)?);
 
     println!("{}", Point::type_script_ify());
-
+    println!("{}", Newtype::type_script_ify());
     println!("{}", Enum::type_script_ify());
     println!("{}", FrontendMessage::type_script_ify());
     println!("{}", Value::<i32>::type_script_ify());

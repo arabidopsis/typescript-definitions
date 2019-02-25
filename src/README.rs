@@ -232,7 +232,7 @@ Also, although you might need nightly to run `wasm-bingen` *your* code can remai
 
 See [features](#features) below if you really want them in your release build.
 
-There is a very small example in the repository that [works for me (TM)](https://bitbucket.org/athaliana/typescript-definitions/src/master/example/) if you want to get started on your own.
+There is a very small example in the repository that [works for me (TM)](https://github.com/arabidopsis/src/master/example/) if you want to get started on your own.
 
 This crate only exports two derive macros: `TypescriptDefinition` and `TypeScriptify`, a simple
 trait `TypeScriptifyTrait` and a (very simple) serializer for byte arrays.

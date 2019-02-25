@@ -9,8 +9,8 @@ use typescript_definitions::{TypeScriptify, TypescriptDefinition};
 // #[cfg(target_arch="wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[derive(Serialize, TypescriptDefinition)]
-pub struct Newtype(i64);
+#[derive(Serialize, TypescriptDefinition, TypeScriptify)]
+pub struct Newtype( pub i64);
 
 #[derive(Serialize, TypescriptDefinition, TypeScriptify, Debug)]
 pub struct Point {
