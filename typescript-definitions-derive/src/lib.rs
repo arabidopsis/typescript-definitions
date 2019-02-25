@@ -496,12 +496,17 @@ impl<'a> ParseContext<'a> {
                 }
             };
         }
+    
         let fc = FieldContext {
             attrs,
             ctxt: &self,
             field,
         };
-        fc.type_to_ts(&field.ty)
+        if let Some(ref ty) = fc.attrs.ts_as {
+            fc.type_to_ts(ty)
+        } else {
+            fc.type_to_ts(&field.ty)
+        }
     }
 
     fn derive_field(&self, field: &ast::Field<'a>) -> QuoteT {

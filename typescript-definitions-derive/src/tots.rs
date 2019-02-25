@@ -15,12 +15,7 @@ impl<'a> FieldContext<'a> {
     #[allow(clippy::cyclomatic_complexity)]
     fn generic_to_ts(&self, ts: &TSType) -> QuoteT {
         let to_ts = |ty: &syn::Type| self.type_to_ts(ty);
-        let name = if let Some(ref s) = self.attrs.ts_as {
-            s.to_owned()
-        } else {
-            ts.ident.to_string()
-        };
-
+        let name = ts.ident.to_string();
         match name.as_ref() {
             "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "i8" | "i16" | "i32" | "i64"
             | "i128" | "isize" | "f64" | "f32" => quote! { number },

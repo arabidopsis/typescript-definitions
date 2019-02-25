@@ -9,6 +9,7 @@
 use super::{ast, ident_from_str, Ctxt};
 use quote::quote;
 
+
 use proc_macro2::TokenStream;
 use syn::{Attribute, Ident, Lit, Meta, /* MetaList,*/ MetaNameValue, NestedMeta};
 
@@ -19,7 +20,7 @@ pub struct Attrs {
     pub only_first: bool,
     pub ts_type: Option<String>,
     pub ts_guard: Option<String>,
-    pub ts_as: Option<String>,
+    pub ts_as: Option<syn::Type>,
 }
 
 #[inline]
@@ -251,6 +252,7 @@ impl Attrs {
                     ..
                 }) if ident == "ts_type" => {
                     let v = value.value();
+
                     self.ts_type = Some(v);
                 }
                 NameValue(MetaNameValue {
@@ -267,7 +269,13 @@ impl Attrs {
                     ..
                 }) if ident == "ts_as" => {
                     let v = value.value();
-                    self.ts_as = Some(v);
+                    match syn::parse_str::<syn::Type>(&v) {
+                        Ok(t) => self.ts_as = Some(t),
+                        Err(..) => {
+                            self.err_msg(format!("ts_as: \"{}\" is not a valid rust type", v), ctxt);
+                        }
+                    }
+                    //
                 }
                 NameValue(MetaNameValue {
                     ref ident,

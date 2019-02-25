@@ -361,6 +361,16 @@ let v : IntMap = { intmap: {  "6": 6, 4: 4 } };
 
 So the generated guard also checks for integer keys with `(+key !== NaN)`.
 
+You can short circuit any field with some attribute
+markup 
+
+* `ts_type` specify the serialization.
+* `ts_guard`: verify the type as if it was this
+  typescript type.
+
+
+
+
 ### Limitations of Generics
 
 `typescript-definitions` has limited support for verifing generics.
