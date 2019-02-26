@@ -56,10 +56,7 @@ impl Typescript {
         Self::with_first(false)
     }
     pub fn with_first(only_first: bool) -> Self {
-        Typescript {
-            only_first,
-            var: 0,
-        }
+        Typescript { only_first, var: 0 }
     }
     pub fn verify(typescript: &str) -> Result<pest::iterators::Pairs<'_, Rule>, Error> {
         Ok(TypescriptParser::parse(Rule::typescript, typescript).map_err(TypescriptParseError)?)

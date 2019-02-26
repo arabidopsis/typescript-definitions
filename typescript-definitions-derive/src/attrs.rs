@@ -9,7 +9,6 @@
 use super::{ast, ident_from_str, Ctxt};
 use quote::quote;
 
-
 use proc_macro2::TokenStream;
 use syn::{Attribute, Ident, Lit, Meta, /* MetaList,*/ MetaNameValue, NestedMeta};
 
@@ -272,7 +271,10 @@ impl Attrs {
                     match syn::parse_str::<syn::Type>(&v) {
                         Ok(t) => self.ts_as = Some(t),
                         Err(..) => {
-                            self.err_msg(format!("ts_as: \"{}\" is not a valid rust type", v), ctxt);
+                            self.err_msg(
+                                format!("ts_as: \"{}\" is not a valid rust type", v),
+                                ctxt,
+                            );
                         }
                     }
                     //

@@ -106,5 +106,5 @@ mod macro_test {
 	# ts_as: "T[]" is not a valid rust type"###
             ),
         }
-    } 
+    }
 }

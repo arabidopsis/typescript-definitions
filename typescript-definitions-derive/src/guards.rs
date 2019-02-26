@@ -245,7 +245,6 @@ impl<'a> FieldContext<'a> {
         } else {
             quote!( if (!#func#gen_params(#obj)) return false; )
         }
-
     }
     pub fn verify_field(&self, obj: &TokenStream) -> QuoteT {
         let n = self.field.attrs.name().serialize_name(); // use serde name instead of field.member
