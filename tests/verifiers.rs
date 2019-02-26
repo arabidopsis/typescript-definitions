@@ -149,3 +149,34 @@ fn verify_typescript_enum() {
 };"###
     )
 }
+#[cfg(feature = "type-guards")]
+#[test]
+fn verify_ts_as() {
+
+    #[derive(TypeScriptify)]
+    struct Sub
+    {
+        #[ts(ts_as="Vec<u8>", array_check="first")]
+        b : i32,
+
+    }
+
+    assert_snapshot_matches!(
+        prettier(&Sub::type_script_guard().unwrap()),
+        @r###"export const isSub = (obj: any): obj is Sub => {
+  if (obj == undefined) return false;
+  if (obj.b === undefined) return false;
+  {
+    const val = obj.b;
+    if (!Array.isArray(val)) return false;
+    for (let x of val) {
+      if (!(typeof x === "number")) return false;
+      break;
+    }
+  }
+  return true;
+};"###
+
+    );
+
+}

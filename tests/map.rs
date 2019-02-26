@@ -115,5 +115,7 @@ fn check_ts_as() {
         Sub::type_script_ify(),
         @"export type Sub = { b: number[] };"
 
-    )
+    );
+
 }
+

@@ -84,22 +84,27 @@ mod macro_test {
         assert_snapshot_matches!(res,
         @"S < i32 > :: type_script_ify ( )" );
     }
+    */
     #[test]
-    fn bad_turbofish() {
+    fn bad_ts_as() {
         let tokens = quote!(
             #[derive(TypeScriptify)]
-            #[ts(turbofish = "😀i32>")]
+
             struct S<T> {
+                #[ts(ts_as = "😀i32>")]
                 a: i32,
+                #[ts(ts_as = "T[]")]
                 b: Vec<T>,
             }
         );
-        let result = std::panic::catch_unwind(move || Typescriptify::parse(true, tokens));
+        let result = std::panic::catch_unwind(move || Typescriptify::parse(false, tokens));
         match result {
             Ok(_x) => assert!(false, "expecting panic!"),
             Err(ref msg) => assert_snapshot_matches!( msg.downcast_ref::<String>().unwrap(),
-            @r###"Can't lex turbofish "😀i32>""###
+            @r###"2 errors:
+	# ts_as: "😀i32>" is not a valid rust type
+	# ts_as: "T[]" is not a valid rust type"###
             ),
         }
-    } */
+    } 
 }

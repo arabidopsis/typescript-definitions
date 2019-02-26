@@ -11,13 +11,15 @@
 //! Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions)
 
 extern crate proc_macro;
-
+#[macro_use]
+extern crate cfg_if;
 use proc_macro2::Ident;
 use quote::quote;
 use serde_derive_internals::{ast, Ctxt, Derive};
 // use std::str::FromStr;
 use std::cell::RefCell;
 use syn::DeriveInput;
+
 
 mod attrs;
 mod derive_enum;
@@ -51,32 +53,50 @@ struct QuoteMaker {
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
-#[proc_macro_derive(TypescriptDefinition, attributes(ts))]
-pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    if cfg!(all(
-        any(target_arch = "wasm32", feature = "test"),
-        any(debug_assertions, feature = "export-typescript")
-    )) {
-        let input = QuoteT::from(input);
-        do_derive_typescript_definition(input).into()
+
+cfg_if! {
+    if #[cfg(all(wasm32, any(debug_assertions, feature = "export-typescript")))] {
+        
+        #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
+        pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+            let input = QuoteT::from(input);
+            do_derive_typescript_definition(input).into()
+        }
     } else {
-        proc_macro::TokenStream::new()
+
+
+        
+        #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
+        pub fn derive_typescript_definition(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+                    eprintln!("HERE {:?}", cfg!(wasm32));
+            proc_macro::TokenStream::new()
+        }
     }
 }
+
 /// derive proc_macro to expose Typescript definitions as a static function.
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
-#[proc_macro_derive(TypeScriptify, attributes(ts))]
-pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    if cfg!(any(debug_assertions, feature = "export-typescript")) {
-        let input = QuoteT::from(input);
-        do_derive_type_script_ify(input).into()
+cfg_if! {
+    if #[cfg(any(debug_assertions, feature = "export-typescript"))] {
+        
+        #[proc_macro_derive(TypeScriptify, attributes(ts))]
+        pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+            let input = QuoteT::from(input);
+            do_derive_type_script_ify(input).into()
+
+        }
     } else {
-        proc_macro::TokenStream::new()
+        
+        #[proc_macro_derive(TypeScriptify, attributes(ts))]
+        pub fn derive_type_script_ify(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+            proc_macro::TokenStream::new()
+        }
     }
 }
 
+#[allow(unused)]
 fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     let verify = cfg!(feature = "type-guards");
     let parsed = Typescriptify::parse(verify, input);
@@ -118,15 +138,12 @@ fn do_derive_typescript_definition(input: QuoteT) -> QuoteT {
     q
 }
 
+#[allow(unused)]
 fn do_derive_type_script_ify(input: QuoteT) -> QuoteT {
     let verify = cfg!(feature = "type-guards");
 
     let parsed = Typescriptify::parse(verify, input);
-
     let export_string = parsed.wasm_string();
-
-    // let map = &parsed.map();
-
     let ident = &parsed.ctxt.ident;
 
     let (impl_generics, ty_generics, where_clause) = parsed.ctxt.rust_generics.split_for_impl();
