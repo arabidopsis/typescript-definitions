@@ -38,20 +38,20 @@ See [Type Guards](#type-guards) below.
 <!-- code_chunk_output -->
 
 * [typescript-definitions](#typescript-definitions)
-	* [Motivation 🦀](#motivation)
-	* [Using `typescript-definitions`](#using-typescript-definitions)
-		* [Getting the toolchains](#getting-the-toolchains)
-	* [Using `type_script_ify`](#using-type_script_ify)
-	* [Features](#features)
-	* [Serde attributes.](#serde-attributes)
-	* [typescript-definition attributes](#typescript-definition-attributes)
-	* [Type Guards](#type-guards)
-		* [Limitations of JSON](#limitations-of-json)
-		* [Limitations of Generics](#limitations-of-generics)
-	* [Examples](#examples)
-	* [Problems](#problems)
-	* [Credits](#credits)
-	* [License](#license)
+    * [Motivation 🦀](#motivation)
+    * [Using `typescript-definitions`](#using-typescript-definitions)
+        * [Getting the toolchains](#getting-the-toolchains)
+    * [Using `type_script_ify`](#using-type_script_ify)
+    * [Features](#features)
+    * [Serde attributes.](#serde-attributes)
+    * [typescript-definition attributes](#typescript-definition-attributes)
+    * [Type Guards](#type-guards)
+        * [Limitations of JSON](#limitations-of-json)
+        * [Limitations of Generics](#limitations-of-generics)
+    * [Examples](#examples)
+    * [Problems](#problems)
+    * [Credits](#credits)
+    * [License](#license)
 
 <!-- /code_chunk_output -->
 
@@ -303,7 +303,7 @@ All others are just ignored.
 Some types, for example `chrono::DateTime`, will serializes themselves in an opaque manner. Youn need to tell `typescript-definitions`, viz:
 
 ```rust
-use chrono::prelude::*; 
+use chrono::prelude::*;
 use serde::Serialize;
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
 
@@ -362,7 +362,7 @@ let v : IntMap = { intmap: {  "6": 6, 4: 4 } };
 So the generated guard also checks for integer keys with `(+key !== NaN)`.
 
 You can short circuit any field with some attribute
-markup 
+markup
 
 * `ts_type` specify the serialization.
 * `ts_guard`: verify the type as if it was this
@@ -395,7 +395,7 @@ pub struct DependsOnValue {
 }
 ```
 Since the monomorphization of `Value` in `DependsOnValue` is one of
-`number`, `string` or `boolean`. 
+`number`, `string` or `boolean`.
 
 Beyond this you will have to write your own guards e.g.:
 
@@ -422,7 +422,7 @@ for generic type `value: T` yourself. viz:
 const isT = <T>(o: any, typename: string): o is T => {
     // typename is the stringified type that we are
     // expecting e.g. `number` or `{a: number, b: string}[]` etc.
-    // 
+    //
     if (typename !== "number[]") return false;
     if (!Array.isArray(o)) return false;
     for (let v of o) {

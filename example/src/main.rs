@@ -1,13 +1,12 @@
-// extern crate serde;
-// extern crate serde_json;
-// extern crate typescript_definitions;
-// use serde::{Deserialize, Serialize};
-use serde_json;
+
+
+#[allow(unused)]
 use serde_json::Error;
 mod interface;
 
 #[cfg(any(debug_assertions, feature = "export-typescript"))]
 fn main() -> Result<(), Error> {
+    use serde_json;
     use self::interface::*;
     // need the trait
     use typescript_definitions::TypeScriptifyTrait;
@@ -34,7 +33,8 @@ fn main() -> Result<(), Error> {
     };
     let nt = Newtype(32);
 
-
+    println!("Using Typescriptify.....");
+    
     println!("{}", serde_json::to_string(&point)?);
     println!("{}", serde_json::to_string(&f1)?);
     println!("{}", serde_json::to_string(&f2)?);

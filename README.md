@@ -151,7 +151,7 @@ wasm-bindgen = "0.2"
 Then you can run (see [here](#using-type_script_ify) if you don't want to go near WASM):
 
 ```sh
-$ cargo +nightly build --target wasm32-unknown-unknown
+$ WASM32=1 cargo +nightly build --target wasm32-unknown-unknown
 $ mkdir pkg
 $ wasm-bindgen target/wasm32-unknown-unknown/debug/mywasm.wasm --typescript --out-dir pkg/
 $ cat pkg/mywasm.d.ts # here are your definitions
@@ -172,9 +172,11 @@ or use wasm-pack (the typescript library will be in `pkg/mywasm.d.ts`).
 
 ```sh
 $ curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-$ wasm-pack build --dev
+$ WASM32=1 wasm-pack build --dev
 $ cat pkg/mywasm.d.ts
 ```
+
+> The `WASM32=1` enivronment variable skirts around issue [#1197](https://github.com/rust-lang/cargo/issues/1197).
 
 ## Using `type_script_ify`
 

@@ -1,14 +1,14 @@
 
 
 bindgen:
-	cargo +nightly build --target wasm32-unknown-unknown
+	WASM32=1 cargo +nightly build --target wasm32-unknown-unknown
 	@mkdir pkg 2> /dev/null || true
 	wasm-bindgen target/wasm32-unknown-unknown/debug/mywasm.wasm --typescript --out-dir pkg/
 
 
 wasm:
-	#RUST_LOG=error wasm-pack build --dev
-	wasm-pack build --dev
+	#RUST_LOG=error WASM32=1 wasm-pack build --dev
+	WASM32=1 wasm-pack build --dev
 
 install:
 	curl https://sh.rustup.rs -sSf | sh
@@ -18,12 +18,12 @@ install:
 	curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
 
-# npm install -g prettier
-pretty:
-	@prettier pkg/mywasm.d.ts --parser typescript | diff -w pkg/mywasm.d.ts - | colordiff
+run:
+	@cargo run
 
+# npm install -g prettier
 # cargo install bat
 view:
 	@prettier pkg/mywasm.d.ts --parser typescript | bat -l typescript
 
-.PHONY: pretty install wasm bindgen
+.PHONY: view install wasm bindgen

@@ -16,7 +16,6 @@ exclude = ['scripts/*', 'templates/*' ]
 serde = "1.0.87"
 typescript-definitions-derive = { version = "0.1.9",  path = "typescript-definitions-derive" }
 
-
 [dev-dependencies]
 serde = { version = "1.0.87", features = ["derive"] }
 wasm-bindgen = "0.2.36"
@@ -35,7 +34,6 @@ chrono = { version = "0.4", features = ["serde"] }
 export-typescript = ["typescript-definitions-derive/export-typescript"]
 test = ["typescript-definitions-derive/test"]
 type-guards = ["typescript-definitions-derive/type-guards"]
-wasm32 = ["typescript-definitions-derive/wasm32"]
 
 [workspace]
 # exclude = ["example"]

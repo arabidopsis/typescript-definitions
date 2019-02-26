@@ -152,13 +152,10 @@ fn verify_typescript_enum() {
 #[cfg(feature = "type-guards")]
 #[test]
 fn verify_ts_as() {
-
     #[derive(TypeScriptify)]
-    struct Sub
-    {
-        #[ts(ts_as="Vec<u8>", array_check="first")]
-        b : i32,
-
+    struct Sub {
+        #[ts(ts_as = "Vec<u8>", array_check = "first")]
+        b: i32,
     }
 
     assert_snapshot_matches!(
@@ -178,5 +175,4 @@ fn verify_ts_as() {
 };"###
 
     );
-
 }

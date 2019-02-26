@@ -103,12 +103,10 @@ fn fullpath_chrono() {
 }
 #[test]
 fn check_ts_as() {
-
     #[derive(TypeScriptify)]
-    struct Sub
-    {
-        #[ts(ts_as="Vec<u8>")]
-        b : i32
+    struct Sub {
+        #[ts(ts_as = "Vec<u8>")]
+        b: i32,
     }
 
     assert_snapshot_matches!(
@@ -116,6 +114,4 @@ fn check_ts_as() {
         @"export type Sub = { b: number[] };"
 
     );
-
 }
-

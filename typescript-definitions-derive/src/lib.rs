@@ -20,7 +20,6 @@ use serde_derive_internals::{ast, Ctxt, Derive};
 use std::cell::RefCell;
 use syn::DeriveInput;
 
-
 mod attrs;
 mod derive_enum;
 mod derive_struct;
@@ -48,28 +47,43 @@ struct QuoteMaker {
     pub verify: Option<QuoteT>,
     pub is_enum: bool,
 }
+#[allow(unused)]
+fn is_wasm32() -> bool {
+    use std::env;
+    match env::var("WASM32") {
+        Ok(ref v) => return v == "1",
+        _ => {}
+    }
+    let mut t = env::args().skip_while(|t| t != "--target").skip(1);
+    if let Some(target) = t.next() {
+        if target.contains("wasm32") {
+            return true;
+        }
+    };
+    false
+}
 
 /// derive proc_macro to expose Typescript definitions to `wasm-bindgen`.
 ///
 /// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
 ///
-
 cfg_if! {
-    if #[cfg(all(any(feature="wasm32",feature = "test"), any(debug_assertions, feature = "export-typescript")))] {
-        
+    if #[cfg(any(debug_assertions, feature = "export-typescript"))] {
+
         #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
         pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+
+            if !(is_wasm32() || cfg!(feature="test")) {
+                return proc_macro::TokenStream::new();
+            }
+
             let input = QuoteT::from(input);
-            eprintln!("HERE1 {:?}", cfg!(feature="wasm32"));
             do_derive_typescript_definition(input).into()
         }
     } else {
 
-
-        
         #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
         pub fn derive_typescript_definition(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-                    eprintln!("HERE2 {:?}", cfg!(feature="wasm32"));
             proc_macro::TokenStream::new()
         }
     }
@@ -81,7 +95,7 @@ cfg_if! {
 ///
 cfg_if! {
     if #[cfg(any(debug_assertions, feature = "export-typescript"))] {
-        
+
         #[proc_macro_derive(TypeScriptify, attributes(ts))]
         pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let input = QuoteT::from(input);
@@ -89,7 +103,7 @@ cfg_if! {
 
         }
     } else {
-        
+
         #[proc_macro_derive(TypeScriptify, attributes(ts))]
         pub fn derive_type_script_ify(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             proc_macro::TokenStream::new()
@@ -514,7 +528,7 @@ impl<'a> ParseContext<'a> {
                 }
             };
         }
-    
+
         let fc = FieldContext {
             attrs,
             ctxt: &self,
