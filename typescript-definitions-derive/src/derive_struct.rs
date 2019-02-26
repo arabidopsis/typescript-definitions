@@ -39,7 +39,7 @@ impl<'a> ParseContext<'_> {
 
         let verify = if self.gen_guard {
             let v = self.verify_type(&self.arg_name, field);
-            Some(quote!( { #v; return true; } ))
+            Some(quote!( { #v; return true } ))
         } else {
             None
         };
@@ -54,7 +54,7 @@ impl<'a> ParseContext<'_> {
     fn derive_struct_unit(&self) -> QuoteMaker {
         let verify = if self.gen_guard {
             let obj = &self.arg_name;
-            Some(quote!({ if (#obj == undefined) return false; return true; }))
+            Some(quote!({ if (#obj == undefined) return false; return true }))
         } else {
             None
         };
@@ -87,13 +87,13 @@ impl<'a> ParseContext<'_> {
             let n = fields.len();
             let l = nl();
             let nl = (0..n).map(|_| quote!(#l));
-            Some(quote!( { if (#obj == undefined) return false; #( #nl #v;)* #l return true; } ))
+            Some(quote!( { if (#obj == undefined) return false; #( #nl #v;)* #l return true } ))
         } else {
             None
         };
 
         QuoteMaker {
-            body: quote!({#(#content);*}),
+            body: quote!({ #(#content);* }),
             verify,
             is_enum: false,
         }
@@ -124,7 +124,7 @@ impl<'a> ParseContext<'_> {
             Some(quote!({
             if (!Array.isArray(#obj) || ! #obj.length #eq #len ) return false;
              #(#verify;)*
-             return true;
+             return true
              }))
         } else {
             None

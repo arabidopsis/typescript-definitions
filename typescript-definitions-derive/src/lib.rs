@@ -230,7 +230,7 @@ impl Typescriptify {
                     let name = guard_name(&ident);
                     if is_generic {
                         format!(
-                            "export const {name} = {generics_wb}({obj}: any, typename: string):\
+                            "export const {name} = {generics_wb}({obj}: any, typename: string): \
                              {obj} is {ident}{generics} => {body}",
                             name = name,
                             obj = obj,
@@ -241,7 +241,7 @@ impl Typescriptify {
                         )
                     } else {
                         format!(
-                            "export const {name} = {generics_wb}({obj}: any):\
+                            "export const {name} = {generics_wb}({obj}: any): \
                              {obj} is {ident}{generics} => {body}",
                             name = name,
                             obj = obj,

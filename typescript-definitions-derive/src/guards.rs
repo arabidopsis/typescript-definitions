@@ -158,7 +158,7 @@ impl<'a> FieldContext<'a> {
             "Option" if ts.args.len() == 1 => {
                 let verify = self.verify_type(obj, &ts.args[0]);
                 quote!(  if (!(#obj #eq null)) { // sic! === to null.
-                            #verify;
+                            #verify
                         }
                 )
             }

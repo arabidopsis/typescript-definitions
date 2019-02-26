@@ -12,3 +12,4 @@ node_modules
 *.map
 *junk*
 example2/pkg
+.vscode

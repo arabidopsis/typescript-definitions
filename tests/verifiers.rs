@@ -176,3 +176,27 @@ fn verify_ts_as() {
 
     );
 }
+#[cfg(feature = "type-guards")]
+#[test]
+fn verify_option() {
+    #[derive(Serialize, TypeScriptify)]
+    pub struct Maybe {
+        maybe : Option<String>
+    }
+
+    assert_snapshot_matches!(
+        prettier(&Maybe::type_script_guard().unwrap()),
+        @r###"export const isMaybe = (obj: any): obj is Maybe => {
+  if (obj == undefined) return false;
+  if (obj.maybe === undefined) return false;
+  {
+    const val = obj.maybe;
+    if (!(val === null)) {
+      if (!(typeof val === "string")) return false;
+    }
+  }
+  return true;
+};"###
+    );
+}
+

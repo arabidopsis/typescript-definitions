@@ -1,5 +1,3 @@
-
-
 <div style="float:right; padding-left:2em;">
 <img
 src="https://raw.githubusercontent.com/arabidopsis/typescript-definitions/master/assets/typescript-definitions.png?raw=true">
@@ -30,34 +28,36 @@ generate typescript [type guards](https://www.typescriptlang.org/docs/handbook/a
 See [Type Guards](#type-guards) below.
 
 ---
+<!-- vscode-markdown-toc -->
 
+* [Motivation 🦀](#Motivation)
+	* [example:](#example:)
+* [Using `typescript-definitions`](#Usingtypescript-definitions)
+	* [Getting the toolchains](#Gettingthetoolchains)
+* [Using `type_script_ify`](#Usingtype_script_ify)
+* [Features](#Features)
+* [Serde attributes.](#Serdeattributes.)
+* [typescript-definition attributes](#typescript-definitionattributes)
+* [Type Guards](#TypeGuards)
+* [Limitations](#Limitations)
+	* [Limitations of JSON](#LimitationsofJSON)
+	* [Limitations of Generics](#LimitationsofGenerics)
+* [Examples](#Examples)
+* [Problems](#Problems)
+* [Credits](#Credits)
+* [License](#License)
 
-<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
+<!-- vscode-markdown-toc-config
+	numbering=false
+	autoSave=true
+	/vscode-markdown-toc-config -->
+<!-- /vscode-markdown-toc -->
 
-<!-- code_chunk_output -->
-
-* [typescript-definitions](#typescript-definitions)
-	* [Motivation 🦀](#motivation)
-	* [Using `typescript-definitions`](#using-typescript-definitions)
-		* [Getting the toolchains](#getting-the-toolchains)
-	* [Using `type_script_ify`](#using-type_script_ify)
-	* [Features](#features)
-	* [Serde attributes.](#serde-attributes)
-	* [typescript-definition attributes](#typescript-definition-attributes)
-	* [Type Guards](#type-guards)
-		* [Limitations of JSON](#limitations-of-json)
-		* [Limitations of Generics](#limitations-of-generics)
-	* [Examples](#examples)
-	* [Problems](#problems)
-	* [Credits](#credits)
-	* [License](#license)
-
-<!-- /code_chunk_output -->
 
 ---
 
 
-## Motivation 🦀
+## <a name='Motivation'></a>Motivation 🦀
 
 Now that rust 2018 has landed there is no question that people should be using rust to write server applications (what are you thinking!).
 
@@ -66,7 +66,7 @@ But generating wasm from rust code to run in the browser is currently much too b
 Since javascript will be dominant on the client for the forseeable future there remains the
 problem of communicating with your javascript from your rust server.
 
-Fundamental to this is to keep the datatypes on either side of the connection (http/websocket) in sync.
+Fundamental to this is to keep the data types on either side of the connection (http/websocket) in sync.
 
 Typescript is an incremental typing system for javascript that is as almost(!) as tricked as rust... so why not create a typescript definition library based on your rust code?
 
@@ -74,7 +74,7 @@ Please see [Credits](#credits).
 
 `typescript-definitions` (as of 0.1.7) uses `edition=2018` (heh).
 
-example:
+### <a name='example:'></a>example:
 
 ```rust
 // #[cfg(target_arch="wasm32")]
@@ -85,6 +85,7 @@ use typescript_definitions::TypescriptDefinition;
 
 #[derive(Serialize, TypescriptDefinition)]
 #[serde(tag = "tag", content = "fields")]
+/// Important info about Enum
 enum Enum {
     V1 {
         #[serde(rename = "Foo")]
@@ -110,6 +111,7 @@ enum Enum {
 Using [wasm-bindgen](https://rustwasm.github.io/wasm-bindgen/) this will output in your `*.d.ts` definition file:
 
 ```typescript
+// Important info about Enum
 export type Enum =
     | {tag: "V1", fields: { Foo: boolean } }
     | {tag: "V2", fields: { Bar: number, Baz: number } }
@@ -117,15 +119,15 @@ export type Enum =
     ;
 ```
 
-## Using `typescript-definitions`
+## <a name='Usingtypescript-definitions'></a>Using `typescript-definitions`
 
-> **NB**: please note that these macros - by default - work *only for the debug build* since they  pollute the code with strings and methods all of which are proabably not useful in any release (since you are only using them to extract information about your current types from your *code*). In release builds they become no-ops. This means that there is *no cost* to your release exes/libs or to your users by using these macros. Zero cost abstraction indeed. Beautiful.
+> **NB**: please note that these macros - by default - work *only for the debug build* since they  pollute the code with strings and methods all of which are probably not useful in any release (since you are only using them to extract information about your current types from your *code*). In release builds they become no-ops. This means that there is *no cost* to your release exes/libs or to your users by using these macros. Zero cost abstraction indeed. Beautiful.
 
 Also, although you might need nightly to run `wasm-bingen` *your* code can remain stable.
 
 See [features](#features) below if you really want them in your release build.
 
-There is a very small example in the repository that [works for me™](https://github.com/arabidopsis/typescript-definitions/src/master/example/) if you want to get started.
+There is a very small example in the repository that [works for me™](https://github.com/arabidopsis/typescript-definitions/tree/master/example/) if you want to get started.
 
 This crate only exports two derive macros: `TypescriptDefinition` and `TypeScriptify`, a simple
 trait `TypeScriptifyTrait` and a (very simple) serializer for byte arrays.
@@ -159,7 +161,10 @@ $ cat pkg/mywasm.d.ts # here are your definitions
 
 What just happened? [This.](https://rustwasm.github.io/wasm-bindgen/reference/attributes/on-rust-exports/typescript_custom_section.html)
 
-### Getting the toolchains
+
+> The `WASM32=1` environment variable skirts around issue [#1197](https://github.com/rust-lang/cargo/issues/1197).
+
+### <a name='Gettingthetoolchains'></a>Getting the toolchains
 
 If you don't have these tools then [see here](https://rustwasm.github.io/wasm-bindgen/whirlwind-tour/basic-usage.html) (You might also need to get [rustup](https://rustup.rs) first):
 
@@ -176,9 +181,8 @@ $ WASM32=1 wasm-pack build --dev
 $ cat pkg/mywasm.d.ts
 ```
 
-> The `WASM32=1` enivronment variable skirts around issue [#1197](https://github.com/rust-lang/cargo/issues/1197).
 
-## Using `type_script_ify`
+## <a name='Usingtype_script_ify'></a>Using `type_script_ify`
 
 You can ignore WASM *totally* by deriving using `TypeScriptify`:
 
@@ -233,7 +237,7 @@ So basically with `TypeScriptify` *you* have to create some binary that, via `pr
 your `Cargo.toml` file and your code.
 
 
-## Features
+## <a name='Features'></a>Features
 
 As we said before `typescript-descriptions` macros pollute your code with static strings and other garbage. Hence, by default, they only *work* in debug mode.
 
@@ -254,7 +258,7 @@ typescript-definitions = { version="0.1",  features=["export-typescript"]  }
 AFAIK the strings generated by TypescriptDescription don't survive the invocation of `wasm-bindgen` even in debug mode. So your *.wasm files are clean. You still need to add `--features=export-typescript` to generate anything in release mode though.
 
 
-## Serde attributes.
+## <a name='Serdeattributes.'></a>Serde attributes.
 
 See Serde [Docs](https://serde.rs/enum-representations.html#internally-tagged).
 
@@ -271,7 +275,7 @@ Serde attributes understood
 * `content`:
 * `skip`: (`typescript-definitions` also skips - by default -  PhantomData fields ... sorry ghost who walks)
 * serialize_with="typescript_definitions::as_byte_string"
-* transparent: Newtypes are automatically transparent. Structs with a single field can be marked transparent.
+* transparent: NewTypes are automatically transparent. Structs with a single field can be marked transparent.
 
 `serialize_with`, if placed on a `[u8]` or `Vec<u8>` field, will take that field to be a string. (And serde_json will output a `\xdd` encoded string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
 
@@ -298,24 +302,47 @@ Serde attributes understood but *rejected*:
 
 All others are just ignored.
 
+If you have specialized serialization then you
+will have to tell `typescript-definitions`
+what the result is ... see the next section.
 
-## typescript-definition attributes
 
-Some types, for example `chrono::DateTime`, will serializes themselves in an opaque manner. Youn need to tell `typescript-definitions`, viz:
+## <a name='typescript-definitionattributes'></a>typescript-definition attributes
+
+There are 2 ways to intervene to correct the
+typescript output.
+
+* `ts_as`: a rust path to another rust type
+  that this serializes like:
+* `ts_type`: a *typescript* type that should be
+used.
+
+e.g. some types, for example `chrono::DateTime`, will serializes themselves in an opaque manner. You need to tell `typescript-definitions`, viz:
 
 ```rust
-use chrono::prelude::*; 
 use serde::Serialize;
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+// with features=["serde"]
+use chrono::{DateTime, Local, Utc};
+// with features=["serde-1"]
+use arrayvec::ArrayVec;
 
 #[derive(Serialize, TypeScriptify)]
 pub struct Chrono {
     #[ts(ts_type="string")]
-    pub datetime: DateTime<Local>,
+    pub local: DateTime<Local>,
+    #[ts(ts_as="str")]
+    pub utc: DateTime<Utc>,
+    #[ts(ts_as="[u8]")]
+    pub ip4_addr1 : ArrayVec<[u8; 4]>,
+    #[ts(ts_type="number[]")]
+    pub ip4_addr2 : ArrayVec<[u8; 4]>
 }
 ```
 
-## Type Guards
+## <a name='TypeGuards'></a>Type Guards
+
+See [type guards](https://www.typescriptlang.org/docs/handbook/advanced-types.html).
 
 `typescript-definitions` type guards provide a fail fast defensive check that a random json object agrees with the layout and types of a given `typescript-definitions`
 type.
@@ -323,7 +350,7 @@ type.
 To enable them change your dependency to:
 
 ```toml
-typescript-definitions = { version="0.1.9", features=["type-guards"] }
+typescript-definitions = { version="^0.1.9", features=["type-guards"] }
 ```
 
 With the feature *on* you can turn guard generation *off* for any struct/enum with the
@@ -332,7 +359,38 @@ With the feature *on* you can turn guard generation *off* for any struct/enum wi
 If your struct has a long list of data as `Vec<data>` then you can prevent a type check of the entire array with a field attribute `#[ts(array_check="first")]`
 which will check only the first row.
 
-### Limitations of JSON
+### Example
+
+```rust
+use serde::Serialize;
+use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+pub struct Maybe {
+    maybe : Option<String>
+}
+
+println!("{}", Maybe::type_script_guard().unwrap());
+```
+
+will print (after passing through prettier):
+
+```typescript
+export const isMaybe = (obj: any): obj is Maybe => {
+  if (obj == undefined) return false;
+  if (obj.maybe === undefined) return false;
+  {
+    const val = obj.maybe;
+    if (!(val === null)) {
+      if (!(typeof val === "string")) return false;
+    }
+  }
+  return true;
+};
+```
+
+## <a name='Limitations'></a>Limitations
+
+
+### <a name='LimitationsofJSON'></a>Limitations of JSON
 
 e.g. Maps with non string keys: This
 
@@ -370,9 +428,7 @@ markup
   typescript type.
 
 
-
-
-### Limitations of Generics
+### <a name='LimitationsofGenerics'></a>Limitations of Generics
 
 `typescript-definitions` has limited support for verifing generics.
 
@@ -433,12 +489,12 @@ const isT = <T>(o: any, typename: string): o is T => {
 }
 ```
 
-Watch out for function name collisons especially if you use simple names such as `T`, for a generic
+Watch out for function name collisions especially if you use simple names such as `T`, for a generic
 type name.
 
 The generated output file should really be passed through something like [prettier](https://www.npmjs.com/package/prettier).
 
-## Examples
+## <a name='Examples'></a>Examples
 
 Top level doc (`///` or `//!` ) comments are converted to javascript (line) comments:
 
@@ -458,7 +514,7 @@ export type Event = { what: string; pos: [ number , number ][] };"
 )
 ```
 
-## Problems
+## <a name='Problems'></a>Problems
 
 Oh yes there are problems...
 
@@ -527,7 +583,7 @@ TODO: What about `enum Color {Red = 0, Green = 1 , Blue= 2}`?
 Serde always seems to render `Result` (in json) as `{"Ok": T } | {"Err": E}` i.e as "External" so we do too.
 
 
-Formatting is rubbish and won't pass tslint. This is due to the quote! crate taking control of the output token stream. I don't know what it does with whitespace for example... (is whitespace a token in rust?). Anyhow... this crate applies a few bandaid regex patches to pretty things up. But use
+Formatting is rubbish and won't pass tslint. This is due to the quote! crate taking control of the output token stream. I don't know what it does with whitespace for example... (is whitespace a token in rust?). Anyhow... this crate applies a few band-aid regex patches to pretty things up. But use
 [prettier](https://www.npmjs.com/package/prettier).
 
 
@@ -545,19 +601,19 @@ println!("{}", S::type_script_ify());
 ```
 
 gives `export type S = { pig : Pig<string> }` instead of `export type S = { pig : string }`
-Use `#[ts(ts_type="string")]` to fix this.
+Use `#[ts(ts_as="Cow")]` to fix this.
 
 At a certain point `typescript-definitions` just *assumes* that the token identifier `i32` (say) *is* really the rust signed 32 bit integer and not some crazy renamed struct in your code!
 
-Complex paths are ignored `std::borrow::Cow` and `mycrate::mod::Cow` are the same to us. We're not going to reimplement the compiler to find out if they are *actually* different. A Cow is always "Clone on write".
+Complex paths are ignored `std::borrow::Cow` and `mycrate::mod::Cow` are the same to us. We're not going to re-implement the compiler to find out if they are *actually* different. A Cow is always "Clone on write".
 
 We can't reasonably obey serde attributes like "flatten" since we would need to find the *actual* Struct object (from somewhere) and query its fields.
 
 
 
-## Credits
+## <a name='Credits'></a>Credits
 
-For intial inspiration see http://timryan.org/2019/01/22/exporting-serde-types-to-typescript.html
+For initial inspiration see http://timryan.org/2019/01/22/exporting-serde-types-to-typescript.html
 
 Forked from [`wasm-typescript-definition` by @tcr](https://github.com/tcr/wasm-typescript-definition?files=1)
 which was forked from [`rust-serde-schema` by @srijs](https://github.com/srijs/rust-serde-schema?files=1).
@@ -566,6 +622,6 @@ which was forked from [`rust-serde-schema` by @srijs](https://github.com/srijs/r
 
 Probably some others...
 
-## License
+## <a name='License'></a>License
 
 MIT or Apache-2.0, at your option.
