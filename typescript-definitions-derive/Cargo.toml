@@ -8,6 +8,7 @@ repository = "https://github.com/arabidopsis/typescript-definitions"
 keywords =["typescript", "serde"]
 categories = ["data-structures", "development-tools", "wasm" , "web-programming"]
 edition = "2018"
+build = "build.rs"
 
 
 [lib]
@@ -25,6 +26,7 @@ lazy_static = "1.2.0"
 failure = "0.1.5"
 pest = "2.1.0"
 pest_derive = "2.1.0"
+cfg-if = "0.1.6"
 
 [dev-dependencies]
 serde = { version = "1.0.87", features = ["derive"] }
@@ -34,3 +36,5 @@ insta = "0.6.2"
 export-typescript = []
 test = []
 type-guards = []
+wasm32 = []
+
