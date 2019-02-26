@@ -55,11 +55,12 @@ struct QuoteMaker {
 ///
 
 cfg_if! {
-    if #[cfg(all(wasm32, any(debug_assertions, feature = "export-typescript")))] {
+    if #[cfg(all(any(feature="wasm32",feature = "test"), any(debug_assertions, feature = "export-typescript")))] {
         
         #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
         pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let input = QuoteT::from(input);
+            eprintln!("HERE1 {:?}", cfg!(feature="wasm32"));
             do_derive_typescript_definition(input).into()
         }
     } else {
@@ -68,7 +69,7 @@ cfg_if! {
         
         #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
         pub fn derive_typescript_definition(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-                    eprintln!("HERE {:?}", cfg!(wasm32));
+                    eprintln!("HERE2 {:?}", cfg!(feature="wasm32"));
             proc_macro::TokenStream::new()
         }
     }

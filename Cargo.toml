@@ -25,7 +25,7 @@ proc-macro2 = "0.4.27"
 regex = "1.1.0"
 serde_json = "1.0.38"
 # insta = "0.6.2"
-insta = { version="0.6.2", path="../insta" }
+insta = { version="0.6" }
 chrono = { version = "0.4", features = ["serde"] }
 # compiletest_rs = "*"
 
@@ -35,6 +35,7 @@ chrono = { version = "0.4", features = ["serde"] }
 export-typescript = ["typescript-definitions-derive/export-typescript"]
 test = ["typescript-definitions-derive/test"]
 type-guards = ["typescript-definitions-derive/type-guards"]
+wasm32 = ["typescript-definitions-derive/wasm32"]
 
 [workspace]
 # exclude = ["example"]
