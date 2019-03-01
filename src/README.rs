@@ -32,26 +32,26 @@ See [Type Guards](#type-guards) below.
 <!-- vscode-markdown-toc -->
 
 * [Motivation 🦀](#Motivation)
-	* [example:](#example:)
+    * [example:](#example:)
 * [Using `typescript-definitions`](#Usingtypescript-definitions)
-	* [Getting the toolchains](#Gettingthetoolchains)
+    * [Getting the toolchains](#Gettingthetoolchains)
 * [Using `type_script_ify`](#Usingtype_script_ify)
 * [Features](#Features)
 * [Serde attributes.](#Serdeattributes.)
 * [typescript-definition attributes](#typescript-definitionattributes)
 * [Type Guards](#TypeGuards)
 * [Limitations](#Limitations)
-	* [Limitations of JSON](#LimitationsofJSON)
-	* [Limitations of Generics](#LimitationsofGenerics)
+    * [Limitations of JSON](#LimitationsofJSON)
+    * [Limitations of Generics](#LimitationsofGenerics)
 * [Examples](#Examples)
 * [Problems](#Problems)
 * [Credits](#Credits)
 * [License](#License)
 
 <!-- vscode-markdown-toc-config
-	numbering=false
-	autoSave=true
-	/vscode-markdown-toc-config -->
+    numbering=false
+    autoSave=true
+    /vscode-markdown-toc-config -->
 <!-- /vscode-markdown-toc -->
 
 
@@ -75,7 +75,7 @@ Please see [Credits](#credits).
 
 `typescript-definitions` (as of 0.1.7) uses `edition=2018` (heh).
 
-### <a name='example:'></a>example:
+### <a name='example:'></a>Example:
 
 ```rust
 // #[cfg(target_arch="wasm32")]
@@ -243,7 +243,7 @@ your `Cargo.toml` file and your code.
 As we said before `typescript-descriptions` macros pollute your code with static strings and other garbage. Hence, by default, they only *work* in debug mode.
 
 
-If you actually want `T::type_script_ify()` (for TypeScriptify) available in your
+If you actually want `T::type_script_ify()` available in your
 release code then change your `Cargo.toml` file to:
 
 ```toml
@@ -276,7 +276,7 @@ Serde attributes understood
 * `content`:
 * `skip`: (`typescript-definitions` also skips - by default -  PhantomData fields ... sorry ghost who walks)
 * serialize_with="typescript_definitions::as_byte_string"
-* transparent: Newtypes are automatically transparent. Structs with a single field can be marked transparent.
+* transparent: NewTypes are automatically transparent. Structs with a single field can be marked transparent.
 
 `serialize_with`, if placed on a `[u8]` or `Vec<u8>` field, will take that field to be a string. (And serde_json will output a `\xdd` encoded string of the array. *or* you can create your own... just ensure to name it `as_byte_string`)
 
@@ -299,7 +299,7 @@ println!("{}", S::type_script_ify());
 
 Serde attributes understood but *rejected*:
 
-* flatten (This will produce a panic). Probably will never be fixed.
+* `flatten` (this will produce a panic). Probably will never be fixed.
 
 All others are just ignored.
 
@@ -314,7 +314,7 @@ There are 2 ways to intervene to correct the
 typescript output.
 
 * `ts_as`: a rust path to another rust type
-  that this serializes like:
+  that this value serializes like:
 * `ts_type`: a *typescript* type that should be
 used.
 
@@ -360,6 +360,35 @@ With the feature *on* you can turn guard generation *off* for any struct/enum wi
 If your struct has a long list of data as `Vec<data>` then you can prevent a type check of the entire array with a field attribute `#[ts(array_check="first")]`
 which will check only the first row.
 
+### Example
+
+```rust
+use serde::Serialize;
+use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+#[derive(TypeScriptify)]
+pub struct Maybe {
+    maybe : Option<String>
+}
+
+println!("{}", Maybe::type_script_guard().unwrap());
+```
+
+will print (after passing through prettier):
+
+```typescript
+export const isMaybe = (obj: any): obj is Maybe => {
+  if (obj == undefined) return false;
+  if (obj.maybe === undefined) return false;
+  {
+    const val = obj.maybe;
+    if (!(val === null)) {
+      if (!(typeof val === "string")) return false;
+    }
+  }
+  return true;
+};
+```
+
 ## <a name='Limitations'></a>Limitations
 
 
@@ -394,7 +423,7 @@ let v : IntMap = { intmap: {  "6": 6, 4: 4 } };
 So the generated guard also checks for integer keys with `(+key !== NaN)`.
 
 You can short circuit any field with some attribute
-markup 
+markup
 
 * `ts_type` specify the serialization.
 * `ts_guard`: verify the type as if it was this
@@ -425,7 +454,7 @@ pub struct DependsOnValue {
 }
 ```
 Since the monomorphization of `Value` in `DependsOnValue` is one of
-`number`, `string` or `boolean`. 
+`number`, `string` or `boolean`.
 
 Beyond this you will have to write your own guards e.g.:
 
@@ -452,7 +481,7 @@ for generic type `value: T` yourself. viz:
 const isT = <T>(o: any, typename: string): o is T => {
     // typename is the stringified type that we are
     // expecting e.g. `number` or `{a: number, b: string}[]` etc.
-    // 
+    //
     if (typename !== "number[]") return false;
     if (!Array.isArray(o)) return false;
     for (let v of o) {
@@ -551,8 +580,6 @@ enum Color {
 
 because serde_json will render `Color::Red` as the string `"Red"` instead of `Color.Red` (because JSON).
 
-TODO: What about `enum Color {Red = 0, Green = 1 , Blue= 2}`?
-
 Serde always seems to render `Result` (in json) as `{"Ok": T } | {"Err": E}` i.e as "External" so we do too.
 
 
@@ -581,7 +608,6 @@ At a certain point `typescript-definitions` just *assumes* that the token identi
 Complex paths are ignored `std::borrow::Cow` and `mycrate::mod::Cow` are the same to us. We're not going to re-implement the compiler to find out if they are *actually* different. A Cow is always "Clone on write".
 
 We can't reasonably obey serde attributes like "flatten" since we would need to find the *actual* Struct object (from somewhere) and query its fields.
-
 
 
 ## <a name='Credits'></a>Credits

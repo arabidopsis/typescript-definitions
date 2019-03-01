@@ -181,11 +181,11 @@ fn verify_ts_as() {
 fn verify_option() {
     #[derive(Serialize, TypeScriptify)]
     pub struct Maybe {
-        maybe : Option<String>
+        maybe: Option<String>,
     }
 
     assert_snapshot_matches!(
-        prettier(&Maybe::type_script_guard().unwrap()),
+    prettier(&Maybe::type_script_guard().unwrap()),
         @r###"export const isMaybe = (obj: any): obj is Maybe => {
   if (obj == undefined) return false;
   if (obj.maybe === undefined) return false;
@@ -199,4 +199,3 @@ fn verify_option() {
 };"###
     );
 }
-

@@ -364,6 +364,7 @@ which will check only the first row.
 ```rust
 use serde::Serialize;
 use typescript_definitions::{TypeScriptify, TypeScriptifyTrait};
+#[derive(TypeScriptify)]
 pub struct Maybe {
     maybe : Option<String>
 }
