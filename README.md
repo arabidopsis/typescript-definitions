@@ -74,7 +74,7 @@ Please see [Credits](#credits).
 
 `typescript-definitions` (as of 0.1.7) uses `edition=2018` (heh).
 
-### <a name='example:'></a>example:
+### <a name='example:'></a>Example:
 
 ```rust
 // #[cfg(target_arch="wasm32")]
@@ -242,7 +242,7 @@ your `Cargo.toml` file and your code.
 As we said before `typescript-descriptions` macros pollute your code with static strings and other garbage. Hence, by default, they only *work* in debug mode.
 
 
-If you actually want `T::type_script_ify()` (for TypeScriptify) available in your
+If you actually want `T::type_script_ify()` available in your
 release code then change your `Cargo.toml` file to:
 
 ```toml
@@ -298,7 +298,7 @@ println!("{}", S::type_script_ify());
 
 Serde attributes understood but *rejected*:
 
-* flatten (This will produce a panic). Probably will never be fixed.
+* `flatten` (this will produce a panic). Probably will never be fixed.
 
 All others are just ignored.
 
@@ -313,7 +313,7 @@ There are 2 ways to intervene to correct the
 typescript output.
 
 * `ts_as`: a rust path to another rust type
-  that this serializes like:
+  that this value serializes like:
 * `ts_type`: a *typescript* type that should be
 used.
 
@@ -578,8 +578,6 @@ enum Color {
 
 because serde_json will render `Color::Red` as the string `"Red"` instead of `Color.Red` (because JSON).
 
-TODO: What about `enum Color {Red = 0, Green = 1 , Blue= 2}`?
-
 Serde always seems to render `Result` (in json) as `{"Ok": T } | {"Err": E}` i.e as "External" so we do too.
 
 
@@ -608,7 +606,6 @@ At a certain point `typescript-definitions` just *assumes* that the token identi
 Complex paths are ignored `std::borrow::Cow` and `mycrate::mod::Cow` are the same to us. We're not going to re-implement the compiler to find out if they are *actually* different. A Cow is always "Clone on write".
 
 We can't reasonably obey serde attributes like "flatten" since we would need to find the *actual* Struct object (from somewhere) and query its fields.
-
 
 
 ## <a name='Credits'></a>Credits
