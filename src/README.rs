@@ -13,7 +13,7 @@ src="https://raw.githubusercontent.com/arabidopsis/typescript-definitions/master
 ![License](https://img.shields.io/crates/l/typescript-definitions.svg)
 
 
-**Good news everyone!** Version 0.1.9 introduces a feature gated option to
+**Good news everyone!** Version 0.1.10 introduces a feature gated option to
 generate typescript [type guards](https://www.typescriptlang.org/docs/handbook/advanced-types.html). Now you can:
 
 ```typescript
@@ -32,26 +32,26 @@ See [Type Guards](#type-guards) below.
 <!-- vscode-markdown-toc -->
 
 * [Motivation 🦀](#Motivation)
-    * [example:](#example:)
+	* [example:](#example:)
 * [Using `typescript-definitions`](#Usingtypescript-definitions)
-    * [Getting the toolchains](#Gettingthetoolchains)
+	* [Getting the toolchains](#Gettingthetoolchains)
 * [Using `type_script_ify`](#Usingtype_script_ify)
 * [Features](#Features)
 * [Serde attributes.](#Serdeattributes.)
 * [typescript-definition attributes](#typescript-definitionattributes)
 * [Type Guards](#TypeGuards)
 * [Limitations](#Limitations)
-    * [Limitations of JSON](#LimitationsofJSON)
-    * [Limitations of Generics](#LimitationsofGenerics)
+	* [Limitations of JSON](#LimitationsofJSON)
+	* [Limitations of Generics](#LimitationsofGenerics)
 * [Examples](#Examples)
 * [Problems](#Problems)
 * [Credits](#Credits)
 * [License](#License)
 
 <!-- vscode-markdown-toc-config
-    numbering=false
-    autoSave=true
-    /vscode-markdown-toc-config -->
+	numbering=false
+	autoSave=true
+	/vscode-markdown-toc-config -->
 <!-- /vscode-markdown-toc -->
 
 
@@ -351,7 +351,7 @@ type.
 To enable them change your dependency to:
 
 ```toml
-typescript-definitions = { version="^0.1.9", features=["type-guards"] }
+typescript-definitions = { version="^0.1.10", features=["type-guards"] }
 ```
 
 With the feature *on* you can turn guard generation *off* for any struct/enum with the
@@ -423,7 +423,7 @@ let v : IntMap = { intmap: {  "6": 6, 4: 4 } };
 So the generated guard also checks for integer keys with `(+key !== NaN)`.
 
 You can short circuit any field with some attribute
-markup
+markup 
 
 * `ts_type` specify the serialization.
 * `ts_guard`: verify the type as if it was this
@@ -454,7 +454,7 @@ pub struct DependsOnValue {
 }
 ```
 Since the monomorphization of `Value` in `DependsOnValue` is one of
-`number`, `string` or `boolean`.
+`number`, `string` or `boolean`. 
 
 Beyond this you will have to write your own guards e.g.:
 
@@ -481,7 +481,7 @@ for generic type `value: T` yourself. viz:
 const isT = <T>(o: any, typename: string): o is T => {
     // typename is the stringified type that we are
     // expecting e.g. `number` or `{a: number, b: string}[]` etc.
-    //
+    // 
     if (typename !== "number[]") return false;
     if (!Array.isArray(o)) return false;
     for (let v of o) {

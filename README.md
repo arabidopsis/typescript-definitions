@@ -12,7 +12,7 @@ src="https://raw.githubusercontent.com/arabidopsis/typescript-definitions/master
 ![License](https://img.shields.io/crates/l/typescript-definitions.svg)
 
 
-**Good news everyone!** Version 0.1.9 introduces a feature gated option to
+**Good news everyone!** Version 0.1.10 introduces a feature gated option to
 generate typescript [type guards](https://www.typescriptlang.org/docs/handbook/advanced-types.html). Now you can:
 
 ```typescript
@@ -350,7 +350,7 @@ type.
 To enable them change your dependency to:
 
 ```toml
-typescript-definitions = { version="^0.1.9", features=["type-guards"] }
+typescript-definitions = { version="^0.1.10", features=["type-guards"] }
 ```
 
 With the feature *on* you can turn guard generation *off* for any struct/enum with the
