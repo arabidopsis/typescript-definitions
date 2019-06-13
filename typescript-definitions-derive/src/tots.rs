@@ -37,7 +37,7 @@ impl<'a> FieldContext<'a> {
                 let k = to_ts(&ts.args[0]);
                 let v = to_ts(&ts.args[1]);
                 // quote!(Map<#k,#v>)
-                quote!( { [key: #k]:#v } )
+                quote!( { [key in #k]:#v } )
             }
             "HashSet" | "BTreeSet" if ts.args.len() == 1 => {
                 let k = to_ts(&ts.args[0]);

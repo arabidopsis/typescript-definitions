@@ -40,7 +40,7 @@ fn untagged_enum() {
         Untagged::type_script_ify(),
         @r###"export type Untagged = 
  | { id: number; attr: string } 
- | { id: number; attr2: string[] };"###
+ | { id: number; attr2: string[] }"###
 
     )
 }
@@ -59,7 +59,7 @@ fn external_enum() {
         @r###"// Has documentation.
 export type External = 
  | { V1: { id: number; attr: string } } 
- | { V2: { id: number; attr2: string[] } };"###
+ | { V2: { id: number; attr2: string[] } }"###
     )
 }
 
@@ -77,7 +77,7 @@ fn where_clause_ok() {
 
     assert_snapshot_matches!(
         Where::<i32>::type_script_ify(),
-        @"export type Where<T> = { a: number; b: T };"
+        @"export type Where<T> = { a: number; b: T }"
 
     )
 }
@@ -97,7 +97,7 @@ fn fullpath_chrono() {
 
     assert_snapshot_matches!(
         Where::<i32>::type_script_ify(),
-        @"export type Where<T> = { datetime: string; b: T };"
+        @"export type Where<T> = { datetime: string; b: T }"
 
     )
 }
@@ -111,7 +111,7 @@ fn check_ts_as() {
 
     assert_snapshot_matches!(
         Sub::type_script_ify(),
-        @"export type Sub = { b: number[] };"
+        @"export type Sub = { b: number[] }"
 
     );
 }

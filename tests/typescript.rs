@@ -4,7 +4,6 @@ use typescript_definitions::{TypeScriptify, TypeScriptifyTrait, TypescriptDefini
 
 use serde::Serialize;
 use std::borrow::Cow;
-// use serde::de::value::Error;
 
 use insta::assert_snapshot_matches;
 use wasm_bindgen::prelude::*;
@@ -15,7 +14,7 @@ fn unit_struct() {
     #[derive(Serialize, TypescriptDefinition)]
     struct Unit;
 
-    assert_snapshot_matches!(Unit___typescript_definition(),@"export type Unit = {};")
+    assert_snapshot_matches!(Unit___typescript_definition(),@"export type Unit = {}")
 }
 #[cfg(feature = "test")]
 #[test]
@@ -25,7 +24,7 @@ fn newtype_struct() {
 
     assert_snapshot_matches!(
         Newtype___typescript_definition(),
-        @"export type Newtype = number;"
+        @"export type Newtype = number"
     )
 }
 #[cfg(feature = "test")]
@@ -36,7 +35,7 @@ fn tuple_struct() {
 
     assert_snapshot_matches!(
         Tuple___typescript_definition(),
-        @"export type Tuple = [ number , string ];"
+        @"export type Tuple = [ number , string ]"
     )
 }
 #[cfg(feature = "test")]
@@ -50,7 +49,7 @@ fn struct_with_borrowed_fields() {
 
     assert_snapshot_matches!(
         Borrow___typescript_definition(),
-        @"export type Borrow = { raw: string; cow: string };"
+        @"export type Borrow = { raw: string; cow: string }"
     )
 }
 #[cfg(feature = "test")]
@@ -66,7 +65,7 @@ fn struct_point_with_field_rename() {
 
     assert_snapshot_matches!(
         Point___typescript_definition(),
-        @"export type Point = { X: number; Y: number };"
+        @"export type Point = { X: number; Y: number }"
 
     )
 }
@@ -82,7 +81,7 @@ fn struct_with_array() {
 
     assert_snapshot_matches!(
         Point___typescript_definition(),
-        @"export type Point = { x: number[]; y: number; z: number | null };"
+        @"export type Point = { x: number[]; y: number; z: number | null }"
 
     )
 }
@@ -101,7 +100,7 @@ fn struct_with_tuple() {
 
     assert_snapshot_matches!(
         Point2___typescript_definition(),
-        @"export type Point2 = { x: [ number , string , number[] ]; y: number; v: number[]; z: { [ key: string ]: number } };"
+        @"export type Point2 = { x: [ number , string , number[] ]; y: number; v: number[]; z: { [ key: string ]: number } }"
 
     )
 }
@@ -126,7 +125,7 @@ fn enum_with_renamed_newtype_variants() {
         @r###"export type Enum = 
  | { kind: "Var1"; fields: boolean } 
  | { kind: "Var2"; fields: number } 
- | { kind: "Var3"; fields: string };"###
+ | { kind: "Var3"; fields: string }"###
 
     )
 }
@@ -142,7 +141,7 @@ fn enum_with_unit_variants() {
 
     assert_snapshot_matches!(
         Enum___typescript_definition(),
-        @r###"export enum Enum { V1 = "V1" , V2 = "V2" , V3 = "V3" };"###
+        @r###"export enum Enum { V1 = "V1" , V2 = "V2" , V3 = "V3" }"###
     )
 }
 #[cfg(feature = "test")]
@@ -161,7 +160,7 @@ fn enum_with_tuple_variants() {
         @r###"export type Enum = 
  | { kind: "V1"; fields: [ number , string ] } 
  | { kind: "V2"; fields: [ number , boolean ] } 
- | { kind: "V3"; fields: [ number , number ] };"###
+ | { kind: "V3"; fields: [ number , number ] }"###
     )
 }
 #[cfg(feature = "test")]
@@ -194,7 +193,7 @@ fn enum_with_struct_variants_and_renamed_fields() {
         @r###"export type Enum = 
  | { kind: "V1"; Foo: boolean } 
  | { kind: "V2"; Bar: number; Baz: number } 
- | { kind: "V3"; Quux: string };"###
+ | { kind: "V3"; Quux: string }"###
 
     )
 }
@@ -214,7 +213,7 @@ fn enum_with_struct_and_tags() {
         @r###"export type Enum = 
  | { id: "V1"; content: { foo: boolean } } 
  | { id: "V2"; content: { bar: number; baz: number } } 
- | { id: "V3"; content: { quux: string } };"###
+ | { id: "V3"; content: { quux: string } }"###
 
     )
 }
@@ -236,7 +235,7 @@ fn struct_with_attr_refering_to_other_type() {
     }
     assert_snapshot_matches!(
         A___typescript_definition(),
-        @"export type A = { x: number; b: B<number>; cnew: { Ok: number } | { Err: string }; d: { Ok: number | null } | { Err: string } };"
+        @"export type A = { x: number; b: B<number>; cnew: { Ok: number } | { Err: string }; d: { Ok: number | null } | { Err: string } }"
     )
 }
 
@@ -250,7 +249,7 @@ fn struct_typescriptify() {
     }
     assert_snapshot_matches!(
         A::type_script_ify(),
-        @"export type A = { x: number; c: { Ok: number } | { Err: string }; d: { Ok: number | null } | { Err: string } };"
+        @"export type A = { x: number; c: { Ok: number } | { Err: string }; d: { Ok: number | null } | { Err: string } }"
     )
 }
 
@@ -265,7 +264,7 @@ fn cow_as_pig() {
     }
     assert_snapshot_matches!(
         S::type_script_ify(),
-        @"export type S = { pig: Pig<string>; cow: string };"
+        @"export type S = { pig: Pig<string>; cow: string }"
     )
 }
 
@@ -279,7 +278,7 @@ fn unit_enum_is_enum() {
     }
     assert_snapshot_matches!(
         Color::type_script_ify(),
-        @r###"export enum Color { Red = "Red" , Green = "Green" , Blue = "Blue" };"###
+        @r###"export enum Color { Red = "Red" , Green = "Green" , Blue = "Blue" }"###
 
     )
 }
@@ -291,11 +290,11 @@ fn struct_has_function() {
         key: i32,
         a: T,
         get: fn(arg: &i32) -> String,
-        get2: Fn(T, i32) -> Option<i32>,
+        get2: dyn Fn(T, i32) -> Option<i32>,
     }
     assert_snapshot_matches!(
         API::<i32>::type_script_ify(),
-        @"export type API<T> = { key: number; a: T; get: ( arg: number ) => string; get2: ( T , number ) => number | null };"
+        @"export type API<T> = { key: number; a: T; get: ( arg: number ) => string; get2: ( T , number ) => number | null }"
     )
 }
 
@@ -310,7 +309,7 @@ fn struct_with_traitbounds() {
     }
     assert_snapshot_matches!(
         API::<i32>::type_script_ify(),
-        @"export type API<T> = { key: number; a: T };"
+        @"export type API<T> = { key: number; a: T }"
 
     )
 }
@@ -325,7 +324,7 @@ fn struct_with_serde_skip() {
     }
     assert_snapshot_matches!(
         S::type_script_ify(),
-        @"export type S = { key: number; aa: number };"
+        @"export type S = { key: number; aa: number }"
 
 
     )
@@ -351,7 +350,7 @@ fn enum_with_serde_skip() {
         @r###"export type S = 
  | { kind: "A" } 
  | { kind: "E"; fields: { key: number; a: number } } 
- | { kind: "F"; fields: [ number , string ] };"###
+ | { kind: "F"; fields: [ number , string ] }"###
     )
 }
 
@@ -367,7 +366,7 @@ fn struct_with_phantom_data_skip() {
     }
     assert_snapshot_matches!(
         S::type_script_ify(),
-        @"export type S = { key: number; a: number };"
+        @"export type S = { key: number; a: number }"
     )
 }
 #[cfg(feature = "test")]
@@ -388,7 +387,7 @@ fn struct_with_pointers_and_slices() {
         Pointers___typescript_definition(),
         @r###"// This is a doc comment
 // on multiple lines.
-export type Pointers = { keys: string[]; buffer: number[]; buffer2: number[] };"###
+export type Pointers = { keys: string[]; buffer: number[]; buffer2: number[] }"###
 
     )
 }
@@ -403,7 +402,7 @@ fn struct_with_one_field_is_transparent() {
 
     assert_snapshot_matches!(
         One___typescript_definition(),
-        @"export type One = number;"
+        @"export type One = number"
 
     )
 }
@@ -421,7 +420,7 @@ fn struct_with_two_fields_is_transparent_with_skip() {
 
     assert_snapshot_matches!(
         TwoSkip___typescript_definition(),
-        @"export type TwoSkip = number;"
+        @"export type TwoSkip = number"
 
     )
 }

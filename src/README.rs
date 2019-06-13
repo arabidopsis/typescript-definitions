@@ -214,7 +214,7 @@ fn main() {
 
         println!("{}", MyStruct::type_script_ify());
     };
-    // prints "export type MyStruct = { v: number };"
+    // prints "export type MyStruct = { v: number }"
 }
 ```
 Use the cfg macro To protect any use of `type_script_ify()` if you need to.
@@ -512,7 +512,7 @@ struct Event {
 
 assert_eq!(Event::type_script_ify(), "\
 // This is some API Event.
-export type Event = { what: string; pos: [ number , number ][] };"
+export type Event = { what: string; pos: [ number , number ][] }"
 )
 ```
 
