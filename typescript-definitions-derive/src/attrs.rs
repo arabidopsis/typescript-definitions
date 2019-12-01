@@ -12,7 +12,7 @@ use quote::quote;
 use proc_macro2::TokenStream;
 use syn::{Attribute, Ident, Lit, Meta, /* MetaList,*/ MetaNameValue, NestedMeta};
 
-#[derive(Debug)]
+#[cfg_attr(feature = "syn-extra-traits", derive(Debug))]
 pub struct Attrs {
     pub comments: Vec<String>,
     pub guard: bool,
@@ -47,8 +47,7 @@ impl Attrs {
             only_first: false,
             ts_type: None,
             ts_guard: None,
-            ts_as : None
-            // isa: HashMap::new(),
+            ts_as: None, // isa: HashMap::new(),
         }
     }
     pub fn push_doc_comment(&mut self, attrs: &[Attribute]) {
