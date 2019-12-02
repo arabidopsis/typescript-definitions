@@ -35,4 +35,4 @@ insta = "0.6.2"
 export-typescript = []
 test = []
 type-guards = []
-
+syn-extra-traits = ["syn/extra-traits"]
