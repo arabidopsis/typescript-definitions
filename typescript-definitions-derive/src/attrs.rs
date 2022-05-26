@@ -114,7 +114,7 @@ impl Attrs {
         if let Some(ctxt) = ctxt {
             ctxt.error(msg);
         } else {
-            panic!(msg)
+            panic!("{}", msg)
         };
     }
     pub fn find_typescript<'a>(

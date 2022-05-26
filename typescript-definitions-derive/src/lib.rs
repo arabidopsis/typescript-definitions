@@ -354,7 +354,7 @@ impl Typescriptify {
 
         // consumes context panics with errors
         if let Err(m) = cx.check() {
-            panic!(m);
+            panic!("{}", m);
         }
         Self {
             ctxt,
@@ -510,7 +510,7 @@ impl<'a> ParseContext<'a> {
         if let Some(ctxt) = self.ctxt {
             ctxt.error(msg);
         } else {
-            panic!(msg.to_string())
+            panic!("{}", msg)
         }
     }
 
