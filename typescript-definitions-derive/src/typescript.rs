@@ -110,11 +110,11 @@ impl Typescript {
             content.push(match u.as_rule() {
                 Rule::union => {
                     is_union = true;
-                    let (q, n) = self.parse_union(&obj, u)?;
+                    let (q, n) = self.parse_union(obj, u)?;
                     size = n;
                     q
                 }
-                Rule::expr => self.parse_expr(&obj, u)?,
+                Rule::expr => self.parse_expr(obj, u)?,
 
                 _ => unreachable!(),
             })
@@ -356,7 +356,7 @@ impl Typescript {
         let val = self.pushvar();
         for expr in pair.into_inner() {
             match expr.as_rule() {
-                Rule::ident => keys.push(ident_from_str(&expr.as_str())),
+                Rule::ident => keys.push(ident_from_str(expr.as_str())),
                 Rule::expr => values.push(self.parse_expr(&val, expr)?),
                 _ => unreachable!(),
             }

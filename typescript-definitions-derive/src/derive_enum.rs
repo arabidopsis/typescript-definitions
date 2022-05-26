@@ -32,7 +32,7 @@ impl<'a> ParseContext<'_> {
             },
             EnumTag::Adjacent { tag, content, .. } => TagInfo {
                 tag: Some(tag),
-                content: Some(&content),
+                content: Some(content),
                 untagged: false,
             },
             EnumTag::External => TagInfo {
@@ -71,7 +71,7 @@ impl<'a> ParseContext<'_> {
                 .iter()
                 .map(|v| v.attrs.name().serialize_name()) // use serde name instead of v.ident
                 .collect::<Vec<_>>();
-            let k = v.iter().map(|v| ident_from_str(&v)).collect::<Vec<_>>();
+            let k = v.iter().map(|v| ident_from_str(v));
             let verify = if self.gen_guard {
                 let obj = &self.arg_name;
                 let o = (0..v.len()).map(|_| obj.clone());
@@ -191,7 +191,7 @@ impl<'a> ParseContext<'_> {
         if taginfo.tag.is_none() {
             if taginfo.untagged {
                 let verify = if self.gen_guard {
-                    let v = self.verify_type(&obj, field);
+                    let v = self.verify_type(obj, field);
 
                     Some(quote!( { #v; return true }))
                 } else {
@@ -234,7 +234,7 @@ impl<'a> ParseContext<'_> {
         let tag = ident_from_str(taginfo.tag.unwrap());
 
         let content = if let Some(content) = taginfo.content {
-            ident_from_str(&content)
+            ident_from_str(content)
         } else {
             ident_from_str(CONTENT) // should not get here...
         };
@@ -308,7 +308,7 @@ impl<'a> ParseContext<'_> {
             let tag = ident_from_str(&variant_name);
             let verify = if self.gen_guard {
                 let obj = &self.arg_name;
-                let verify = self.verify_fields(&v, &fields);
+                let verify = self.verify_fields(v, &fields);
                 Some(quote!(
                     {
                         const v = #obj.#tag;
@@ -332,7 +332,7 @@ impl<'a> ParseContext<'_> {
         let tag = ident_from_str(tag_str);
 
         if let Some(content) = taginfo.content {
-            let content = ident_from_str(&content);
+            let content = ident_from_str(content);
 
             let verify = if self.gen_guard {
                 let obj = &self.arg_name;
@@ -360,7 +360,7 @@ impl<'a> ParseContext<'_> {
                 is_enum: false,
             }
         } else {
-            if let Some(ref cx) = self.ctxt {
+            if let Some(cx) = self.ctxt {
                 let fnames = fields
                     .iter()
                     .map(|field| field.attrs.name().serialize_name())
@@ -375,7 +375,7 @@ impl<'a> ParseContext<'_> {
             };
             let verify = if self.gen_guard {
                 let obj = &self.arg_name;
-                let verify = self.verify_fields(&obj, &fields);
+                let verify = self.verify_fields(obj, &fields);
                 let eq = eq();
                 Some(quote!(
                 {
@@ -416,7 +416,7 @@ impl<'a> ParseContext<'_> {
             if taginfo.untagged {
                 let verify = if self.gen_guard {
                     let obj = &self.arg_name;
-                    let verify = self.verify_field_tuple(&obj, &fields);
+                    let verify = self.verify_field_tuple(obj, &fields);
                     let eq = eq();
                     let len = Literal::usize_unsuffixed(fields.len());
 
@@ -464,7 +464,7 @@ impl<'a> ParseContext<'_> {
 
         let tag = ident_from_str(taginfo.tag.unwrap());
         let content = if let Some(content) = taginfo.content {
-            ident_from_str(&content)
+            ident_from_str(content)
         } else {
             ident_from_str(CONTENT)
         };

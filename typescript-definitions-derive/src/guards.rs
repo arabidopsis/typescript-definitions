@@ -61,7 +61,7 @@ impl<'a> FieldContext<'a> {
                 )
             }
 
-            Path(TypePath { path, .. }) => match last_path_element(&path) {
+            Path(TypePath { path, .. }) => match last_path_element(path) {
                 Some(ref ts) => self.verify_generic(obj, ts),
                 _ => quote! {},
             },
@@ -76,7 +76,7 @@ impl<'a> FieldContext<'a> {
     }
     fn verify_array(&self, obj: &'a TokenStream, elem: &syn::Type) -> QuoteT {
         if let Some(ty) = self.get_path(elem) {
-            if ty.ident == "u8" && is_bytes(&self.field) {
+            if ty.ident == "u8" && is_bytes(self.field) {
                 let eq = eq();
                 return quote!(if (! (typeof #obj #eq "string")) return false);
             };
@@ -205,7 +205,7 @@ impl<'a> FieldContext<'a> {
             Some((t, _)) => *t == *ident,
             None => false,
         });
-        let func = guard_name(&ident);
+        let func = guard_name(ident);
 
         let (func, gen_params): (TokenStream, TokenStream) = if is_generic {
             (quote!(#func), quote!(<#ident>))
@@ -228,7 +228,7 @@ impl<'a> FieldContext<'a> {
             let a = args.clone();
             let a = quote!(#(#a),*).to_string();
             let a = a.trim();
-            let a = Literal::string(&a);
+            let a = Literal::string(a);
             quote! { if (!#func#gen_params<#(#args),*>(#obj, #a)) return false; }
         } else if is_generic {
             let eq = eq();
@@ -270,9 +270,9 @@ impl<'a> FieldContext<'a> {
             return self.ts_guard(obj, s);
         };
         if let Some(ref ty) = self.attrs.ts_as {
-            return self.verify_type(obj, ty);
+            self.verify_type(obj, ty)
         } else {
-            self.verify_type(obj, &self.field.ty)
+            self.verify_type(obj, self.field.ty)
         }
     }
     fn ts_guard(&self, obj: &'a TokenStream, guard: &'a str) -> QuoteT {
@@ -294,7 +294,7 @@ impl<'a> ParseContext<'a> {
         let verify = FieldContext {
             attrs,
             field,
-            ctxt: &self,
+            ctxt: self,
         };
         verify.verify_single_type(obj)
     }
@@ -304,7 +304,7 @@ impl<'a> ParseContext<'a> {
         let verify = FieldContext {
             attrs,
             field,
-            ctxt: &self,
+            ctxt: self,
         };
         verify.verify_field(obj)
     }

@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 /*!
 <div style="float:right; padding-left:2em;">
 <img

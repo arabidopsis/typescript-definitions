@@ -50,9 +50,8 @@ struct QuoteMaker {
 #[allow(unused)]
 fn is_wasm32() -> bool {
     use std::env;
-    match env::var("WASM32") {
-        Ok(ref v) => return v == "1",
-        _ => {}
+    if let Ok(ref v) = env::var("WASM32") {
+        return v == "1";
     }
     let mut t = env::args().skip_while(|t| t != "--target").skip(1);
     if let Some(target) = t.next() {
@@ -223,7 +222,7 @@ impl Typescriptify {
                     let generics = self.ts_generics(false);
                     let generics_wb = &generics; // self.ts_generics(true);
                     let is_generic = !self.ctxt.ts_generics.is_empty();
-                    let name = guard_name(&ident);
+                    let name = guard_name(ident);
                     if is_generic {
                         format!(
                             "export const {name} = {generics_wb}({obj}: any, typename: string): \
@@ -378,8 +377,7 @@ fn ts_generics(g: &syn::Generics) -> Vec<Option<(Ident, Bounds)>> {
                         TypeParamBound::Trait(t) => Some(&t.path),
                         _ => None, // skip lifetimes for bounds
                     })
-                    .map(last_path_element)
-                    .filter_map(|b| b)
+                    .filter_map(last_path_element)
                     .collect::<Vec<_>>();
 
                 Some((ty.ident.clone(), bounds))
@@ -482,7 +480,7 @@ impl<'a> FieldContext<'a> {
         use syn::Type::Path;
         use syn::TypePath;
         match ty {
-            Path(TypePath { path, .. }) => last_path_element(&path),
+            Path(TypePath { path, .. }) => last_path_element(path),
             _ => None,
         }
     }
@@ -527,13 +525,13 @@ impl<'a> ParseContext<'a> {
 
         let fc = FieldContext {
             attrs,
-            ctxt: &self,
+            ctxt: self,
             field,
         };
         if let Some(ref ty) = fc.attrs.ts_as {
             fc.type_to_ts(ty)
         } else {
-            fc.type_to_ts(&field.ty)
+            fc.type_to_ts(field.ty)
         }
     }
 
@@ -541,7 +539,7 @@ impl<'a> ParseContext<'a> {
         let field_name = field.attrs.name().serialize_name(); // use serde name instead of field.member
         let field_name = ident_from_str(&field_name);
 
-        let ty = self.field_to_ts(&field);
+        let ty = self.field_to_ts(field);
 
         quote! {
             #field_name: #ty

@@ -15,15 +15,16 @@ pub fn ident_from_str(s: &str) -> Ident {
 pub fn field_type_name(ty: &syn::Type) -> Option<String> {
     use syn::Type::Path;
     match ty {
-        Path(syn::TypePath { path, .. }) => match path.segments.last().map(|p| p.into_value()) {
-            Some(t) => Some(t.ident.to_string()),
-            _ => None,
-        },
+        Path(syn::TypePath { path, .. }) => path
+            .segments
+            .last()
+            .map(|p| p.into_value())
+            .map(|t| t.ident.to_string()),
         _ => None,
     }
 }
 
-pub fn is_bytes<'a>(field: &ast::Field<'a>) -> bool {
+pub fn is_bytes(field: &ast::Field<'_>) -> bool {
     // check for #[serde(with="serde_bytes")]
     use syn::ExprPath;
     if let Some(ExprPath { ref path, .. }) = field.attrs.serialize_with() {

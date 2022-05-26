@@ -109,7 +109,7 @@ impl Attrs {
             self.comments.join("\n") + "\n" // <-- need better way!
         }
     }
-    fn err_msg<'a>(&self, msg: String, ctxt: Option<&'a Ctxt>) {
+    fn err_msg(&self, msg: String, ctxt: Option<&'_ Ctxt>) {
         if let Some(ctxt) = ctxt {
             ctxt.error(msg);
         } else {
@@ -164,7 +164,7 @@ impl Attrs {
         use Lit::*;
         // use NestedMeta::*;
 
-        for attr in Self::find_typescript(&attrs, ctxt) {
+        for attr in Self::find_typescript(attrs, ctxt) {
             match attr {
                 NameValue(MetaNameValue {
                     ref ident,
@@ -242,7 +242,7 @@ impl Attrs {
         use Lit::*;
         // use NestedMeta::*;
 
-        for attr in Self::find_typescript(&attrs, ctxt) {
+        for attr in Self::find_typescript(attrs, ctxt) {
             match attr {
                 NameValue(MetaNameValue {
                     ref ident,

@@ -12,7 +12,6 @@ use proc_macro2::Ident;
 use quote::quote;
 
 impl<'a> FieldContext<'a> {
-    #[allow(clippy::cyclomatic_complexity)]
     fn generic_to_ts(&self, ts: &TSType) -> QuoteT {
         let to_ts = |ty: &syn::Type| self.type_to_ts(ty);
         let name = ts.ident.to_string();
@@ -90,7 +89,7 @@ impl<'a> FieldContext<'a> {
         // check for [u8] or Vec<u8>
 
         if let Some(ty) = self.get_path(elem) {
-            if ty.ident == "u8" && is_bytes(&self.field) {
+            if ty.ident == "u8" && is_bytes(self.field) {
                 return quote!(string);
             };
         };
@@ -139,7 +138,7 @@ impl<'a> FieldContext<'a> {
 
                 // let typs = typs.iter().map(|ty| self.type_to_ts(ty));
                 let typs = self.derive_syn_types_ptr(&typs);
-                if let Some(ref rt) = return_type(&output) {
+                if let Some(ref rt) = return_type(output) {
                     let rt = self.type_to_ts(rt);
                     quote! { ( #(#args: #typs),* ) => #rt }
                 } else {
@@ -152,7 +151,7 @@ impl<'a> FieldContext<'a> {
                 quote!([ #(#elems),* ])
             }
 
-            Path(TypePath { path, .. }) => match last_path_element(&path) {
+            Path(TypePath { path, .. }) => match last_path_element(path) {
                 Some(ref ts) => self.generic_to_ts(ts),
                 _ => quote! { any },
             },

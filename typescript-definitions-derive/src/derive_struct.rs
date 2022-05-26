@@ -76,14 +76,14 @@ impl<'a> ParseContext<'_> {
         };
 
         if fields.len() == 1 && ast_container.attrs.transparent() {
-            return self.derive_struct_newtype(&fields[0], ast_container);
+            return self.derive_struct_newtype(fields[0], ast_container);
         };
         self.check_flatten(&fields, ast_container);
         let content = self.derive_fields(&fields);
 
         let verify = if self.gen_guard {
             let obj = &self.arg_name;
-            let v = self.verify_fields(&obj, &fields);
+            let v = self.verify_fields(obj, &fields);
             let n = fields.len();
             let l = nl();
             let nl = (0..n).map(|_| quote!(#l));
@@ -110,13 +110,13 @@ impl<'a> ParseContext<'_> {
         }
 
         if fields.len() == 1 && ast_container.attrs.transparent() {
-            return self.derive_struct_newtype(&fields[0], ast_container);
+            return self.derive_struct_newtype(fields[0], ast_container);
         };
         self.check_flatten(&fields, ast_container);
         let content = self.derive_field_tuple(&fields);
         let verify = if self.gen_guard {
             let obj = &self.arg_name;
-            let verify = self.verify_field_tuple(&obj, &fields);
+            let verify = self.verify_field_tuple(obj, &fields);
             let eq = eq();
             let len = Literal::usize_unsuffixed(fields.len());
 
