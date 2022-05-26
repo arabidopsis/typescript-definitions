@@ -63,13 +63,10 @@ fn is_wasm32() -> bool {
     false
 }
 
-/// derive proc_macro to expose Typescript definitions to `wasm-bindgen`.
-///
-/// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
-///
 cfg_if! {
     if #[cfg(any(debug_assertions, feature = "export-typescript"))] {
 
+        /// derive proc_macro to expose Typescript definitions to `wasm-bindgen`.
         #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
         pub fn derive_typescript_definition(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
@@ -82,6 +79,7 @@ cfg_if! {
         }
     } else {
 
+        /// derive proc_macro to expose Typescript definitions to `wasm-bindgen`.
         #[proc_macro_derive(TypescriptDefinition, attributes(ts))]
         pub fn derive_typescript_definition(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             proc_macro::TokenStream::new()
@@ -89,13 +87,10 @@ cfg_if! {
     }
 }
 
-/// derive proc_macro to expose Typescript definitions as a static function.
-///
-/// Please see documentation at [crates.io](https://crates.io/crates/typescript-definitions).
-///
 cfg_if! {
     if #[cfg(any(debug_assertions, feature = "export-typescript"))] {
 
+        /// derive proc_macro to expose Typescript definitions as a static function.
         #[proc_macro_derive(TypeScriptify, attributes(ts))]
         pub fn derive_type_script_ify(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let input = QuoteT::from(input);
@@ -104,6 +99,7 @@ cfg_if! {
         }
     } else {
 
+        /// derive proc_macro to expose Typescript definitions as a static function.
         #[proc_macro_derive(TypeScriptify, attributes(ts))]
         pub fn derive_type_script_ify(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             proc_macro::TokenStream::new()
