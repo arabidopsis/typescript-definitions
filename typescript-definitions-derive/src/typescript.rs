@@ -423,5 +423,4 @@ mod parser {
             Err(msg) => assert!(false, msg),
         }
     }
-
 }

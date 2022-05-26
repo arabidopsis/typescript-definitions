@@ -47,8 +47,7 @@ impl Attrs {
             only_first: false,
             ts_type: None,
             ts_guard: None,
-            ts_as : None
-            // isa: HashMap::new(),
+            ts_as: None, // isa: HashMap::new(),
         }
     }
     pub fn push_doc_comment(&mut self, attrs: &[Attribute]) {

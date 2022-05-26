@@ -38,7 +38,7 @@ fn untagged_enum() {
 
     assert_snapshot_matches!(
         Untagged::type_script_ify(),
-        @r###"export type Untagged = 
+        @r###"export type Untagged =
  | { id: number; attr: string } 
  | { id: number; attr2: string[] };"###
 

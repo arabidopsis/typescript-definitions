@@ -123,7 +123,7 @@ fn enum_with_renamed_newtype_variants() {
 
     assert_snapshot_matches!(
         Enum___typescript_definition(),
-        @r###"export type Enum = 
+        @r###"export type Enum =
  | { kind: "Var1"; fields: boolean } 
  | { kind: "Var2"; fields: number } 
  | { kind: "Var3"; fields: string };"###
@@ -158,7 +158,7 @@ fn enum_with_tuple_variants() {
 
     assert_snapshot_matches!(
     Enum___typescript_definition(),
-        @r###"export type Enum = 
+        @r###"export type Enum =
  | { kind: "V1"; fields: [ number , string ] } 
  | { kind: "V2"; fields: [ number , boolean ] } 
  | { kind: "V3"; fields: [ number , number ] };"###
@@ -191,7 +191,7 @@ fn enum_with_struct_variants_and_renamed_fields() {
 
     assert_snapshot_matches!(
         Enum___typescript_definition(),
-        @r###"export type Enum = 
+        @r###"export type Enum =
  | { kind: "V1"; Foo: boolean } 
  | { kind: "V2"; Bar: number; Baz: number } 
  | { kind: "V3"; Quux: string };"###
@@ -211,7 +211,7 @@ fn enum_with_struct_and_tags() {
 
     assert_snapshot_matches!(
         Enum___typescript_definition(),
-        @r###"export type Enum = 
+        @r###"export type Enum =
  | { id: "V1"; content: { foo: boolean } } 
  | { id: "V2"; content: { bar: number; baz: number } } 
  | { id: "V3"; content: { quux: string } };"###
@@ -348,7 +348,7 @@ fn enum_with_serde_skip() {
     }
     assert_snapshot_matches!(
     S::type_script_ify(),
-        @r###"export type S = 
+        @r###"export type S =
  | { kind: "A" } 
  | { kind: "E"; fields: { key: number; a: number } } 
  | { kind: "F"; fields: [ number , string ] };"###
